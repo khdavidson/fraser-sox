@@ -1,2 +1,2 @@
 # fraser-sox
-repo for fraser sockeye
+repository for fraser sockeye analyses
