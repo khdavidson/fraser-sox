@@ -1,5 +1,8 @@
-# HELLO!
+
+# ALLO BONJOUR! 
+
 # Here is some code to replicate the "Inseason_reporting" tab in Excel sonar tools
+# changes are committed to khdavidson/fraser-sox/sonar_inseason repo
 
 ###############################
 # STEPS PRECEDING THIS SCRIPT #
@@ -15,22 +18,22 @@
 # SET UP #
 ##########
 
-# Load libraries to use
+# load libraries to use
 library(dplyr)
 library(tidyr)
 library(ggplot2)
 
-# Set working directory where .csv data file is stored. This will vary by computer.
+# set working directory where .csv data file is stored. This will vary by computer.
 setwd("~/Data/Sonar")
 
-# Read in data 
-headers <- read.csv("Stellako Sonar_2018.csv", skip=4, header=F, nrows=1, as.is=T)    # Extract 5th row which will be our headers and remove other garbage header info
-raw = read.csv("Stellako Sonar_2018.csv", skip = 5, header = F)                       # Extract just data
-colnames(raw)= headers                                                                # Apply headers (extracted above) to dataframe. This method preserves row numbering and doesn't retain garbage info                                # apply character top row as column headers 
+# read in COUNT data 
+c.headers <- read.csv("Stellako Sonar_2018_COUNT.csv", skip=4, header=F, nrows=1, as.is=T)    # extract 5th row which will be our headers and remove other garbage header info
+c.raw <- read.csv("Stellako Sonar_2018_COUNT.csv", skip = 5, header = F)                             # extract just data
+colnames(c.raw) <- c.headers                                                                      # apply headers (extracted above) to dataframe. This method preserves row numbering and doesn't retain garbage info                                # apply character top row as column headers 
 
-# Reformat dataframe 
-raw <- raw[,-c(13:18)]                                                                # Removes extra NA columns
-raw <- raw %>%                                                                        # Rename columns to be more R friendly
+# reformat COUNT dataframe 
+c.raw <- c.raw[,-c(13:18)]                                                                # removes extra NA columns
+c.raw <- c.raw %>%                                                                        # rename columns to be more R friendly
   rename(bank = Bank,
          observer = Observer,
          date = Date,
@@ -43,14 +46,56 @@ raw <- raw %>%                                                                  
          ch_ds = CH_ds,
          count_number = `Obs Count #`,
          comments = Comments) %>%
-  mutate(date = lubridate::dmy(date)) %>%                                                 # Reformat date
-  mutate_at(vars(c(4, 9, 10)), funs(as.numeric))                                          # Reformat some integers to be numeric
+  mutate(date = lubridate::dmy(date)) %>%                                                 # reformat date
+  mutate_at(vars(c(4, 9, 10)), funs(as.numeric))                                          # reformat some integers to be numeric
 
-# Re-arrange for easy visualizaton 
-raw <- raw %>%
-  arrange(date, count_hr_24)
+# re-arrange COUNT data for easy visualizaton 
+c.raw <- c.raw %>%
+  arrange(date, count_hr_24)                                                              # ordered by date, and then count hour (1-24)
 
 
+# read in ENV data  
+e.headers <- read.csv("Stellako Sonar_2018_ENV.csv", skip=2, header=F, nrows=1, as.is=T)          # extract 2nd row which will be our headers and remove other garbage header info
+e.raw = read.csv("Stellako Sonar_2018_ENV.csv", skip = 3, header = F)                             # extract just data
+colnames(e.raw) = e.headers                                                                       # apply headers (extracted above) to dataframe. This method preserves row numbering and doesn't retain garbage info                                # apply character top row as column headers 
+
+# reformat ENV dataframe 
+e.raw <- e.raw %>%                                                                           # rename columns to be more R friendly
+  rename(date = `Date (dd/mm/yy)`,
+         observer_1 = Observer1, 
+         observer_2 = Column1,
+         tod = Column2,
+         gauge_m = `Gauge (m)`,
+         bankfull_p = `%Bankfull`,
+         brightness = Brightness,
+         cloud_p = `%Cloudy`,
+         precip_type = PrecType,
+         precip_int = PrecInt,
+         fish_vis = FishVis,
+         water_temp = WTemp,
+         water_clarity = WClarity) %>%
+  filter(date != "", date != "**sonar pulled 0820 Oct 2, 2018") %>%
+  mutate(date = lubridate::dmy(date)) %>%                                                    # reformat date
+  mutate_at(vars(c(5, 12)), funs(as.character)) %>%                                          # reformat some integers to be numeric
+  mutate_at(vars(c(5, 12)), funs(as.numeric))
+  
+
+
+
+
+#######################
+# PRELIM CALCULATIONS #
+#######################
+
+# calculate net u/s movement
+c.raw$sox_us_net <- c.raw$sox_us - c.raw$sox_ds
+
+# calculate average count for cases with >2 counts 
+c.raw.avg <- c.raw %>%
+  select(c(1:13)) %>%
+  group_by(bank, date, count_hr_24) %>% 
+  summarize(avg_net = mean(sox_us_net)) %>% 
+  print(c.raw.avg)
 
 
 
