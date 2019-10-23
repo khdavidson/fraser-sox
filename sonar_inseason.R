@@ -28,12 +28,12 @@ setwd("~/Data/Sonar")
 
 # read in COUNT data 
 c.headers <- read.csv("Stellako Sonar_2018_COUNT.csv", skip=4, header=F, nrows=1, as.is=T)    # extract 5th row which will be our headers and remove other garbage header info
-c.raw <- read.csv("Stellako Sonar_2018_COUNT.csv", skip = 5, header = F)                             # extract just data
-colnames(c.raw) <- c.headers                                                                      # apply headers (extracted above) to dataframe. This method preserves row numbering and doesn't retain garbage info                                # apply character top row as column headers 
+counts <- read.csv("Stellako Sonar_2018_COUNT.csv", skip = 5, header = F)                             # extract just data
+colnames(counts) <- c.headers                                                                      # apply headers (extracted above) to dataframe. This method preserves row numbering and doesn't retain garbage info                                # apply character top row as column headers 
 
 # reformat COUNT dataframe 
-c.raw <- c.raw[,-c(13:18)]                                                                # removes extra NA columns
-c.raw <- c.raw %>%                                                                        # rename columns to be more R friendly
+counts <- counts[,-c(13:18)]                                                                # removes extra NA columns
+counts <- counts %>%                                                                        # rename columns to be more R friendly
   rename(bank = Bank,
          observer = Observer,
          date = Date,
@@ -49,18 +49,19 @@ c.raw <- c.raw %>%                                                              
   mutate(date = lubridate::dmy(date)) %>%                                                 # reformat date
   mutate_at(vars(c(4, 9, 10)), funs(as.numeric))                                          # reformat some integers to be numeric
 
-# re-arrange COUNT data for easy visualizaton 
-c.raw <- c.raw %>%
-  arrange(date, count_hr_24)                                                              # ordered by date, and then count hour (1-24)
+# re-arrange COUNT data for easy visualizaton, remove the one training count 
+counts <- counts %>%
+  arrange(date, count_hr_24) %>%                                                             # ordered by date, and then count hour (1-24)
+  filter(count_number != "NA")
 
 
 # read in ENV data  
 e.headers <- read.csv("Stellako Sonar_2018_ENV.csv", skip=2, header=F, nrows=1, as.is=T)          # extract 2nd row which will be our headers and remove other garbage header info
-e.raw = read.csv("Stellako Sonar_2018_ENV.csv", skip = 3, header = F)                             # extract just data
-colnames(e.raw) = e.headers                                                                       # apply headers (extracted above) to dataframe. This method preserves row numbering and doesn't retain garbage info                                # apply character top row as column headers 
+enviro = read.csv("Stellako Sonar_2018_ENV.csv", skip = 3, header = F)                             # extract just data
+colnames(enviro) = e.headers                                                                       # apply headers (extracted above) to dataframe. This method preserves row numbering and doesn't retain garbage info                                # apply character top row as column headers 
 
 # reformat ENV dataframe 
-e.raw <- e.raw %>%                                                                           # rename columns to be more R friendly
+enviro <- enviro %>%                                                                           # rename columns to be more R friendly
   rename(date = `Date (dd/mm/yy)`,
          observer_1 = Observer1, 
          observer_2 = Column1,
@@ -81,21 +82,20 @@ e.raw <- e.raw %>%                                                              
   
 
 
-
-
 #######################
 # PRELIM CALCULATIONS #
 #######################
 
 # calculate net u/s movement
-c.raw$sox_us_net <- c.raw$sox_us - c.raw$sox_ds
+counts$sox_us_net <- counts$sox_us - counts$sox_ds
 
 # calculate average count for cases with >2 counts 
-c.raw.avg <- c.raw %>%
+counts.avg <- counts %>%
   select(c(1:13)) %>%
   group_by(bank, date, count_hr_24) %>% 
   summarize(avg_net = mean(sox_us_net)) %>% 
-  print(c.raw.avg)
+  print(counts.avg)
+
 
 
 ########################
@@ -103,22 +103,52 @@ c.raw.avg <- c.raw %>%
 ########################
 
 # summarize by date, expanded based on number of files counted 
-t0 <- c.raw.avg %>% 
+t0 <- counts.avg %>% 
   group_by(date) %>% 
-  summarize(total_us = sum(avg_net), n_files = n()) %>%
+  summarize(total_us = sum(avg_net, na.rm=T), n_files = n()) %>%
   mutate_at(vars(c(3)), funs(as.numeric)) %>%
   mutate(daily_net_exp = as.numeric(ifelse(n_files=="24", total_us*3,
                                 ifelse(n_files=="12", total_us*6,
                                        ifelse(n_files=="9", total_us*9, ""))))) %>%
   mutate_at(4, funs(round(.,0))) %>%
-  print(t1)
+  print(t0)
 
 # join with environmental data - recall enviro dataframe is 'e.raw'
-t1 <- left_join(t0, e.raw, by ='date')
+t1 <- left_join(t0, enviro, by ='date')
 
-  # omit unecessary columns and re-order remaining columns
-  t1 <- t1 %>%
-    select(-c(5:7, 9:14, 16), date, water_temp, gauge_m, n_files, daily_net_exp) 
+# omit unecessary columns and re-order remaining columns
+t1 <- t1 %>%
+  select(-c(5:7, 9:14, 16))%>%
+  select(date, water_temp, gauge_m, n_files, daily_net_exp) 
+
+
+
+
+
+
+#####################################################################################################################
+
+########################
+# DATA VERIFICATION/QC #
+########################
+
+# interobserver agreement - % agreement 
+counts.ioa.p <- counts %>%
+  spread(count_number, sox_us_net) %>% 
+  rename(count_1 = `1`,
+    count_2 = `2`,
+    count_3 = `3`,
+    count_4 = `4`) %>%
+  mutate(group.mean = (count_1+count_2+count_3+count_4)/(n(count_1,count_2,count_3,count_4, na.rm=T)))
+
+counts.ioa.p$group.mean <- (count_1+count_)
+  
+
+
+
+
+
+
 
 
 
