@@ -9,8 +9,8 @@
 ###############################
 
   # Obviously there were some steps taken before this. 
-  # First, export the 'Data entry' tab as-is, as a .csv. It is important you make no formatting changes, as the following code is based on cleaning and re-formatting that current format.
-  # Save it wherever you want to reference it from, the exact location doesn't matter. 
+  # First, export the 'Data entry' and 'Environmental Data' tabs (as-is) as independent .csv files. It is important you make no formatting changes, as the following code is based on cleaning and re-formatting those current formats.
+  # Save them wherever you want to reference from - the exact location doesn't matter. 
 
   # The following code will replicate the 'Inseason_reporting' tab, and maybe eventually also produce some pretty graphs (TBD...)
 
@@ -98,11 +98,27 @@ c.raw.avg <- c.raw %>%
   print(c.raw.avg)
 
 
+########################
+# CREATE SUMMARY TABLE #
+########################
 
+# summarize by date, expanded based on number of files counted 
+t0 <- c.raw.avg %>% 
+  group_by(date) %>% 
+  summarize(total_us = sum(avg_net), n_files = n()) %>%
+  mutate_at(vars(c(3)), funs(as.numeric)) %>%
+  mutate(daily_net_exp = as.numeric(ifelse(n_files=="24", total_us*3,
+                                ifelse(n_files=="12", total_us*6,
+                                       ifelse(n_files=="9", total_us*9, ""))))) %>%
+  mutate_at(4, funs(round(.,0))) %>%
+  print(t1)
 
+# join with environmental data - recall enviro dataframe is 'e.raw'
+t1 <- left_join(t0, e.raw, by ='date')
 
-
-
+  # omit unecessary columns and re-order remaining columns
+  t1 <- t1 %>%
+    select(-c(5:7, 9:14, 16), date, water_temp, gauge_m, n_files, daily_net_exp) 
 
 
 
