@@ -142,6 +142,9 @@ counts.ioa.p <- counts %>%
   mutate(group.mean = (count_1+count_2+count_3+count_4)/(n(count_1,count_2,count_3,count_4, na.rm=T)))
 
 counts.ioa.p$group.mean <- (count_1+count_)
+
+#make some changes 
+#jfjfdslkflkjd
   
 
 
