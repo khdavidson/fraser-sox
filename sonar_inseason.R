@@ -143,8 +143,7 @@ counts.ioa.p <- counts %>%
 
 counts.ioa.p$group.mean <- (count_1+count_)
 
-#make some changes 
-#jfjfdslkflkjd
+
   
 
 
