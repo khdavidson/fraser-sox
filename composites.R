@@ -6,6 +6,7 @@
 #library(data.table)
 #library(readxl)
 library(XLConnect)
+library(dplyr)
 
 # EARLY SOUTH THOMPSON 
 setwd("T:/SockeyeData/Sockeye/Adult/Early South Thompson")            # this should be changed to one common location for all composites if you want this code to run easier
@@ -62,8 +63,7 @@ comp <- rbind(new.df, scotch)
 
 
 ####
-# calc stuff 
-library(dplyr)
+# calc final composite estimates 
 
 comp.t <- comp %>% 
   summarize(males = sum(males), females=sum(females), jacks=sum(jacks), eff_fem=sum(eff_fem), perc_spawn_fem=sum(perc_spawn_fem))%>%
