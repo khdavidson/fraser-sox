@@ -22,51 +22,88 @@
 library(dplyr)
 library(tidyr)
 library(ggplot2)
+library(XLConnect)
+library(xlsx)
+library(openxlsx)
 
-# set working directory where .csv data file is stored. This will vary by computer.
-setwd("~/Data/Sonar")
+# set working directory where spreadsheet is
+setwd("C:/DFO-MPO/Data")
+
+##############
+# Count data #
+##############
 
 # read in COUNT data 
-c.headers <- read.csv("Stellako Sonar_2018_COUNT.csv", skip=4, header=F, nrows=1, as.is=T)    # extract 5th row which will be our headers and remove other garbage header info
-counts <- read.csv("Stellako Sonar_2018_COUNT.csv", skip = 5, header = F)                             # extract just data
-colnames(counts) <- c.headers                                                                      # apply headers (extracted above) to dataframe. This method preserves row numbering and doesn't retain garbage info                                # apply character top row as column headers 
-
+counts <- read.xlsx("Stellako Sonar_tool_2019.xlsm", sheet = 7, startRow=5, cols=c(1:12), colNames=T, detectDates=T)
+                                                                                            
 # reformat COUNT dataframe 
-counts <- counts[,-c(13:18)]                                                                # removes extra NA columns
-counts <- counts %>%                                                                        # rename columns to be more R friendly
+counts <- counts %>%                                                  # rename columns to be more R friendly
   rename(bank = Bank,
          observer = Observer,
          date = Date,
-         count_hr_24 = `Count Hour`,
-         hr_block = `Portion of hour`,
-         time_length_min = `Time counted_min`,
+         count_hr_24 = Count.Hour,
+         hr_block = Portion.of.hour,
+         time_length_min = Time.counted_min,
          sox_us = Sox_us,
          sox_ds = Sox_ds,
          ch_us = CH_us,
          ch_ds = CH_ds,
-         count_number = `Obs Count #`,
+         count_number = `Obs.Count.#`,
          comments = Comments) %>%
-  mutate(date = lubridate::dmy(date)) %>%                                                 # reformat date
-  mutate_at(vars(c(4, 9, 10)), funs(as.numeric))                                          # reformat some integers to be numeric
+  mutate_at(vars(c(4)), funs(as.numeric))                             # reformat some integers to be numeric
 
-# re-arrange COUNT data for easy visualizaton, remove the one training count 
+# re-arrange COUNT data for easy visualizaton, remove the one training count, add net column 
 counts <- counts %>%
   arrange(date, count_hr_24) %>%                                                             # ordered by date, and then count hour (1-24)
-  filter(count_number != "NA")
+  filter(count_number != "NA") %>%
+  mutate(sox_us_net = sox_us-sox_ds) %>%
+  mutate(date_hr = paste(paste(gsub("-", "-", date)), count_hr_24, sep="-"))
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+##### 
+
+# summarize by mean, sd, cv
+counts.cv <- counts %>% 
+  group_by(bank, date, count_hr_24) %>% 
+  summarize(net_mean = mean(sox_us_net), net_sd = ifelse(sox_us_net=0,0,sd(sox_us_net)), cv = ifelse(net_sd>0, abs(net_sd/net_mean), 0)) %>% 
+  print()
+
+
+######################
+# Environmental data #
+######################
 
 # read in ENV data  
-e.headers <- read.csv("Stellako Sonar_2018_ENV.csv", skip=2, header=F, nrows=1, as.is=T)          # extract 2nd row which will be our headers and remove other garbage header info
-enviro = read.csv("Stellako Sonar_2018_ENV.csv", skip = 3, header = F)                             # extract just data
-colnames(enviro) = e.headers                                                                       # apply headers (extracted above) to dataframe. This method preserves row numbering and doesn't retain garbage info                                # apply character top row as column headers 
+enviro <- read.xlsx("Stellako Sonar_2018.xlsx", sheet = 2, startRow=3, cols=c(1:13), colNames=T, detectDates=T)
 
 # reformat ENV dataframe 
 enviro <- enviro %>%                                                                           # rename columns to be more R friendly
-  rename(date = `Date (dd/mm/yy)`,
+  rename(date = `Date.(dd/mm/yy)`,
          observer_1 = Observer1, 
          observer_2 = Column1,
          tod = Column2,
-         gauge_m = `Gauge (m)`,
+         gauge_m = `Gauge.(m)`,
          bankfull_p = `%Bankfull`,
          brightness = Brightness,
          cloud_p = `%Cloudy`,
@@ -76,25 +113,28 @@ enviro <- enviro %>%                                                            
          water_temp = WTemp,
          water_clarity = WClarity) %>%
   filter(date != "", date != "**sonar pulled 0820 Oct 2, 2018") %>%
-  mutate(date = lubridate::dmy(date)) %>%                                                    # reformat date
-  mutate_at(vars(c(5, 12)), funs(as.character)) %>%                                          # reformat some integers to be numeric
+  mutate(date = lubridate::ymd(date)) %>%                                                    
   mutate_at(vars(c(5, 12)), funs(as.numeric))
   
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 #######################
 # PRELIM CALCULATIONS #
 #######################
 
-# calculate net u/s movement
-counts$sox_us_net <- counts$sox_us - counts$sox_ds
 
-# calculate average count for cases with >2 counts 
-counts.avg <- counts %>%
-  select(c(1:13)) %>%
-  group_by(bank, date, count_hr_24) %>% 
-  summarize(avg_net = mean(sox_us_net)) %>% 
-  print(counts.avg)
 
 
 
