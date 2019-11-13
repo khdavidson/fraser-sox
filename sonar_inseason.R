@@ -1,5 +1,5 @@
 
-# ALLO BONJOUR! 
+# ALLO! 
 
 # Here is some code to replicate the "Inseason_reporting" tab in Excel sonar tools
 # changes are committed to khdavidson/fraser-sox/sonar_inseason repo
