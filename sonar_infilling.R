@@ -11,6 +11,7 @@ library(stringr)    # pad 0 time series
 library(withr)      # for with_options()
 library(padr)       # to expand time series
 library(tidyr)      # for fill()
+library(tidyverse)
 
 # set wd 
 setwd("~/ANALYSIS/Data/Sonar")
@@ -55,16 +56,24 @@ count_data <- count_data %>%
   mutate(observer = ifelse(is.na(observer), "INFILL", observer))
 
 
+#### MATH
+
+
+for (i in count_data) {
+  t1 <- count_data[i,13]-(86400*i),
+  t2 <- count_data[i,13]+(86400*i), 
+  count_data$sox_us <- ifelse( is.na(count_data$sox_us), 
+    
+}
 
 
 
 
+count_data[1441,13]-(86400*i)       # specific cell 
+count_data[,]$date_time-(86400*i)    #all rows in date_time 
+count_data[,13]-(86400*i)           # all rows in column 13, but different format   
 
-
-
-
-
-
+mean( c(count_data$sox_us[count_data[2026,]$date_time-(86400*i), count_data[2026,]$date_time+(86400*i)) )
 
 
 
