@@ -82,3 +82,55 @@ comp.sum <- comp %>%
 
 
 
+################################################################### N Thompson Summers
+
+library(XLConnect)
+library(dplyr)
+
+# EARLY SOUTH THOMPSON 
+setwd("T:/SockeyeData/Sockeye/Adult/North Thompson")            # this should be changed to one common location for all composites if you want this code to run easier
+
+# load excel workbook
+excel <- loadWorkbook("T:/SockeyeData/Sockeye/Adult/North Thompson/North Thompson (Summer) 2019.xlsx") # change to match your path
+
+# get sheet names
+sheets <- getSheets(excel)
+names(sheets) <- sheets
+
+
+# put sheets into a list of data frames
+sheet_list <- lapply(sheets, function(x) {readWorksheet(object=excel, x, startRow=33)} )
+
+# read all sheets in as dataframes to look at them easily if you should chose 
+for (i in 1:length(sheet_list)){
+  assign(paste0("df", i), 
+    as.data.frame(sheet_list[i]))
+  }
+
+
+# df placeholders - KD
+new.df <- data.frame(system = names(sheet_list))
+new.df$males = as.numeric(unlist(sapply(sheet_list, function(x) max(as.numeric(x$Col7), na.rm=TRUE))))
+new.df$females = as.numeric(unlist(sapply(sheet_list, function(x) max(as.numeric(x$Col8), na.rm=TRUE))))
+new.df$jacks = as.numeric(unlist(sapply(sheet_list, function(x) (max(as.numeric(x$Col9)*1.26, na.rm=TRUE)))))
+new.df$eff_fem = as.numeric(unlist(sapply(sheet_list, function(x) max(as.numeric(x$Col18), na.rm=TRUE))))
+new.df$perc_spawn_fem = as.numeric(unlist(sapply(sheet_list, function(x) as.numeric(sub("%", "", (x[(nrow(x)-1),17])))))) 
+
+
+####
+# calc final composite estimates 
+
+comp.t <- comp %>% 
+  summarize(males = sum(males), females=sum(females), jacks=sum(jacks), eff_fem=sum(eff_fem), perc_spawn_fem=sum(perc_spawn_fem))%>%
+  print()
+
+comp.sum <- comp %>% 
+  summarize(perc_spawn_comp = sum(eff_fem)/sum(perc_spawn_fem),
+    male_comp_ratio=sum(males)/sum(sum(males)+sum(females)+sum(jacks)),
+    female_comp_ratio=sum(females)/sum(sum(males)+sum(females)+sum(jacks)),
+    jack_comp_ratio=sum(jacks)/sum(sum(males)+sum(females)+sum(jacks))) %>% 
+  print()
+
+
+
+
