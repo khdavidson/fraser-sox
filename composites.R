@@ -21,7 +21,7 @@ sheets <- getSheets(excel)
 names(sheets) <- sheets
 
 # put sheet tabs into a list of data frames - easy extraction and manipulation 
-sheet_list <- lapply(sheets, function(.sheet){readWorksheet(object=excel, .sheet)})
+sheet_list <- lapply(sheets, function(.sheet){readWorksheet(object=excel, .sheet, startRow=33)})
 
   # read all sheets in as dataframes to look at them easily - for visual use only, this code is not necessary for any calculations/analysis
   for (i in 1:length(sheet_list)){
@@ -84,7 +84,7 @@ names(sheets) <- sheets
 sheet_list <- lapply(sheets, function(.sheet){readWorksheet(object=excel, .sheet)})
 
   # read all sheets in as dataframes to look at them easily - for visual use only, this code is not necessary for any calculations/analysis
-  for (i in 2:length(sheet_list)){
+  for (i in 1:length(sheet_list)){
     assign(paste0("df", i), 
       as.data.frame(sheet_list[i]))
     }
