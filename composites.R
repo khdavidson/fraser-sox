@@ -43,18 +43,26 @@ new.df$fem_perc_spawn_total = new.df$females-new.df$fem_nr
 ## FINAL CALCS
 # total males, females, EFF and female spawners-nr
 comp <- new.df %>% 
-  summarize(males = sum(males), females=sum(females), jacks=sum(jacks), eff_fem=sum(eff_fem), fem_perc_spawn_total=sum(fem_perc_spawn_total))%>%
+  summarize(males = sum(males), females=sum(females), jacks=sum(jacks), eff_fem=sum(eff_fem), fem_nr=sum(fem_nr), 
+    fem_perc_spawn_total=sum(fem_perc_spawn_total))%>%
+  mutate(system="Composite totals", fem_perc_spawn_wgt=NA) %>%
+  select(system, males, females, jacks, eff_fem, fem_nr, fem_perc_spawn_wgt, fem_perc_spawn_total) %>%
   print()
 
 # composite sex ratio, spawn success
 comp.sum <- comp %>% 
-  summarize(perc_spawn_comp = sum(eff_fem)/sum(fem_perc_spawn_total),
-    male_comp_ratio=males/sum(sum(males)+sum(females)),
-    female_comp_ratio=females/sum(sum(males)+sum(females))) %>% 
+  summarize(females_comp=females/(males+females),
+    males_comp=males/(males+females),
+    fem_perc_spawn_wgt = sum(eff_fem)/sum(fem_perc_spawn_total)) %>% 
+  mutate(system="Composite %", jacks=NA, eff_fem=NA, fem_nr=NA, fem_perc_spawn_total=NA) %>% 
+  select(system, males_comp, females_comp, jacks, eff_fem, fem_nr, fem_perc_spawn_wgt, fem_perc_spawn_total) %>%
+  rename(females=females_comp, males=males_comp) %>%
   print()
 
 
-
+# Export table 
+comp.table<-rbind(new.df, comp, comp.sum)
+write.csv(comp.table, "North Thompson Composite 2019.csv")
 
 
 
