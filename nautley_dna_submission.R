@@ -317,6 +317,175 @@ ggarrange(a, c, ncol=2, nrow=1, common.legend = TRUE, legend="bottom")
 
 
 
+##################################################################################################################################################
+
+
+
+# Decided can take 200 more samples, will take equal number of samples per day and randomly sample across size classes. 
+  # Won't take from time period where samples were too small to amplify (Apr 18-22 inclusive)
+
+
+
+# Create df with all unsent samples after Apr 22
+nad.pull <- nad.df %>% 
+  filter(whatman.sheet != "NA", DNA.scales.stat == "0", date > as.Date("2019-04-22") & date < as.Date("2019-05-21")) %>% 
+  print()
+
+  # there are 25 days to sample from. end date chosen to allow for even equal numbers of samples each day. 
+
+############################
+# GENERATE A RANDOM SAMPLE #
+############################
+
+# 8 samples per day                          # LOCKED IN NOW SO CANNOT RE-SAMPLE A NEW RANDOM SAMPLE
+#samp <- nad.pull %>%
+#  group_by(date) %>%
+#  sample_n(8) %>%
+#  print() %T>%
+#  write.csv("Nautley_random_sample.csv")
+
+samp <- read.csv("Nautley_random_sample.csv", row.names=F)
+
+#######################
+# SAMPLE PULL SUMMARY #
+#######################
+
+# distribution by LENGTH
+samp.lgth <- samp %>% 
+  group_by(length.class) %>%
+  summarize(n=n()) %>% 
+  print()
+
+samp.lgth$length.class <- factor(samp.lgth$length.class, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130"), ordered=T)
+
+ggplot(samp.lgth, aes(x=length.class, y=n)) + 
+  geom_bar(stat="identity", fill="turquoise", colour = "black") +
+  labs(x="Length class (mm)", y="Number of samples", colour="Region") +
+  theme_bw() +
+  theme(axis.title = element_text(size=18, face = "bold"),
+    axis.text = element_text(size=15, colour="black"),
+    axis.text.x = element_text(angle=45, vjust=1, hjust=1),
+    legend.text = element_text(size=14), 
+    legend.title = element_text(size=15))
+
+
+# distribution by DATE
+samp.date <- samp %>% 
+  #mutate(date.cross = ifelse(date<as.Date("2019-05-05"), "Before May 05", "After May 05")) %>%
+  group_by(group.date) %>%
+  summarize(n=n()) %>% 
+  mutate(propn=n/sum(n)) %>% 
+  print()
+
+samp.date$date.cross <- factor(samp.date$date.cross, levels = c("Before May 05", "After May 05"), ordered=T)
+
+ggplot(samp.date, aes(x=group.date, y=n)) +
+  geom_bar(stat="identity", fill="turquoise", colour = "black") +
+  labs(x="Date group", y="Number of samples", colour="Region") +
+  theme_bw() +
+  theme(axis.title = element_text(size=18, face = "bold"),
+    axis.text = element_text(size=15, colour="black"),
+    axis.text.x = element_text(angle=45, vjust=1, hjust=1),
+    legend.text = element_text(size=14), 
+    legend.title = element_text(size=15))
+
+
+########################################
+# RANDOM SAMPLE PULL 2 + SAMPLE PULL 1 #
+########################################
+
+# extract all samples from pull request 1
+pull1 <- nad.df %>% 
+  filter(DNA.scales.stat == "1", !grepl("did not amplify", DNA.comment)) %>% 
+  print()
+
+# join pull request 1 with random sample pull 2
+samp.sim <- full_join(pull1, samp)
+
+# check sample sizes to confirm join was appropriate and no samples were lost 
+samp.sim %>% 
+  group_by(DNA.scales.stat) %>% 
+  summarize(n=n()) %>% 
+  print()
+
+
+####
+# SUMMARIZE AND GRAPH - IF PULL 2 IS SUBMITTED
+####
+
+# by DATE 
+sim.date <- samp.sim %>% 
+  mutate(pull.request = ifelse(DNA.scales.stat=="1", "1", "2")) %>%
+  group_by(date, pull.request) %>% 
+  summarize(n = n()) %>% 
+  mutate(propn=n/sum(n)) %>% 
+  print()
+
+sim.date$pull.request <- factor(sim.date$pull.request, levels=c("2", "1"), ordered=T)
+
+    # run timing for overlay line in plot
+    run <- nad.df %>% 
+      group_by(date) %>% 
+      summarize(n=n()) %>% 
+      print()
+  
+
+sim.d<-ggplot() +
+  geom_bar(data=sim.date, aes(x=date, y=n, fill=pull.request), stat="identity", colour = "black") + 
+  geom_line(data=run, aes(x=date, y=n/9), colour="red", size=1) +
+  labs(x="Date", y="Number of samples", fill="Submission #") +
+  scale_fill_manual(values=c("turquoise", "gray85")) +
+  scale_y_continuous(sec.axis = sec_axis(~.*9, name = "Number of smolts")) +
+  scale_x_date(limits=as.Date(c("2019-04-26", "2019-05-24")), breaks="3 day") +
+  theme_bw() +
+  theme(axis.title = element_text(size=18, face = "bold"),
+    axis.text = element_text(size=15, colour="black"),
+    axis.text.x = element_text(angle=45, vjust=1, hjust=1),
+    legend.text = element_text(size=14), 
+    legend.title = element_text(size=15))
+
+ggplot(sim.date, aes(x=date, y=propn, fill=pull.request)) +
+  geom_bar(stat="identity", colour = "black") +
+  labs(x="Date group", y="Proportion of samples", fill="Submission #") +
+  scale_fill_manual(values=c("turquoise", "gray85")) +
+  theme_bw() +
+  theme(axis.title = element_text(size=18, face = "bold"),
+    axis.text = element_text(size=15, colour="black"),
+    axis.text.x = element_text(angle=45, vjust=1, hjust=1),
+    legend.text = element_text(size=14), 
+    legend.title = element_text(size=15))
+
+
+
+# by LENGTH 
+sim.lgth <- samp.sim %>% 
+  mutate(pull.request = ifelse(DNA.scales.stat=="1", "1", "2")) %>%
+  group_by(length.class, pull.request) %>% 
+  summarize(n = n()) %>% 
+  mutate(propn=n/sum(n)) %>% 
+  print()
+
+sim.lgth$pull.request <- factor(sim.lgth$pull.request, levels=c("2", "1"), ordered=T)
+
+
+sim.l<-ggplot(sim.lgth, aes(x=length.class, y=n, fill=pull.request)) +
+  geom_bar(stat="identity", colour = "black") +
+  labs(x="Length class (mm)", y="Number of samples", fill="Submission #") +
+  scale_fill_manual(values=c("turquoise", "gray85")) +
+  theme_bw() +
+  theme(axis.title = element_text(size=18, face = "bold"),
+    axis.text = element_text(size=15, colour="black"),
+    axis.text.x = element_text(angle=45, vjust=1, hjust=1),
+    legend.text = element_text(size=14), 
+    legend.title = element_text(size=15))
+
+ggarrange(sim.d, sim.l, ncol=2, nrow=1, common.legend = TRUE, legend="bottom")
+
+
+
+
+
+
 
 
 
