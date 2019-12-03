@@ -1,6 +1,7 @@
 # Nautley DNA sample request 
 
 library(tidyverse)
+library(XLConnect)
 library(xlsx)
 library(openxlsx)
 library(janitor)
@@ -8,6 +9,9 @@ library(gridExtra)
 library(ggridges)
 library(scales)
 library(ggpubr)
+library(padr)
+library(stringr)
+library(withr)
 
 # set wd
 setwd("Z:/Senior Administration/Naudleh smolt program 2019/Kristy")
@@ -46,6 +50,7 @@ nad.df <- nad.df %>%
   mutate(length.class = factor(length.class, levels= c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130", ordered=T))) %>% 
   mutate_at(vars(c(11)), funs(as.factor)) %>%
   mutate(group.date = sub('^.(.*).$', "\\1", group.date)) %>%
+  unite("book_sample", PSC.book:PSC.sample, sep="-", remove=F) %>%
   print()
 
 ########################
@@ -238,11 +243,14 @@ svn.b <- nad.df %>%
 
 # length
 l<-ggplot(svn.b, aes(x=date, y=length, group=region)) +
-  geom_point(aes(colour=region)) +
+  geom_point(aes(colour=region, fill=region),alpha=0.5, size=2) +
   geom_smooth(aes(colour=region, fill=region), method="lm", se=T, alpha=0.15) +
+  scale_colour_manual(values=c("#0059d1", "#81a926")) +
+  scale_fill_manual(values=c("#0059d1", "#81a926")) +
   labs(x="Date", y="Length (mm)", fill="Region", colour="Region") +
   theme_bw() +
   theme(axis.title = element_text(size=18, face = "bold"),
+    axis.title.y = element_text(margin=margin(t=2,l=0,r=4,b=0)),
     axis.text = element_text(size=15, colour="black"),
     axis.text.x = element_text(angle=45, hjust=1),
     legend.text = element_text(size=14), 
@@ -250,11 +258,14 @@ l<-ggplot(svn.b, aes(x=date, y=length, group=region)) +
 
 # width
 w<-ggplot(svn.b, aes(x=date, y=weight, group=region)) +
-  geom_point(aes(colour=region)) +
+  geom_point(aes(colour=region, fill=region),alpha=0.5, size=2) +
   geom_smooth(aes(colour=region, fill=region), method="lm", se=T, alpha=0.15) +
+  scale_colour_manual(values=c("#0059d1", "#81a926")) +
+  scale_fill_manual(values=c("#0059d1", "#81a926")) +
   labs(x="Date", y="Weight (g)", fill="Region", colour="Region") +
   theme_bw() +
   theme(axis.title = element_text(size=18, face = "bold"),
+    axis.title.y = element_text(margin=margin(t=2,l=0,r=6,b=0)),
     axis.text = element_text(size=15, colour="black"),
     axis.text.x = element_text(angle=45, hjust=1),
     legend.text = element_text(size=14), 
@@ -262,8 +273,10 @@ w<-ggplot(svn.b, aes(x=date, y=weight, group=region)) +
 
 # length vs width
 lw<-ggplot(svn.b, aes(x=length, y=weight, group=region)) +
-  geom_point(aes(colour=region)) +
+  geom_point(aes(colour=region, fill=region),alpha=0.5, size=2) +
   geom_smooth(aes(colour=region, fill=region), method="lm", se=T, alpha=0.15) +
+  scale_colour_manual(values=c("#0059d1", "#81a926")) +
+  scale_fill_manual(values=c("#0059d1", "#81a926")) +
   labs(x="Length (mm)", y="Weight (g)", fill="Region", colour="Region") +
   theme_bw() +
   theme(axis.title = element_text(size=18, face = "bold"),
@@ -290,9 +303,10 @@ svn.a <- nad.df %>%
   mutate(cuml_p = cuml_n/sum(n)) %>%
   print()
 
-a<-ggplot(svn.a, aes(x=date, y=n, group=region)) +
-  geom_point(aes(colour=region), size=4, alpha=0.5) +
-  geom_line(aes(colour=region), size=1.2) +
+a<-ggplot(svn.a, aes(x=date, y=n, group=region, colour=region)) +
+  geom_point(size=4, alpha=0.5) +
+  geom_line(size=1.2) +
+  scale_colour_manual(values=c("#0059d1", "#81a926")) +
   labs(x="Date", y="Number of smolts", colour="Region") +
   theme_bw() +
   theme(axis.title = element_text(size=18, face = "bold"),
@@ -301,18 +315,64 @@ a<-ggplot(svn.a, aes(x=date, y=n, group=region)) +
     legend.text = element_text(size=14), 
     legend.title = element_text(size=15)) 
 
-c<-ggplot(svn.a, aes(x=date, y=cuml_p, group=region)) +
-  geom_point(aes(colour=region), size=4, alpha=0.5) +
-  geom_line(aes(colour=region), size=1.2) +
+c<-ggplot(svn.a, aes(x=date, y=cuml_p, group=region, colour=region)) +
+  geom_line(size=1.2) +
+  geom_point(size=4, alpha=0.5) +
+  scale_colour_manual(values=c("#0059d1", "#81a926")) +
   labs(x="Date", y="Cumulative proportion", colour="Region") +
+  scale_x_date(date_breaks = "3 days", date_labels = "%b %d") +
   theme_bw() +
   theme(axis.title = element_text(size=18, face = "bold"),
     axis.text = element_text(size=15, colour="black"),
     axis.text.x = element_text(angle=45, vjust=1, hjust=1),
     legend.text = element_text(size=14), 
-    legend.title = element_text(size=15)) 
+    legend.title = element_text(size=15),
+    legend.position = c(0.85,0.2),
+    legend.background = element_rect(fill="white", colour="black")) 
 
 ggarrange(a, c, ncol=2, nrow=1, common.legend = TRUE, legend="bottom")
+
+
+#########################
+# PROPORTION OF SAMPLES #
+#########################
+
+dna.propn <- nad.df %>% 
+  filter(region %in% c("4", "12")) %>% 
+  group_by(group.date, region) %>%
+  summarize(n=n()) %>% 
+  group_by(group.date) %>%
+  mutate(propn=n/sum(n)) %>%
+  mutate_at(vars(c(2)), funs(as.factor)) %>%
+  mutate(region = ifelse(region=="4", "Stellako", "Nadina")) %>%
+  print()
+
+ggplot(dna.propn, aes(x=group.date, y=propn, group=region, colour=region)) + 
+  labs(x="Date", y="Proportion of samples", colour="Region:") +
+  geom_line(stat="identity", size=1.5) +
+  scale_colour_manual(values=c("#0059d1", "#81a926")) +
+  scale_y_continuous(limits=c(0,1)) +
+  theme_bw() +
+  theme(axis.title = element_text(size=18, face="bold"),
+    axis.title.y = element_text(margin = margin(t=0, b=0, l=0, r=6)),
+    axis.text = element_text(size=15, colour="black"),
+    axis.text.x = element_text(angle=45, vjust=1, hjust=1),
+    legend.text = element_text(size=14), 
+    legend.title = element_text(size=15),
+    legend.position = "none")
+
+# same as above but by date so can apply to overall abundance 
+dna.propn <- nad.df %>% 
+  filter(region %in% c("4", "12")) %>% 
+  group_by(date, region) %>%
+  summarize(n=n()) %>% 
+  group_by(date) %>%
+  mutate(propn=n/sum(n)) %>%
+  mutate_at(vars(c(2)), funs(as.factor)) %>%
+  mutate(region = ifelse(region=="4", "Stellako", "Nadina")) %>%
+  print()
+
+
 
 
 
@@ -481,6 +541,118 @@ sim.l<-ggplot(sim.lgth, aes(x=length.class, y=n, fill=pull.request)) +
 
 ggarrange(sim.d, sim.l, ncol=2, nrow=1, common.legend = TRUE, legend="bottom")
 
+
+##################################################################################################################################################
+
+# join individual data with age data 
+
+# read in just count form 
+age.df <- read.xlsx("nautley Combined data(Current).xlsx", sheet=7, colNames=T, detectDates=T)
+
+# reformat age 
+age.df <- age.df %>% 
+  select(1:8) %>%
+  rename(book=Book,
+         scale_no = `Scale#`,
+         book_sample=Match,
+         age=Age,
+         length=Length,
+         weight=Weight,
+         date=Date,
+         area=Area) %>% 
+  print()
+
+# join 
+nad.df2 <- right_join(nad.df, age.df, by=c("book_sample", "length", "weight", "area", "age", "date"))
+
+
+###############
+# AGE SUMMARY #
+###############
+
+age <- nad.df2 %>% 
+  group_by(age) %>% 
+  summarize(n=n()) %>% 
+  print()
+
+
+
+
+##################################################################################################################################################
+
+# Total catch data from Nautley other datasheet 
+
+setwd("~/Data")
+
+# read data - exported as a CSV first because of issues reading in using read.xlsx (very slow and sluggish). also time formats WTF
+catch <- read.csv("2019 Nautley.csv")
+
+# format start and end times
+catch <- catch %>% 
+  mutate_at(vars(c(2:4)), funs(as.character)) %>% 
+  mutate(start_time =  with_options(c(scipen = 999), str_pad(catch$start_time, 5, pad = "0"))) %>% 
+  mutate(end_time = with_options(c(scipen = 999), str_pad(catch$end_time, 5, pad = "0"))) %>%
+  print()
+
+#format date 
+catch$date <- as.Date(catch$date, format = "%d-%b-%y")
+catch$start_date <- as.Date(catch$start_date, format = "%d-%b-%y")
+catch$end_date <- as.Date(catch$end_date, format = "%d-%b-%y")
+
+# create columns for date-time 
+catch$start_datetime <- as.POSIXct(paste(catch$start_date, catch$start_time),tz = "")
+catch$end_datetime <- as.POSIXct(paste(catch$end_date, catch$end_time),tz = "")
+catch$difftime <- difftime(catch$end_datetime, catch$start_datetime, tz="", units = c("hour"))
+catch$difftime <- as.numeric(catch$difftime)
+
+
+
+########
+# CPUE #
+########
+
+total <- catch %>% 
+  mutate(sum_std = sox_smolts/difftime) %>%
+  group_by(start_date) %>% 
+  summarize(cpue=sum(sum_std)) %>%
+  print()
+
+ggplot(total, aes(x=start_date, y=cpue)) +
+  geom_bar(stat="identity", fill="gray80", colour="black") + 
+  scale_y_continuous(limits=c(0,800)) +
+  scale_x_date(limits=as.Date(c("2019-04-13", "2019-05-27")), breaks="4 day", labels = date_format("%b %d")) +
+  labs(x="Date", y="CPUE (smolts/hour)") +
+  theme_bw() +
+  theme(axis.title = element_text(size=18, face="bold"),
+    axis.title.y = element_text(margin = margin(t=0, b=0, l=0, r=6)),
+    axis.text = element_text(size=15, colour="black"),
+    axis.text.x = element_text(angle=45, vjust=1, hjust=1),
+    legend.text = element_text(size=14), 
+    legend.title = element_text(size=15))
+
+
+#################
+# CPUE BY STOCK #                                 ## TBD NEED SUBMISSION #2! 
+#################
+
+cpue_stock <- left_join(catch, dna.propn, by=c("date"))
+
+cpue_stock_d <- cpue_stock %>% 
+  mutate(propn = ifelse(is.na(propn) & region == "Nadina", 0.22, 0.78)) %>%
+  mutate(est_propn = sox_smolts*propn) %>% 
+  group_by(date, region) %>%
+  summarize(sum=sum(est_propn, na.omit=T)) %>%
+  print()
+
+ggplot(cpue_stock, aes(x=date, y=sum, group=region, colour=region)) +
+  geom_line(stat="identity", size=1.5) +
+  theme_bw() +
+  theme(axis.title = element_text(size=18, face="bold"),
+    axis.title.y = element_text(margin = margin(t=0, b=0, l=0, r=6)),
+    axis.text = element_text(size=15, colour="black"),
+    axis.text.x = element_text(angle=45, vjust=1, hjust=1),
+    legend.text = element_text(size=14), 
+    legend.title = element_text(size=15))
 
 
 
