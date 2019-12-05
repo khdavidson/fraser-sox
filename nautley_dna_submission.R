@@ -1,6 +1,8 @@
 
 
 # Nautley DNA sample request #2 and Progress Report Code. Some figures are shared, the reason for both analyses in one script. 
+# KD
+# Dec 2019
 
 library(tidyverse)
 library(XLConnect)
