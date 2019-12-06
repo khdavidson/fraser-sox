@@ -12,6 +12,8 @@ library(withr)      # for with_options()
 library(padr)       # to expand time series
 library(tidyr)      # for fill()
 library(tidyverse)
+library(zoo)
+library(fpp2)
 
 # set wd 
 setwd("C:/DFO-MPO/Data - MACRO FILES")
@@ -160,11 +162,15 @@ count_020L$tp1 <- ifelse(is.na(count_020L$sox_us), count_020L$date_time+86400, c
 attributes(count_020L$tp1) <- attributes(count_020L$date_time) 
 
 
-# now i want to get the count associated with each day before and after
+
+
+count_020L["sox_us2"] <- lapply(count_020L$tm1, function(col) count_020L$sox_us[match(col, count_020L$tm1)])
+
+
+
 
 for (i in 1:length(count_020L$sox_us)){
-  count_020L$sox_us[i]<-ifelse(is.na(count_020L$sox_us[i]), mean(match(count_020L$date_time[i+86400], count_020L$sox_us[i]), match(count_020L$date_time[i-86400], count_020L$sox_us[i])), 
-    count_020L$sox_us[i])
+  count_020L$sox_us[i]<-ifelse(is.na(count_020L$sox_us[i]), )
 }
 
 
