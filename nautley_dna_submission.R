@@ -259,32 +259,37 @@ svn.b <- nad.df %>%
 # plot 
   # by length
   l<-ggplot(svn.b, aes(x=date, y=length, group=region)) +
-    geom_point(aes(colour=region, fill=region),alpha=0.5, size=2) +
-    geom_smooth(aes(colour=region, fill=region), method="lm", se=T, alpha=0.15) +
+    geom_smooth(aes(colour=region, fill=region), method="lm", se=T, size=1.5, alpha=0.15) +
+    geom_point(aes(colour=region, fill=region),alpha=0.5, size=3) +
     scale_colour_manual(values=c("#0059d1", "#81a926")) +
     scale_fill_manual(values=c("#0059d1", "#81a926")) +
+    scale_x_date(date_breaks = "3 days", date_labels = "%b %d") +
     labs(x="Date", y="Length (mm)", fill="Region", colour="Region") +
     theme_bw() +
     theme(axis.title = element_text(size=18, face = "bold"),
       axis.title.y = element_text(margin=margin(t=2,l=0,r=4,b=0)),
       axis.text = element_text(size=15, colour="black"),
       axis.text.x = element_text(angle=45, hjust=1),
-      legend.text = element_text(size=14), 
-      legend.title = element_text(size=15))
+      legend.text = element_text(size=8), 
+      legend.title = element_text(size=10),
+      legend.position="none")
   
   # by width
   w<-ggplot(svn.b, aes(x=date, y=weight, group=region)) +
-    geom_point(aes(colour=region, fill=region),alpha=0.5, size=2) +
-    geom_smooth(aes(colour=region, fill=region), method="lm", se=T, alpha=0.15) +
+    geom_smooth(aes(colour=region, fill=region), method="lm", se=T, size=1.5, alpha=0.15) +
+    geom_point(aes(colour=region, fill=region),alpha=0.5, size=3) +
     scale_colour_manual(values=c("#0059d1", "#81a926")) +
     scale_fill_manual(values=c("#0059d1", "#81a926")) +
+    scale_x_date(date_breaks = "3 days", date_labels = "%b %d") +
     labs(x="Date", y="Weight (g)", fill="Region", colour="Region") +
     theme_bw() +
     theme(axis.title = element_text(size=18, face = "bold"),
       axis.title.y = element_text(margin=margin(t=2,l=0,r=6,b=0)),
       axis.text = element_text(size=15, colour="black"),
       axis.text.x = element_text(angle=45, hjust=1),
-      legend.text = element_text(size=14), 
+      legend.background = element_rect(colour="black"),
+      legend.position = c(0.1,0.85),
+      legend.text = element_text(size=13), 
       legend.title = element_text(size=15)) 
   
   # width vs length
@@ -295,14 +300,14 @@ svn.b <- nad.df %>%
     scale_fill_manual(values=c("#0059d1", "#81a926")) +
     labs(x="Length (mm)", y="Weight (g)", fill="Region", colour="Region") +
     theme_bw() +
-    theme(axis.title = element_text(size=18, face = "bold"),
-      axis.text = element_text(size=15, colour="black"),
+    theme(axis.title = element_text(size=11, face = "bold"),
+      axis.text = element_text(size=9, colour="black"),
       #axis.text.x = element_text(angle=45, vjust=0.3),
-      legend.text = element_text(size=14), 
-      legend.title = element_text(size=15)) 
+      legend.text = element_text(size=8), 
+      legend.title = element_text(size=10)) 
   
   ggarrange(l, w, lw, ncol=2, nrow=2, common.legend = TRUE, legend="right")
-
+  ggarrange(l, w, ncol=2, nrow=1)
 
 ###############
 # RUN TIMING  #
@@ -338,7 +343,7 @@ svn.a <- nad.df %>%
   # by cumulative run time
   c<-ggplot(svn.a, aes(x=date, y=cuml_p, group=region, colour=region)) +
     geom_line(size=1.2) +
-    geom_point(size=4, alpha=0.5) +
+  #  geom_point(size=4, alpha=0.5) +
     scale_colour_manual(values=c("#0059d1", "#81a926")) +
     labs(x="Date", y="Cumulative proportion", colour="Region") +
     scale_x_date(date_breaks = "3 days", date_labels = "%b %d") +
@@ -383,7 +388,8 @@ dna.propn <- nad.df %>%
         axis.text.x = element_text(angle=45, vjust=1, hjust=1),
         legend.text = element_text(size=14), 
         legend.title = element_text(size=15),
-        legend.position = "none")
+        legend.position = c(0.12,0.5),
+        legend.background = element_rect(colour="black"))
 
 
 # same as above but by summarized date so can apply correction factor to overall daily abundance 
@@ -586,35 +592,17 @@ sim.lgth$pull.request <- factor(sim.lgth$pull.request, levels=c("2", "1"), order
 
 ##################################################################################################################################################
 
-# join individual data with age data 
-
-# read in just count form 
-age.df <- read.xlsx("nautley Combined data(Current).xlsx", sheet=7, colNames=T, detectDates=T)
-
-# reformat age 
-age.df <- age.df %>% 
-  select(1:8) %>%
-  rename(book=Book,
-         scale_no = `Scale#`,
-         book_sample=Match,
-         age=Age,
-         length=Length,
-         weight=Weight,
-         date=Date,
-         area=Area) %>% 
-  print()
-
-# join 
-nad.df2 <- right_join(nad.df, age.df, by=c("book_sample", "length", "weight", "area", "age", "date"))
-
+# AGE data
 
 ###############
 # AGE SUMMARY #
 ###############
 
-age <- nad.df2 %>% 
-  group_by(age) %>% 
+age <- nad.df %>% 
+  filter(age=="1") %>%
+  group_by(length.class) %>% 
   summarize(n=n()) %>% 
+    mutate(propn=n/sum(n)*100) %>%
   print()
 
 
@@ -634,8 +622,23 @@ catch <- read.csv("2019 Nautley.csv")
 #################
 # DATA CLEANING #
 #################
-# format start and end times
 catch <- catch %>% 
+  rename(trap_type = `Trap.type.....RST..small.fyke..large.fyke.`,
+    date = `Date..dd.mmm.yy.`,
+    start_time = `Start.time.....hh.ss.`,
+    end_time = `End.time..hh.ss.`,
+    RST_tpm = `X.RST.turns.per.min...e.g...7.3...`,
+    sox_smolts = `X..Sox.smolts`,
+    sox_morts = `X..Sox.morts..incld.in.previous.column.`,
+    CH_fry = `X..CH..fry`,
+    CH_smolt = `X..CH..smolts`,
+    water_temp = `Water.temp..ºC.`,
+    gauge_m = `Staff.gauge..m.`,
+    comments = Comments) %>%
+  print()
+
+# format start and end times
+catch <- catch %>%
   mutate_at(vars(c(2:4)), funs(as.character)) %>% 
   mutate(start_time =  with_options(c(scipen = 999), str_pad(catch$start_time, 5, pad = "0"))) %>% 
   mutate(end_time = with_options(c(scipen = 999), str_pad(catch$end_time, 5, pad = "0"))) %>%
@@ -680,8 +683,67 @@ total <- catch %>%
       legend.title = element_text(size=15))
 
 
+  
+#########################
+# CPUE by migration TOD #
+#########################
+
+  # After talking with Scott, we need to further standardize catch by the known hours of migration. Including all hours of fishing can bias the
+  # catch towards lower numbers because you include hours where no fish are migrating. Based on knowledge from the crew on when peak migration
+  # is, we decided on the hours of 9pm to 3am (21:00 - 03:00), 6 hours total. This means that some catches will be excluded because their fishing 
+  # windows don't fall in this time period, so you are essentially dividing by 0. 
+  
+# filter by RST, group by day 
+cpue2 <- catch %>% 
+    filter(trap_type == "small RST")
+  
+# omit row 21 manually for now because it is 0, falls outside of the range and screws up all the counts 
+cpue2 <- cpue2[-c(14),]  
+  
+# group by date and time   
+cpue2 <- cpue2 %>%
+  group_by(date) %>%
+  summarize(sum=sum(sox_smolts), hrs_in_window = unique(hrs_in_window)) %>% 
+  mutate(cpue = sum/hrs_in_window) %>%
+  mutate(cpue = ifelse(cpue=="NaN",0,cpue)) %>%
+  print()
+  
+
+# plot 
+  # CPUE2 by date 
+  ggplot(cpue2, aes(x=date, y=cpue)) +
+    geom_bar(stat="identity", fill="gray80", colour="black") + 
+    scale_y_continuous(breaks = seq(0,1300,250)) +
+    scale_x_date(limits=as.Date(c("2019-04-13", "2019-05-27")), breaks="3 day", labels = date_format("%b %d")) +
+    labs(x="Date", y="CPUE \n(smolts/hour in peak period)") +
+    theme_bw() +
+    theme(axis.title = element_text(size=18, face="bold"),
+      axis.title.y = element_text(margin = margin(t=0, b=0, l=0, r=6)),
+      axis.text = element_text(size=15, colour="black"),
+      axis.text.x = element_text(angle=45, vjust=1, hjust=1),
+      legend.text = element_text(size=14), 
+      legend.title = element_text(size=15))
+  
+  
+#cpue2check <- subset(cpue2, format(start_datetime, '%H') %in% 
+  #c('04', '05', '06', '07', '08', "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20"))
+  
+  
+  
+
+
+  
+
+  
+  
+  
+  
+  
+  
+  
+  
 #################
-# CPUE BY STOCK #                                
+# CPUE BY STOCK #        TBD!                              
 #################
   
    ## Was hoping to use the daily % nadina vs stellako from submission #1 to convert daily total catches to % nadina and % stellako, 
