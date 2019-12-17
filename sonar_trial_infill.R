@@ -4,7 +4,6 @@
 #library(XLConnect)
 library(xlsx)       # for loading excel files 
 library(openxlsx)   # for large excel files
-library(dplyr)
 library(janitor)    # for converting excel numeric date to Date
 library(lubridate)  # convert to time series within dyplyr
 library(stringr)    # pad 0 time series
@@ -14,9 +13,13 @@ library(tidyr)      # for fill()
 library(tidyverse)
 library(zoo)
 library(fpp2)
+library(broom)
+library(tidyquant)
+library(knitr)
+library(xts)
 
 # set wd 
-setwd("C:/DFO-MPO/Data - MACRO FILES")
+setwd("~/ANALYSIS/Data/Sonar")
 
 # load excel count data - sheet #6
 count_data <- read.xlsx("Chilko Sonar Tool 2019- no infill.xlsm", sheet=7, na.strings = c(""), startRow=5)
@@ -162,6 +165,21 @@ count_020L$tp1 <- ifelse(is.na(count_020L$sox_us), count_020L$date_time+86400, c
 attributes(count_020L$tp1) <- attributes(count_020L$date_time) 
 
 
+# tidy test -- https://www.business-science.io/timeseries-analysis/2017/07/23/tidy-timeseries-analysis-pt-2.html
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 count_020L["sox_us2"] <- lapply(count_020L$tm1, function(col) count_020L$sox_us[match(col, count_020L$tm1)])
@@ -178,10 +196,8 @@ for (i in 1:length(count_020L$sox_us)){
 
 
 
-for(i in 1:length(count_020)){
-  t1[i] <- ifelse(is.na(count_020$sox_us[i]), 
-   count_020$date_time[i-86400], 
-    count_020$sox_us[i]) 
+for(i in 1:length(count_020L$sox_us)){
+  count_020L$sox_us[i] <- ifelse(is.na(count_020L$sox_us[i]), count_020L$tm1, count_020L$sox_us[i]) 
 }
 
 
