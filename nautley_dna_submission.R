@@ -16,6 +16,7 @@ library(ggpubr)
 library(padr)
 library(stringr)
 library(withr)
+library(padr)
 
 # set wd
 setwd("Z:/Senior Administration/Naudleh smolt program 2019/Kristy")
@@ -711,25 +712,37 @@ cpue2 <- cpue2 %>%
 # read in discharge data 
 discharge <- read.csv("NAUT_DISCH_08JB003_QR_Dec-19-2019_12_44_31AM.csv")
 
-discharge <- discharge %>% 
+discharge2 <- discharge %>% 
   rename(date = `Date..PST.`,
          param = Parameter,
          discharge_m3s = `Value..m3.s.`) %>% 
+  separate(date, c("date", "time"), sep=" ") %>%
   print()
 
+# reformat time series
+discharge2$time <- with_options(c(scipen = 999), str_pad(discharge2$time, 5, pad = "0"))
+discharge2$date <- lubridate::mdy(discharge2$date)
+discharge2$datetime <- as.POSIXct(paste(discharge2$date, discharge2$time), tz="")
 
-
+# summary discharge data
+discharge2 <- discharge2 %>% 
+  group_by(date) %>% 
+  summarize(sum_dis=sum(discharge_m3s)) %>%
+  print()
 
 # plot 
   # CPUE2 by date 
-  ggplot(cpue2, aes(x=date, y=cpue)) +
-    geom_bar(stat="identity", fill="gray80", colour="black") + 
-    scale_y_continuous(breaks = seq(0,1300,250)) +
+  ggplot() +
+    geom_line(data=discharge2, aes(x=date, y=sum_dis/25), size=1.2, colour="black") +
+    geom_bar(data=cpue2, aes(x=date, y=cpue), stat="identity", fill="gray80", colour="black") + 
+    scale_y_continuous(breaks = seq(0,1300,250),
+                       sec.axis = sec_axis(~.*25, name = expression(bold("Discharge"~m^3/s)))) +
     scale_x_date(limits=as.Date(c("2019-04-13", "2019-05-27")), breaks="3 day", labels = date_format("%b %d")) +
     labs(x="Date", y="CPUE \n(smolts/hour in peak period)") +
     theme_bw() +
     theme(axis.title = element_text(size=18, face="bold"),
       axis.title.y = element_text(margin = margin(t=0, b=0, l=0, r=6)),
+      axis.title.y.right = element_text(margin=margin(t=0, b=0, l=7, r=0), face="bold"),
       axis.text = element_text(size=15, colour="black"),
       axis.text.x = element_text(angle=45, vjust=1, hjust=1),
       legend.text = element_text(size=14), 
