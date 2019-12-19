@@ -708,6 +708,17 @@ cpue2 <- cpue2 %>%
   mutate(cpue = ifelse(cpue=="NaN",0,cpue)) %>%
   print()
   
+# read in discharge data 
+discharge <- read.csv("NAUT_DISCH_08JB003_QR_Dec-19-2019_12_44_31AM.csv")
+
+discharge <- discharge %>% 
+  rename(date = `Date..PST.`,
+         param = Parameter,
+         discharge_m3s = `Value..m3.s.`) %>% 
+  print()
+
+
+
 
 # plot 
   # CPUE2 by date 
