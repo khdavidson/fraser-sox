@@ -727,16 +727,16 @@ discharge2$datetime <- as.POSIXct(paste(discharge2$date, discharge2$time), tz=""
 # summary discharge data
 discharge2 <- discharge2 %>% 
   group_by(date) %>% 
-  summarize(sum_dis=sum(discharge_m3s)) %>%
+  summarize(mean_dis=mean(discharge_m3s)) %>%
   print()
 
 # plot 
   # CPUE2 by date 
   ggplot() +
-    geom_line(data=discharge2, aes(x=date, y=sum_dis/25), size=1.2, colour="black") +
+    geom_line(data=discharge2, aes(x=date, y=mean_dis*10), size=1.2, colour="black") +
     geom_bar(data=cpue2, aes(x=date, y=cpue), stat="identity", fill="gray80", colour="black") + 
     scale_y_continuous(breaks = seq(0,1300,250),
-                       sec.axis = sec_axis(~.*25, name = expression(bold("Discharge"~m^3/s)))) +
+                       sec.axis = sec_axis(~./10, name = expression(bold("Discharge"~m^3/s)), breaks=seq(0,150,25))) +
     scale_x_date(limits=as.Date(c("2019-04-13", "2019-05-27")), breaks="3 day", labels = date_format("%b %d")) +
     labs(x="Date", y="CPUE \n(smolts/hour in peak period)") +
     theme_bw() +
