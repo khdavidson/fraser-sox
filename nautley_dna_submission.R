@@ -434,6 +434,32 @@ nad.pull <- nad.df %>%
 samp <- read.csv("Nautley_random_sample.csv", row.names=F)
 
 
+#### FOLLOW UP JAN 6 2020 - Kelsey Flynn noted that 6 samples from May 2 did not actually exist. SD and I decided to pull another 6 randomly
+      # from that date. Here is a random sample from May 2 for 6 more samples
+
+# create may 2 database 
+samp.may2 <- nad.pull %>%
+  filter(date == "2019-05-02", PSC.DNA != "NA", !sample.key %in% c(356, 365)) %>%              # these two samples were already submitted as part of the original 8 random samples so they are already being processed.
+  print()
+
+#rando2.2 <- samp.may2 %>% 
+#  sample_n(6) %>%
+#  print() %T>%
+#  write.csv("Nautley_random_sample_may2.csv")
+
+    # samples now locked in and saved in .csv file. Sent to Kelsey Flynn Jan 6 2020.
+
+
+#### FOLLOW UP JAN 7 2020 - KF says sample 368 was already run, but there is no data for it. rsamp for 1 more sample.
+samp.may2.2 <- nad.pull %>%
+  filter(date == "2019-05-02", PSC.DNA != "NA", !sample.key %in% c(356, 365, 370, 374, 353, 368, 346, 348)) %>%              # these samples were already submitted as part of the original 8 random samples, and then the above random 6 so they are already being processed.
+  print()
+
+rando2.3 <- samp.may2.2 %>% 
+  sample_n(1) %>%
+  print() %T>%
+  write.csv("Nautley_random_sample_may2_2.csv")
+
 #######################
 # SAMPLE PULL SUMMARY #
 #######################
@@ -481,20 +507,8 @@ ggplot(samp.date, aes(x=group.date, y=n)) +
     legend.text = element_text(size=14), 
     legend.title = element_text(size=15))
 
-#### FOLLOW UP JAN 6 2020 - Kelsey Flynn noted that 6 samples from May 2 did not actually exist. SD and I decided to pull another 6 randomly
-      # from that date. Here is a random sample from May 2 for 6 more samples
 
-# create may 2 database 
-samp.may2 <- nad.pull %>%
-  filter(date == "2019-05-02", PSC.DNA != "NA", !sample.key %in% c(356, 365)) %>%              # these two samples were already submitted as part of the original 8 random samples so they are already being processed.
-  print()
-
-#rando2.2 <- samp.may2 %>% 
-#  sample_n(6) %>%
-#  print() %T>%
-#  write.csv("Nautley_random_sample_may2.csv")
-
-    # samples now locked in and saved in .csv file. Sent to Kelsey Flynn Jan 6 2020. 
+ 
 
 
 
