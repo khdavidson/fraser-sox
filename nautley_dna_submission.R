@@ -481,10 +481,25 @@ ggplot(samp.date, aes(x=group.date, y=n)) +
     legend.text = element_text(size=14), 
     legend.title = element_text(size=15))
 
+#### FOLLOW UP JAN 6 2020 - Kelsey Flynn noted that 6 samples from May 2 did not actually exist. SD and I decided to pull another 6 randomly
+      # from that date. Here is a random sample from May 2 for 6 more samples
+
+# create may 2 database 
+samp.may2 <- nad.pull %>%
+  filter(date == "2019-05-02", PSC.DNA != "NA", !sample.key %in% c(356, 365)) %>%              # these two samples were already submitted as part of the original 8 random samples so they are already being processed.
+  print()
+
+#rando2.2 <- samp.may2 %>% 
+#  sample_n(6) %>%
+#  print() %T>%
+#  write.csv("Nautley_random_sample_may2.csv")
+
+    # samples now locked in and saved in .csv file. Sent to Kelsey Flynn Jan 6 2020. 
+
 
 
 ########################################
-# RANDOM SAMPLE PULL 2 + SAMPLE PULL 1 #
+# RANDOM SAMPLE PULL 2 + SAMPLE PULL 1 #       ***** THIS CODE DOES NOT INCLUDE THE 6 NEW SAMPLES FROM MAY 2 ABOVE!!!!! ******
 ########################################
 # How does it look when we combine both pulls?
 
