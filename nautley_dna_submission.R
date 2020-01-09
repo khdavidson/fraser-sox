@@ -22,7 +22,7 @@ library(padr)
 setwd("Z:/Senior Administration/Naudleh smolt program 2019/Kristy")
 
 # read in just count form 
-nad.df <- read.xlsx("nautley Combined data(Current).xlsx", sheet = 6, colNames=T, detectDates=T)
+nad.df <- read.xlsx("Nautley Combined data(Current).xlsx", sheet = 6, colNames=T, detectDates=T)
 
 # tidy 
 nad.df <- nad.df %>%
@@ -825,6 +825,12 @@ ggplot(cpue_stock, aes(x=date, y=sum, group=region, colour=region)) +
     axis.text.x = element_text(angle=45, vjust=1, hjust=1),
     legend.text = element_text(size=14), 
     legend.title = element_text(size=15))
+
+
+
+
+
+
 
 
 
