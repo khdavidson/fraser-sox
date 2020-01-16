@@ -685,6 +685,24 @@ catch$end_datetime <- as.POSIXct(paste(catch$end_date, catch$end_time),tz = "")
 catch$difftime <- difftime(catch$end_datetime, catch$start_datetime, tz="", units = c("hour"))
 catch$difftime <- as.numeric(catch$difftime)
 
+#################################
+# CATCH IN SMALL TIME INTERVALS #
+#################################
+
+rst <- catch %>% 
+  filter(trap_type =="small RST", date >= as.Date("2019-04-26"), date <= as.Date("2019-05-27")) %>%
+  group_by(start_date, start_time, end_time, difftime) %>% 
+  summarize(sum = sum(sox_smolts)) %>%
+  mutate(start_datetime = paste(start_date, start_time, sep=" ")) %>%
+  print()
+
+ggplot(rst, aes(x=start_datetime, y=sum)) +
+    geom_bar(stat="identity")
+
+
+
+
+
 
 ########
 # CPUE #
