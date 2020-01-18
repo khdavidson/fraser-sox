@@ -1,4 +1,4 @@
-# nadleh database creation
+# nadleh database cleaning and formatting
 
 setwd("~/ANALYSIS/Data")
 
@@ -14,325 +14,112 @@ library(stringr)
 library(withr)
 library(padr)
 
-###################################################################### SHEET 1: metadata #######################################################
+  # These data were verified by J. Graf 17-Jan-2020 and the sheets were combined into one Excel file manually by K. Davidson (they came)
+  # from a mess of Excel files. The following code cleans up a few small final discrepancies and prepares it for analysis and sharing.
+    # Code further below is the creation of the data request for Dave Patterson. 
 
-metadata <- data.frame(variable = NA, unit = NA, description = NA)                                      # placeholder metadata tab
+# The sheet breakdown is: 
+  # Sheet 1: metadata
+  # Sheet 2: verification_notes
+  # Sheet 3: daily_catch
+  # Sheet 4: individual_data
 
+######################################################## SHEET 2 DAILY CATCH ###################################################################
 
+##################
+# LOAD AND CLEAN #
+##################
 
-###################################################################### SHEET 2: hourly total catch #############################################
-
-# read excel
-catch <- read.csv("2019 Nautley_dailydata.csv")
-
-# reformat and clean
-catch <- catch %>% 
-  select(c(1:15)) %>%
-  rename(trap_type = `Trap.type.....RST..small.fyke..large.fyke.`,
-    date = `Date..dd.mmm.yy.`,
-    start_time = `Start.time.....hh.ss.`,
-    end_time = `End.time..hh.ss.`,
-    RST_tpm = `X.RST.turns.per.min...e.g...7.3...`,
-    sox_smolts = `X..Sox.smolts`,
-    sox_morts = `X..Sox.morts..incld.in.previous.column.`,
-    CH_fry = `X..CH..fry`,
-    CH_smolt = `X..CH..smolts`,
-    water_temp = `Water.temp..ºC.`,
-    gauge_m = `Staff.gauge..m.`,
-    comments = Comments) %>%
-  print()
+# read data
+rawcatch <- read.csv("nautley_database_2019_dailycatch.csv")
 
 # format start and end times
-catch <- catch %>%
-  mutate_at(vars(c(5:6)), funs(as.character)) %>% 
+catch <- rawcatch %>%
   mutate(start_time =  with_options(c(scipen = 999), str_pad(catch$start_time, 5, pad = "0"))) %>% 
   mutate(end_time = with_options(c(scipen = 999), str_pad(catch$end_time, 5, pad = "0"))) %>%
+  mutate(date = lubridate::dmy(date)) %>%
+  mutate(start_date = lubridate::dmy(start_date)) %>%
+  mutate(end_date = lubridate::dmy(end_date)) %>%
+  mutate_at(vars(c(9)), funs(as.character)) %>% 
+  mutate_at(vars(c(9)), funs(as.numeric)) %>% 
+  mutate(sox_morts = ifelse(sox_morts=="22+", "22", as.character(sox_morts))) %>% 
+  mutate_at(vars(c(10)), funs(as.numeric)) %>%
+  mutate_at(vars(c(8)), funs(as.character)) %>%
+  mutate(rst_tpm = ifelse(rst_tpm =="", NA, as.character(rst_tpm))) %>%
+  select(trap_type, rst_tpm, date, start_date, end_date, start_time, end_time, water_temp, water_gauge,  
+    sox_smolts, sox_morts, ch_fry, ch_smolts, comments) %>%
   print()
-
-#format date 
-catch$date <- as.Date(catch$date, format = "%d-%b-%y")
-catch$start_date <- as.Date(catch$start_date, format = "%d-%b-%y")
-catch$end_date <- as.Date(catch$end_date, format = "%d-%b-%y")
 
 # create columns for date-time 
-catch$start_datetime <- as.POSIXct(paste(catch$start_date, catch$start_time),tz = "")
-catch$end_datetime <- as.POSIXct(paste(catch$end_date, catch$end_time),tz = "")
-catch$difftime <- difftime(catch$end_datetime, catch$start_datetime, tz="", units = c("hour"))
-catch$difftime <- as.numeric(catch$difftime)
+#catch$start_datetime <- as.POSIXct(paste(catch$start_date, catch$start_time),tz = "")
+#catch$end_datetime <- as.POSIXct(paste(catch$end_date, catch$end_time),tz = "")
+#catch$difftime <- difftime(catch$end_datetime, catch$start_datetime, tz="", units = c("hour"))
+#catch$difftime <- as.numeric(catch$difftime)
 
 # write to csv
-write.csv(catch, "catch.csv", row.names=F)
+write.csv(catch, "nautley_2019_dailycatch.csv", row.names=F)
 
 
 
 
-#################################################################### SHEET 3: individual smolt data ############################################
+########################################################## SHEET 3 INDIVIDUAL SMOLT DATA ######################################################
 
-#####################################################
-# Step 1: Compile individual detailed sampling data #
-#####################################################
+##################
+# LOAD AND CLEAN #
+##################
 
-####
-# LENGTH AND WEIGHT DATA FROM "2019 Nautley - Individual smolt entry" 
-####
+# read data
+ind.dat <- read.csv("nautley_database_2019_inddata.csv")                        
 
-ind.dat <- read.csv("2019 Nautley_inddata.csv")                        # exported as csv first because too bulky to use read.xlsx
-
-# reformat and clean
-ind.t <- ind.dat %>%
-  select(1:10) %>% 
-   rename(psc_sample_no = `Sample....from.length...freq.form.`,
-    date = `Capture.............date..dd.mmm.yy.`,
-    length_mm = `Smolt.length..mm.`,
-    weight_g = `Smolt.Weight..g.`,
-    psc_book_no = `PSC......book.s.....e.g..1.43.`,
-    whatman_sheet = `Whatman..sheet.........e.g..1.35639.`,
-    comment1 = Comment) %>%
-  mutate(ewatch_fid = ifelse(grepl('E-Watch',comment1), paste0(comment1), "NA")) %>% 
-  mutate(ewatch_fid = ifelse(ewatch_fid!="NA", gsub("[^0-9.]", "",  ewatch_fid), "NA")) %>%
-  unite("comment", 7:9, sep=", ") %>%
-  mutate(comment = ifelse(comment==", , ", NA, comment)) %>%
-  mutate_at(vars(c(2,6)), funs(as.character)) %>% 
+# reformat 
+smolts <- ind.dat %>%
   mutate(date = lubridate::dmy(date)) %>%
+  mutate_at(vars(c(7)), funs(as.character)) %>%
+  mutate(weight_g = ifelse(weight_g=="N/A" & weight_g=="No weight" & weight_g=="No Weight" & weight_g =="Scale error",
+    NA, as.numeric(weight_g))) %>%
+  mutate(ewatch_fid = ifelse(grepl('E-Watch', comment1), paste0(comment1), "NA")) %>% 
+  mutate(ewatch_fid = ifelse(ewatch_fid!="NA", gsub("[^0-9.]", "",  ewatch_fid), NA)) %>%
+  mutate(ewatch_fid = ifelse(psc_sample_no > 115 & is.na(ewatch_fid), psc_sample_no, ewatch_fid)) %>%
+  unite("comment", 15:16, sep=", ") %>%
+  mutate(comment = ifelse(comment==", ", NA, comment)) %>%
+  mutate(comment = gsub('^\\, |\\, $', '', comment)) %>%
+  mutate_at(vars(c(14)), funs(as.character)) %>%
+  mutate(data_source = ifelse(data_source=="", "Nautley Combined data(Current)Kristy.csv", data_source)) %>%
+  mutate(data_source = ifelse(data_source != "Nautley Combined data(Current)Kristy.csv" & 
+      data_source != "2019 Nautley - length frequency entry", "2019 Nautley - length frequency entry", data_source)) %>%
+  mutate_at(vars(c(10, 16, 18, 30)), funs(as.character)) %>%
+  mutate(whatman_sheet = ifelse(whatman_sheet =="N/A", NA, as.character(whatman_sheet))) %>%
+  mutate(whatman_sheet = ifelse(whatman_sheet =="", NA, as.character(whatman_sheet))) %>%
+  mutate(ewatch_sample_bin = ifelse(is.na(ewatch_sample_bin), 0, ewatch_sample_bin)) %>%
   mutate(sample_id = ifelse(!is.na(psc_book_no), paste(psc_book_no, psc_sample_no, sep="-"), psc_sample_no)) %>%
-  mutate(freq = 1) %>%
-  mutate(data_source1 = "2019 Nautley - individual smolt entry") %>%
-  print()
-
-# remove trailing ",," from comment concatenating
-ind.t$comment <- str_remove(string=ind.t$comment, pattern=", , ")
-
-
-
-# this is fucked, just give it to jen to sort out.
-
-ind.t
-
-####
-# LENGTH FREQUENCY DATA FROM "2019 Nautley - length frequency entry" 
-####
-freq.t <- read.xlsx("2019 Nautley.xlsx", sheet = 4, colNames=T, detectDates=T)
-
-freq.t <- freq.t %>% 
-  select(c(1:3)) %>%
-  rename(date=Date,
-    length_mm = `Length.(mm)`,
-    freq=Freq) %>%
-  filter(freq != "0") %>% 
-  mutate_at(vars(c(1)), funs(as.character)) %>% 
-  mutate(date = lubridate::ymd(date)) %>%
-  mutate(data_source1 = "2019 Nautley - length frequency entry") %>%
-  print()
-
-freq.lgth <- freq.t[rep(1:nrow(freq.t), freq.t[["freq"]]), ]
-freq.lgth <- as.data.frame(freq.lgth, row.names=1:nrow(freq.lgth))
-
-    write.csv(freq.lgth, "freq_lgth.csv", row.names=F)
-
-
-####
-# Join 
-####
-
-ind.join <- full_join(freq.lgth, ind.t, by=c("date", "length_mm", "freq", "data_source1"))
-write.csv(ind.join, "nad_inds_join.csv", row.names = F)
-
-
-
-
-####
-# Clean up new database
-####
-
-# create UFID 
-ind.join <- ind.join %>% 
-  mutate(ufid = ifelse(!is.na(sample_id), paste("2019", sample_id, sep="-"), paste("2019", seq(1:length(is.na(sample_id))), sep="-f"))) %>%         # used "-f" to separate here to distinguish between 2019-frequency # fish and 2019-weird PSC sample with no psc book fish
-  select(ufid, sample_id, ewatch_fid, date, 
-         length_mm, weight_g, 
-         psc_book_no, psc_sample_no, whatman_sheet,
-         comment, data_source1) %>%
-  mutate_at(vars(c(3,7:8)), funs(as.character)) %>%
-  print()
-
-# write to csv - EXPORTED AND CHANGED TO BE EXCEL. IF THIS IS RE-RUN, EXCEL WILL HAVE TO BE REFRESHED TOO. 
- write.csv(ind.join, "nad_inds_join.csv", row.names=F)    
-
-      
-      # xlsx file will need to be refreshed if csv is re-run above
-
-
-##########################
-# Step 2: Add scale data #
-##########################
-
-scales <- read.xlsx("Nautley Combined data(Current).xlsx", sheet = 7, colNames=T, detectDates=T)
-
-scales <- scales %>% 
-  select(1:8) %>% 
-  rename(psc_book_no = Book,
-    psc_sample_no = `Scale#`,
-    sample_id = Match,
-    age = Age,
-    length_mm = Length,
-    weight_g = Weight,
-    date = Date,
-    area = Area) %>% 
-  mutate(psc_book_no = substring(psc_book_no, 6, 10)) %>%
-  mutate_at(vars(c(2)), funs(as.character)) %>%
-  mutate(sample_id = substring(sample_id, 6, 10)) %>% 
-  mutate(date_source2 = "Nautley Combined data(Current).xlsx - Scale data") %>%
-  print()
-
-write.csv(scales, "scales.csv", row.names = F)
-
-
-
-####
-# Join
-####
-
-ind.scale.join <- full_join(scales, ind.join, by=c("sample_id", "psc_book_no", "psc_sample_no", "date", "length_mm", "weight_g"))
-
-write.csv(ind.scale.join, "nad_inds_scales_join.csv", row.names=F)
-
-
-
-#################################################################################################################################################
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-bio.dat <- read.xlsx("Nautley Combined data(Current).xlsx", sheet = 6, colNames=T, detectDates=T)
-
-# tidy 
-bio.dat <- bio.dat %>%
-  select(-c(5, 24:26, 31)) %>%
-  rename(sample_key = Sample.key,
-         date = `Capture.date.(dd/mmm/yy)`,
-         date_group = Grouping.date,
-         length_mm = `Smolt.length.(mm)`,
-         length_class = Length.class,
-         weight_g = `Smolt.Weight.(g)`,
-         psc_book_no = `PSC.book.#`,
-         psc_sample_no = `PSC.book.sample.#`,
-         whatman_sheet = `Whatman.sheet.#.(e.g.,1-35639)`,
-         psc_dna = `PSC.DNA#`,
-         dna_sent_bin = `DNA.and.scales.(1st.round.select)`,
-         scale_sent_bin = `Scale.samples.only.(1st.round.select)`,
-         comment1 = Comment1,
-         comment2 = Comment2, 
-         dna_comment = DNA.Lab.Comment,
-         region1 = Region1,
-         prob1 = Prob1,
-         region2 = Region2,
-         prob2 = Prob2,
-         scale_lab_date = Scale.Lab.Date,
-         age = Age,
-         area = Area,
-         dejan_comment = `Dejan's.comment`) %>% 
-  mutate(date = excel_numeric_to_date(date)) %>% 
-  mutate(whatman.sheet = ifelse(whatman_sheet == "N/A", NA, whatman_sheet)) %>%
-  mutate(dna_sent_bin = ifelse(is.na(dna_sent_bin), 0, dna_sent_bin)) %>%
-  mutate(scale_sent_bin = ifelse(is.na(scale_sent_bin), 0, scale_sent_bin)) %>%
-  mutate(length_class = factor(length_class, levels= c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130", ordered=T))) %>% 
-  mutate_at(vars(c(11,12)), funs(as.factor)) %>%
-  mutate(date_group = sub('^.(.*).$', "\\1", date_group)) %>%
-  mutate(ewatch_fid = ifelse(grepl('E-Watch',comment1), paste0(comment1), NA)) %>% 
-  mutate(ewatch_fid = ifelse(!is.na(ewatch_fid), gsub("[^0-9.]", "",  ewatch_fid), ewatch_fid)) %>%
-  mutate(comment1 = ifelse(is.na(comment1), "", comment1)) %>% 
-  mutate(comment2 = ifelse(is.na(comment2), "", comment2)) %>% 
-  unite("comment", 13:14, sep=", ") %>%
-  mutate(comment = ifelse(comment ==", ", NA, comment)) %>% 
-  mutate(sample_id=paste(psc_book_no, psc_sample_no, sep="-")) %>%
-  mutate(freq = 1) %>%
-  mutate(data_source2 = "Nautley Combined data(Current)") %>%
-  print()
-
-write.csv(bio.dat, "nad_bio_dat.csv", row.names = F)
-
-
-
-
-########
-# JOIN #       
-########
-
-nad.db <- full_join(ind.db, bio.dat, by=c("date", "length_mm", "freq",  "psc_sample_no", "weight_g", "psc_book_no", "whatman_sheet",   
-                                          "ewatch_fid", "sample_id"))
-write.csv(nad.db, "nad_db.csv")
-
-# clean up NA formats
-nad.db <- nad.db %>% 
-  mutate(weight_g = ifelse(weight_g == "N/A", NA, weight_g)) %>% 
-  mutate(whatman_sheet = ifelse(whatman_sheet == "N/A", NA, whatman_sheet)) %>% 
-  mutate(ewatch_fid = ifelse(ewatch_fid == "NA", NA, ewatch_fid)) %>% 
-  print()
-
-# create UFID 
-nad.db <- nad.db %>% 
-  mutate(ufid = paste("2019", seq(1:nrow(nad.db)), sep="-")) %>%
-  print()
-
-#re-order database - removed following useless columns: sample_key, freq, whatman.sheet
-nad.db <- nad.db %>% 
+  mutate(ufid = ifelse(!is.na(sample_id), paste("2019", sample_id, sep="-"), paste("2019", seq(1:length(is.na(sample_id))), sep="-f"))) %>%
   select(ufid, sample_id, ewatch_fid, date, date_group, 
          length_mm, length_class, weight_g,
          region1, prob1, region2, prob2, age, 
-         psc_book_no, psc_sample_no, psc_dna, whatman_sheet,
-         dna_sent_bin, scale_sent_bin, 
-         comment, dna_comment, dejan_comment, data_source1, data_source2,  
-         ES.File.Catch.Date, Sample.Identifier, PSC.Miscellaneous.Date, scale_lab_date, area) %>% 
+         psc_book_no, psc_sample_no, whatman_sheet,
+         dna_select_bin, scales_select_bin, ewatch_sample_bin, lab_identifier,
+         comment, dna_comment, dejan_comment, data_source, area) %>%        # omitted: sample key, length_code, psc_dna_no, es_file_catch_date, length, weight, scale_lab_date, length_check
   print()
 
-write.csv(nad.db, "nadleh_individual_database_2019.csv", row.names=F)
+view(smolts %>% filter(ewatch_sample_bin=="1"))
+
+write.csv(smolts, "nautley_2019_smoltdata.csv", row.names=F)
 
 
-###############
-# DAILY CATCH #
-###############
+################################################################################################################################################
 
+###########################
+# DATA FOR DAVE PATTERSON #
+###########################
 
-
-
-# write database
-list_of_datasets <- list("metadata" = metadata, "daily_catch" = catch, "individual_smolts" = nad.db)
-write.xlsx(list_of_datasets, file = "nadleh_database_2019.xlsx", row.names=F)
-
-
-######################################################
-
-# DP data request Jan 2020 
-
-RSTcatch <- catch %>% 
-  filter(trap_type == "small RST") %>% 
+dpcatch <- catch %>% 
+  filter(trap_type=="small RST") %>% 
+  group_by(trap_type, date) %>% 
+  summarize(total_sox = sum(sox_smolts), total_morts = sum(sox_morts), avg_temp = mean(water_temp), avg_gauge = mean(water_gauge)) %>%
   print()
 
-RSTdaily <- RSTcatch %>% 
-  group_by(date) %>% 
-  summarize(total_sox = sum(sox_smolts)) %>% 
-  print()
-write.csv(RSTdaily, "RSTdaily.csv")
-metadata <- data.frame(variable = NA, unit = NA, description = NA)
-list_of_datasets <- list("metadata" = metadata, "hourly_catch" = RSTcatch, "daily_catch" = RSTdaily, "individual_smolts" = nad.db)
-
-write.xlsx(list_of_datasets, file = "nadleh_database2019_forDP_2.xlsx", row.names=F)
+# write to csv
+write.csv(dpcatch, "nautley_2019_dailycatch_DP.csv", row.names=F)
 
 
 
