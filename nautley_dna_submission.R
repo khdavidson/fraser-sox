@@ -19,44 +19,14 @@ library(withr)
 library(padr)
 
 # set wd
-setwd("Z:/Senior Administration/Naudleh smolt program 2019/Kristy")
+setwd("~/ANALYSIS/Data")
 
-# read in just count form 
-nad.df <- read.xlsx("Nautley Combined data(Current).xlsx", sheet = 6, colNames=T, detectDates=T)
+# read in individual data 
+nad.df <- read.xlsx("nautley_ANALYTICAL_database_2019.xlsx", sheet = 3, colNames=T, detectDates=T)
 
-# tidy 
-nad.df <- nad.df %>%
-  select(-c(7,24:25)) %>%
-  rename(sample.key = Sample.key,
-         date = `Capture.date.(dd/mmm/yy)`,
-         group.date = Grouping.date,
-         length = `Smolt.length.(mm)`,
-         length.class.code = Length.class.code,
-         length.class = Length.class,
-         weight = Weight,
-         PSC.book = `PSC.book.#`,
-         PSC.sample = `PSC.book.sample.#`,
-         whatman.sheet = `Whatman.sheet.#.(e.g.,1-35639)`,
-         PSC.DNA = `PSC.DNA#`,
-         DNA.scales.stat = `DNA.and.scales.(1st.round.select)`,
-         scales.only = `Scale.samples.only.(1st.round.select)`,
-         comments1 = Comment1,
-         comments2 = Comment2, 
-         DNA.comment = DNA.Lab.Comment,
-         region = Region1,
-         scale.lab.date = Scale.Lab.Date,
-         age = Age,
-         area = Area,
-         D.comment = `Dejan's.comment`,
-         length.check = Length.check) %>% 
-  mutate(date = excel_numeric_to_date(date)) %>% 
-  mutate(whatman.sheet = ifelse(whatman.sheet == "N/A", NA, whatman.sheet)) %>%
-  mutate(DNA.scales.stat = ifelse(is.na(DNA.scales.stat), 0, DNA.scales.stat)) %>%
-  mutate(length.class = factor(length.class, levels= c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130", ordered=T))) %>% 
-  mutate_at(vars(c(11)), funs(as.factor)) %>%
-  mutate(group.date = sub('^.(.*).$', "\\1", group.date)) %>%
-  unite("book_sample", PSC.book:PSC.sample, sep="-", remove=F) %>%
-  print()
+# ordered factor 
+nad.df$length_class <- factor(nad.df$length_class, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130", ordered=T))
+
 
 
 ##################################################################################################################################################
@@ -71,33 +41,33 @@ nad.df <- nad.df %>%
 
 # what % of samples taken have been run? 
 sub1 <- nad.df %>% 
-  filter(whatman.sheet != "NA") %>%
-  group_by(DNA.scales.stat) %>% 
+  filter(whatman_sheet != "NA") %>%
+  group_by(dna_select_bin) %>% 
   summarize(n=n()) %>% 
   print()
 
 # what % have been successfully run?
 samp_propn <- nad.df %>%
-  filter(whatman.sheet != "NA", !grepl("did not amplify", DNA.comment), !sample.key %in% c("367","382")) %>%
-  group_by(DNA.scales.stat, region) %>% 
+  filter(whatman_sheet != "NA", !grepl("did not amplify", dna_comment), region1 != "0") %>%
+  group_by(dna_select_bin, region1) %>% 
   summarize(DNA_samp = n()) %>%
   mutate(propn = DNA_samp/sum(DNA_samp)) %>%
   print()
 
 # range of did not amplify samples 
 no.amp <- nad.df %>%
-  filter(grepl("did not amplify", DNA.comment)) %>%
-  group_by(date, length.class) %>%
+  filter(grepl("did not amplify", dna_comment)) %>%
+  group_by(date, length_class) %>%
   summarize(n = n()) %>%
   group_by(date) %>%
   mutate(perc=n/sum(n)) %>%
   print()
 
 # plot this for visual
-ggplot(no.amp, aes(x=date, y=length.class, height=n)) +
+ggplot(no.amp, aes(x=date, y=length_class, height=n)) +
   geom_density_ridges(stat="identity", scale=1)
 
-ggplot(no.amp, aes(x=date, y=n, fill=length.class)) +
+ggplot(no.amp, aes(x=date, y=n, fill=length_class)) +
   geom_bar(stat = "identity", colour="black") +
   theme_bw()+
   labs(x="Date", y="Count", fill="Length class") +
@@ -114,33 +84,36 @@ ggplot(no.amp, aes(x=date, y=n, fill=length.class)) +
 
 # all samples taken over time 
 dna.date <- nad.df %>% 
-  filter(whatman.sheet!="NA", !grepl("did not amplify", DNA.comment)) %>% 
-  group_by(DNA.scales.stat, group.date) %>%
+  filter(whatman_sheet!="NA", !grepl("did not amplify", dna_comment)) %>% 
+  group_by(dna_select_bin, date_group) %>%
   summarize(n = n()) %>%
-  group_by(group.date) %>%
+  group_by(date_group) %>%
   mutate(perc = n/sum(n)) %>%
   print()
 
 # all samples taken - by length
 dna.lgth <- nad.df %>% 
-  filter(whatman.sheet!="NA", !grepl("did not amplify", DNA.comment)) %>% 
-  group_by(DNA.scales.stat, length.class) %>%
+  filter(whatman_sheet!="NA", !grepl("did not amplify", dna_comment)) %>% 
+  group_by(dna_select_bin, length_class) %>%
   summarize(n = n()) %>%
-  group_by(length.class) %>%
+  group_by(length_class) %>%
   mutate(perc = n/sum(n)) %>%
   print()
 
+dna.lgth$length_class <- factor(dna.lgth$length_class, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130", ordered=T))
+
+
 # all samples taken - by weight
 dna.wgt <- nad.df %>% 
-  filter(whatman.sheet!="NA", !grepl("did not amplify", DNA.comment), DNA.scales.stat=="1") %>% 
+  filter(whatman_sheet!="NA", !grepl("did not amplify", dna_comment), dna_select_bin=="1") %>% 
   print()
 
 
 # plot to see together
 
   # plots by number of samples 
-  n.d <- ggplot(dna.date, aes(x=group.date, y=n, fill=DNA.scales.stat)) +
-    geom_bar(aes(fill=DNA.scales.stat), stat="identity", colour="black") +
+  n.d <- ggplot(dna.date, aes(x=date_group, y=n, fill=dna_select_bin)) +
+    geom_bar(aes(fill=dna_select_bin), stat="identity", colour="black") +
     theme_bw() +
     labs(x="Date", y="Count", fill="Submission status") +
     theme(axis.title = element_text(size=18, face = "bold"),
@@ -149,8 +122,8 @@ dna.wgt <- nad.df %>%
       legend.text = element_text(size=14), 
       legend.title = element_text(size=15))
   
-  n.l <- ggplot(dna.lgth, aes(x=length.class, y=n, fill=DNA.scales.stat)) +
-    geom_bar(aes(fill=DNA.scales.stat), stat="identity", colour="black") +
+  n.l <- ggplot(dna.lgth, aes(x=length_class, y=n, fill=dna_select_bin)) +
+    geom_bar(aes(fill=dna_select_bin), stat="identity", colour="black") +
     theme_bw() +
     labs(x="Length class (mm)", y="Count", fill="Submission status") +
     theme(axis.title = element_text(size=18, face = "bold"),
@@ -160,8 +133,8 @@ dna.wgt <- nad.df %>%
       legend.title = element_text(size=15))
   
   # plots by proportion of samples 
-  p.d <- ggplot(dna.date, aes(x=group.date, y=perc, fill=DNA.scales.stat)) +
-    geom_bar(aes(fill=DNA.scales.stat), stat="identity", colour="black") +
+  p.d <- ggplot(dna.date, aes(x=date_group, y=perc, fill=dna_select_bin)) +
+    geom_bar(aes(fill=dna_select_bin), stat="identity", colour="black") +
     theme_bw() +
     labs(x="Date", y="Percent of total", fill="Submission status") +
     theme(axis.title = element_text(size=18, face = "bold"),
@@ -170,8 +143,8 @@ dna.wgt <- nad.df %>%
       legend.text = element_text(size=14), 
       legend.title = element_text(size=15))
   
-  p.l <- ggplot(dna.lgth, aes(x=length.class, y=perc, fill=DNA.scales.stat)) +
-    geom_bar(aes(fill=DNA.scales.stat), stat="identity", colour="black") +
+  p.l <- ggplot(dna.lgth, aes(x=length_class, y=perc, fill=dna_select_bin)) +
+    geom_bar(aes(fill=dna_select_bin), stat="identity", colour="black") +
     theme_bw() +
     labs(x="Length class (mm)", y="Percent of total", fill="Submission status") +
     theme(axis.title = element_text(size=18, face = "bold"),
@@ -180,7 +153,7 @@ dna.wgt <- nad.df %>%
       legend.text = element_text(size=14), 
       legend.title = element_text(size=13))
   
-  p.w <- ggplot(dna.wgt, aes(x=date, y=perc, fill=DNA.scales.stat)) +
+  p.w <- ggplot(dna.wgt, aes(x=date, y=perc, fill=dna_select_bin)) +
     geom_bar(stat="identity", colour="black") +
     theme_bw()
   
@@ -195,23 +168,24 @@ dna.wgt <- nad.df %>%
 
 # what is the date range of unsubmitted samples? 
 unsamp.date <- nad.df %>% 
-  filter(whatman.sheet != "NA", DNA.scales.stat == "0") %>%
-  group_by(group.date) %>% 
+  filter(whatman_sheet != "NA", dna_select_bin == "0") %>%
+  group_by(date_group) %>% 
   summarize(n=n()) %>% 
   print()
 
 # what is the length range of unsubmitted samples?
 unsamp.lgth <- nad.df %>% 
-  filter(whatman.sheet != "NA", DNA.scales.stat == "0") %>% 
-  group_by(length.class) %>% 
+  filter(whatman_sheet != "NA", dna_select_bin == "0") %>% 
+  group_by(length_class) %>% 
   summarize(n=n()) %>% 
   print()
 
+unsamp.lgth$length_class <- factor(unsamp.lgth$length_class, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130", ordered=T))
 
 # plot
 
   # by date
-  u.d <- ggplot(unsamp.date, aes(x=group.date, y=n)) +
+  u.d <- ggplot(unsamp.date, aes(x=date_group, y=n)) +
     geom_bar(stat="identity", colour="black", fill="gray60") +
     theme_bw() +
     labs(x="Date", y="Count", fill="Submission status") +
@@ -222,7 +196,7 @@ unsamp.lgth <- nad.df %>%
       legend.title = element_text(size=15))
   
   # by length
-  u.l <- ggplot(unsamp.lgth, aes(x=length.class, y=n)) +
+  u.l <- ggplot(unsamp.lgth, aes(x=length_class, y=n)) +
     geom_bar(stat="identity", colour="black", fill="gray60") +
     theme_bw() +
     labs(x="Length class (mm)", y="Count", fill="Submission status") +
@@ -246,9 +220,9 @@ unsamp.lgth <- nad.df %>%
 
 # reduced dataset for run samples
 svn.b <- nad.df %>% 
-  filter(whatman.sheet!="NA", !grepl("did not amplify", DNA.comment), region %in% c(4,12)) %>% 
+  filter(whatman_sheet!="NA", !grepl("did not amplify", dna_comment), region1 %in% c(4,12)) %>% 
   mutate_at(vars(c(18)), funs(as.character)) %>%
-  mutate(region = ifelse(region=="4", "Nadina", "Stellako")) %>%
+  mutate(region1 = ifelse(region1=="4", "Nadina", "Stellako")) %>%
   print()
 
 #fitlm = lm(length ~ date + region, data = svn)
@@ -259,9 +233,9 @@ svn.b <- nad.df %>%
 
 # plot 
   # by length
-  l<-ggplot(svn.b, aes(x=date, y=length, group=region)) +
-    geom_smooth(aes(colour=region, fill=region), method="lm", se=T, size=1.5, alpha=0.15) +
-    geom_point(aes(colour=region, fill=region),alpha=0.5, size=3) +
+  l<-ggplot(svn.b, aes(x=date, y=length_mm, group=region1)) +
+    geom_smooth(aes(colour=region1, fill=region1), method="lm", se=T, size=1.5, alpha=0.15) +
+    geom_point(aes(colour=region1, fill=region1),alpha=0.5, size=3) +
     scale_colour_manual(values=c("#0059d1", "#81a926")) +
     scale_fill_manual(values=c("#0059d1", "#81a926")) +
     scale_x_date(date_breaks = "3 days", date_labels = "%b %d") +
@@ -275,10 +249,10 @@ svn.b <- nad.df %>%
       legend.title = element_text(size=10),
       legend.position="none")
   
-  # by width
-  w<-ggplot(svn.b, aes(x=date, y=weight, group=region)) +
-    geom_smooth(aes(colour=region, fill=region), method="lm", se=T, size=1.5, alpha=0.15) +
-    geom_point(aes(colour=region, fill=region),alpha=0.5, size=3) +
+  # by weight
+  w<-ggplot(svn.b, aes(x=date, y=weight_g, group=region1)) +
+    geom_smooth(aes(colour=region1, fill=region1), method="lm", se=T, size=1.5, alpha=0.15) +
+    geom_point(aes(colour=region1, fill=region1),alpha=0.5, size=3) +
     scale_colour_manual(values=c("#0059d1", "#81a926")) +
     scale_fill_manual(values=c("#0059d1", "#81a926")) +
     scale_x_date(date_breaks = "3 days", date_labels = "%b %d") +
@@ -294,9 +268,9 @@ svn.b <- nad.df %>%
       legend.title = element_text(size=15)) 
   
   # width vs length
-  lw<-ggplot(svn.b, aes(x=length, y=weight, group=region)) +
-    geom_point(aes(colour=region, fill=region),alpha=0.5, size=2) +
-    geom_smooth(aes(colour=region, fill=region), method="lm", se=T, alpha=0.15) +
+  lw<-ggplot(svn.b, aes(x=length_mm, y=weight_g, group=region1)) +
+    geom_point(aes(colour=region1, fill=region1),alpha=0.5, size=2) +
+    geom_smooth(aes(colour=region1, fill=region1), method="lm", se=T, alpha=0.15) +
     scale_colour_manual(values=c("#0059d1", "#81a926")) +
     scale_fill_manual(values=c("#0059d1", "#81a926")) +
     labs(x="Length (mm)", y="Weight (g)", fill="Region", colour="Region") +
@@ -316,12 +290,12 @@ svn.b <- nad.df %>%
 
 # daily and cumulative run timing
 svn.a <- nad.df %>% 
-  filter(whatman.sheet!="NA", !grepl("did not amplify", DNA.comment), region %in% c(4,12)) %>% 
+  filter(whatman_sheet!="NA", !grepl("did not amplify", dna_comment), region1 %in% c(4,12)) %>% 
   mutate_at(vars(c(18)), funs(as.character)) %>%
-  mutate(region = ifelse(region=="4", "Nadina", "Stellako")) %>%
-  group_by(date, region) %>%
+  mutate(region1 = ifelse(region1=="4", "Nadina", "Stellako")) %>%
+  group_by(date, region1) %>%
   summarize(n=n()) %>%
-  group_by(region) %>%
+  group_by(region1) %>%
   mutate(cuml_n = cumsum(n)) %>%
   mutate(cuml_p = cuml_n/sum(n)) %>%
   print()
@@ -329,7 +303,7 @@ svn.a <- nad.df %>%
   
 # plot
   # by daily run time 
-  a<-ggplot(svn.a, aes(x=date, y=n, group=region, colour=region)) +
+  a<-ggplot(svn.a, aes(x=date, y=n, group=region1, colour=region1)) +
     geom_point(size=4, alpha=0.5) +
     geom_line(size=1.2) +
     scale_colour_manual(values=c("#0059d1", "#81a926")) +
@@ -342,7 +316,7 @@ svn.a <- nad.df %>%
       legend.title = element_text(size=15)) 
   
   # by cumulative run time
-  c<-ggplot(svn.a, aes(x=date, y=cuml_p, group=region, colour=region)) +
+  c<-ggplot(svn.a, aes(x=date, y=cuml_p, group=region1, colour=region1)) +
     geom_line(size=1.2) +
   #  geom_point(size=4, alpha=0.5) +
     scale_colour_manual(values=c("#0059d1", "#81a926")) +
@@ -366,18 +340,18 @@ svn.a <- nad.df %>%
 
 # what proportion of all samples are stellako and nadina?
 dna.propn <- nad.df %>% 
-  filter(region %in% c("4", "12")) %>% 
-  group_by(group.date, region) %>%
+  filter(region1 %in% c("4", "12")) %>% 
+  group_by(date_group, region1) %>%
   summarize(n=n()) %>% 
-  group_by(group.date) %>%
+  group_by(date_group) %>%
   mutate(propn=n/sum(n)) %>%
   mutate_at(vars(c(2)), funs(as.factor)) %>%
-  mutate(region = ifelse(region=="4", "Stellako", "Nadina")) %>%
+  mutate(region1 = ifelse(region1=="4", "Stellako", "Nadina")) %>%
   print()
 
 # plot
   # by date
-    ggplot(dna.propn, aes(x=group.date, y=propn, group=region, colour=region)) + 
+    ggplot(dna.propn, aes(x=date_group, y=propn, group=region1, colour=region1)) + 
       labs(x="Date", y="Proportion of samples", colour="Region:") +
       geom_line(stat="identity", size=1.5) +
       scale_colour_manual(values=c("#0059d1", "#81a926")) +
@@ -395,13 +369,13 @@ dna.propn <- nad.df %>%
 
 # same as above but by summarized date so can apply correction factor to overall daily abundance 
 dna.propn <- nad.df %>% 
-  filter(region %in% c("4", "12")) %>% 
-  group_by(date, region) %>%
+  filter(region1 %in% c("4", "12")) %>% 
+  group_by(date, region1) %>%
   summarize(n=n()) %>% 
   group_by(date) %>%
   mutate(propn=n/sum(n)) %>%
   mutate_at(vars(c(2)), funs(as.factor)) %>%
-  mutate(region = ifelse(region=="4", "Stellako", "Nadina")) %>%
+  mutate(region1 = ifelse(region1=="4", "Stellako", "Nadina")) %>%
   print()
 
 
@@ -415,7 +389,7 @@ dna.propn <- nad.df %>%
 
 # Create df with all unsent samples after Apr 22
 nad.pull <- nad.df %>% 
-  filter(whatman.sheet != "NA", DNA.scales.stat == "0", date > as.Date("2019-04-22") & date < as.Date("2019-05-21")) %>% 
+  filter(whatman_sheet != "NA", dna_select_bin == "0", date > as.Date("2019-04-22") & date < as.Date("2019-05-21")) %>% 
   print()
 
   # there are 25 days to sample from. end date chosen to allow for even equal numbers of samples each day (for simplicity). 
@@ -431,7 +405,7 @@ nad.pull <- nad.df %>%
 #  print() %T>%
 #  write.csv("Nautley_random_sample.csv")
 
-samp <- read.csv("Nautley_random_sample.csv", row.names=F)
+samp <- read.csv("Nautley_random_sample_2.csv")
 
 
 #### FOLLOW UP JAN 6 2020 - Kelsey Flynn noted that 6 samples from May 2 did not actually exist. SD and I decided to pull another 6 randomly
@@ -439,7 +413,7 @@ samp <- read.csv("Nautley_random_sample.csv", row.names=F)
 
 # create may 2 database 
 samp.may2 <- nad.pull %>%
-  filter(date == "2019-05-02", PSC.DNA != "NA", !sample.key %in% c(356, 365)) %>%              # these two samples were already submitted as part of the original 8 random samples so they are already being processed.
+  filter(date == "2019-05-02", !is.na(psc_book_no), !ufid %in% c("2019-8-95", "2019-8-104")) %>%              # these two samples were already submitted as part of the original 8 random samples so they are already being processed.
   print()
 
 #rando2.2 <- samp.may2 %>% 
@@ -452,13 +426,13 @@ samp.may2 <- nad.pull %>%
 
 #### FOLLOW UP JAN 7 2020 - KF says sample 368 was already run, but there is no data for it. rsamp for 1 more sample.
 samp.may2.2 <- nad.pull %>%
-  filter(date == "2019-05-02", PSC.DNA != "NA", !sample.key %in% c(356, 365, 370, 374, 353, 368, 346, 348)) %>%              # these samples were already submitted as part of the original 8 random samples, and then the above random 6 so they are already being processed.
+  filter(date == "2019-05-02", !is.na(psc_book_no), !ufid %in% c("2019-8-95", "2019-8-104", "2019-8-92", "2019-8-107", "2019-8-85", "2019-8-87")) %>%              # these samples were already submitted as part of the original 8 random samples, and then the above random 6 so they are already being processed.
   print()
 
-rando2.3 <- samp.may2.2 %>% 
-  sample_n(1) %>%
-  print() %T>%
-  write.csv("Nautley_random_sample_may2_2.csv")
+#rando2.3 <- samp.may2.2 %>% 
+#  sample_n(1) %>%
+#  print() %T>%
+#  write.csv("Nautley_random_sample_may2_2.csv")
 
 #######################
 # SAMPLE PULL SUMMARY #
@@ -519,7 +493,7 @@ ggplot(samp.date, aes(x=group.date, y=n)) +
 
 # extract all samples from pull request 1
 pull1 <- nad.df %>% 
-  filter(DNA.scales.stat == "1", !grepl("did not amplify", DNA.comment)) %>% 
+  filter(dna_select_bin == "1", !grepl("did not amplify", dna_comment)) %>% 
   print()
 
 # join pull request 1 with random sample pull 2
@@ -527,7 +501,7 @@ samp.sim <- full_join(pull1, samp)
 
 # check sample sizes to confirm join was appropriate and no samples were lost 
 samp.sim %>% 
-  group_by(DNA.scales.stat) %>% 
+  group_by(dna_select_bin) %>% 
   summarize(n=n()) %>% 
   print()
 
@@ -538,7 +512,7 @@ samp.sim %>%
 
 # summarize by date 
 sim.date <- samp.sim %>% 
-  mutate(pull.request = ifelse(DNA.scales.stat=="1", "1", "2")) %>%
+  mutate(pull.request = ifelse(dna_select_bin=="1", "1", "2")) %>%
   group_by(date, pull.request) %>% 
   summarize(n = n()) %>% 
   mutate(propn=n/sum(n)) %>% 
@@ -589,7 +563,7 @@ sim.date$pull.request <- factor(sim.date$pull.request, levels=c("2", "1"), order
 
 # summarize by length
 sim.lgth <- samp.sim %>% 
-  mutate(pull.request = ifelse(DNA.scales.stat=="1", "1", "2")) %>%
+  mutate(pull.request = ifelse(dna_select_bin=="1", "1", "2")) %>%
   group_by(length.class, pull.request) %>% 
   summarize(n = n()) %>% 
   mutate(propn=n/sum(n)) %>% 
@@ -630,7 +604,7 @@ sim.lgth$pull.request <- factor(sim.lgth$pull.request, levels=c("2", "1"), order
 
 age <- nad.df %>% 
   filter(age=="1") %>%
-  group_by(length.class) %>% 
+  group_by(length_class) %>% 
   summarize(n=n()) %>% 
     mutate(propn=n/sum(n)*100) %>%
   print()
@@ -639,37 +613,17 @@ age <- nad.df %>%
 
 
 ##################################################################################################################################################
-
-# Total catch data from Nautley overall catch entry datasheet 
-
-setwd("~/Data")
-
-# read data - exported as a CSV first because of issues reading in using read.xlsx (very slow and sluggish, might be due to weird column names) 
-  # also time formats WTF is going on there. 
-catch <- read.csv("2019 Nautley.csv")
+##################################################################################################################################################
+##################################################################################################################################################
 
 
-#################
-# DATA CLEANING #
-#################
-catch <- catch %>% 
-  rename(trap_type = `Trap.type.....RST..small.fyke..large.fyke.`,
-    date = `Date..dd.mmm.yy.`,
-    start_time = `Start.time.....hh.ss.`,
-    end_time = `End.time..hh.ss.`,
-    RST_tpm = `X.RST.turns.per.min...e.g...7.3...`,
-    sox_smolts = `X..Sox.smolts`,
-    sox_morts = `X..Sox.morts..incld.in.previous.column.`,
-    CH_fry = `X..CH..fry`,
-    CH_smolt = `X..CH..smolts`,
-    water_temp = `Water.temp..ºC.`,
-    gauge_m = `Staff.gauge..m.`,
-    comments = Comments) %>%
-  print()
+# read in individual data 
+catch.df <- read.xlsx("nautley_ANALYTICAL_database_2019.xlsx", sheet = 2, colNames=T, detectDates=T)
 
+# CLEANING CODE that went into making the file above.
+  # difftime was removed as it wasn't useful
 # format start and end times
 catch <- catch %>%
-  mutate_at(vars(c(2:4)), funs(as.character)) %>% 
   mutate(start_time =  with_options(c(scipen = 999), str_pad(catch$start_time, 5, pad = "0"))) %>% 
   mutate(end_time = with_options(c(scipen = 999), str_pad(catch$end_time, 5, pad = "0"))) %>%
   print()
@@ -684,51 +638,6 @@ catch$start_datetime <- as.POSIXct(paste(catch$start_date, catch$start_time),tz 
 catch$end_datetime <- as.POSIXct(paste(catch$end_date, catch$end_time),tz = "")
 catch$difftime <- difftime(catch$end_datetime, catch$start_datetime, tz="", units = c("hour"))
 catch$difftime <- as.numeric(catch$difftime)
-
-#################################
-# CATCH IN SMALL TIME INTERVALS #
-#################################
-
-rst <- catch %>% 
-  filter(trap_type =="small RST", date >= as.Date("2019-04-26"), date <= as.Date("2019-05-27")) %>%
-  group_by(start_date, start_time, end_time, difftime) %>% 
-  summarize(sum = sum(sox_smolts)) %>%
-  mutate(start_datetime = paste(start_date, start_time, sep=" ")) %>%
-  print()
-
-ggplot(rst, aes(x=start_datetime, y=sum)) +
-    geom_bar(stat="identity")
-
-
-
-
-
-
-########
-# CPUE #
-########
-
-# calculate basic CPUE by # smolts/# hours fished - this is because of difference in sampling lengths over the season
-total <- catch %>% 
-  mutate(sum_std = sox_smolts/difftime) %>%
-  group_by(start_date) %>% 
-  summarize(cpue=sum(sum_std)) %>%
-  print()
-
-# plot 
-  # CPUE by date 
-  ggplot(total, aes(x=start_date, y=cpue)) +
-    geom_bar(stat="identity", fill="gray80", colour="black") + 
-    scale_y_continuous(limits=c(0,800)) +
-    scale_x_date(limits=as.Date(c("2019-04-13", "2019-05-27")), breaks="4 day", labels = date_format("%b %d")) +
-    labs(x="Date", y="CPUE (smolts/hour)") +
-    theme_bw() +
-    theme(axis.title = element_text(size=18, face="bold"),
-      axis.title.y = element_text(margin = margin(t=0, b=0, l=0, r=6)),
-      axis.text = element_text(size=15, colour="black"),
-      axis.text.x = element_text(angle=45, vjust=1, hjust=1),
-      legend.text = element_text(size=14), 
-      legend.title = element_text(size=15))
 
 
   
@@ -795,22 +704,7 @@ discharge2 <- discharge2 %>%
       legend.text = element_text(size=14), 
       legend.title = element_text(size=15))
   
-  
-#cpue2check <- subset(cpue2, format(start_datetime, '%H') %in% 
-  #c('04', '05', '06', '07', '08', "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20"))
-  
-  
-  
 
-
-  
-
-  
-  
-  
-  
-  
-  
   
   
 #################
