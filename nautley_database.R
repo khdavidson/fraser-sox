@@ -14,8 +14,8 @@ library(stringr)
 library(withr)
 library(padr)
 
-  # These data were verified by J. Graf 17-Jan-2020 and the sheets were combined into one Excel file manually by K. Davidson (they came)
-  # from a mess of Excel files. The following code cleans up a few small final discrepancies and prepares it for analysis and sharing.
+  # These data were verified by J. Graf 17-Jan-2020 and the sheets were combined into one Excel file manually by K. Davidson (they came
+  # from a mess of Excel files). The following code cleans up a few small final discrepancies and prepares it for analysis and sharing.
     # Code further below is the creation of the data request for Dave Patterson. 
 
 # The sheet breakdown is: 
@@ -35,8 +35,8 @@ rawcatch <- read.csv("nautley_database_2019_dailycatch.csv")
 
 # format start and end times
 catch <- rawcatch %>%
-  mutate(start_time =  with_options(c(scipen = 999), str_pad(catch$start_time, 5, pad = "0"))) %>% 
-  mutate(end_time = with_options(c(scipen = 999), str_pad(catch$end_time, 5, pad = "0"))) %>%
+  mutate(start_time =  with_options(c(scipen = 999), str_pad(rawcatch$start_time, 5, pad = "0"))) %>% 
+  mutate(end_time = with_options(c(scipen = 999), str_pad(rawcatch$end_time, 5, pad = "0"))) %>%
   mutate(date = lubridate::dmy(date)) %>%
   mutate(start_date = lubridate::dmy(start_date)) %>%
   mutate(end_date = lubridate::dmy(end_date)) %>%
@@ -51,8 +51,8 @@ catch <- rawcatch %>%
   print()
 
 # create columns for date-time 
-#catch$start_datetime <- as.POSIXct(paste(catch$start_date, catch$start_time),tz = "")
-#catch$end_datetime <- as.POSIXct(paste(catch$end_date, catch$end_time),tz = "")
+catch$start_datetime <- as.POSIXct(paste(catch$start_date, catch$start_time),tz = "")
+catch$end_datetime <- as.POSIXct(paste(catch$end_date, catch$end_time),tz = "")
 #catch$difftime <- difftime(catch$end_datetime, catch$start_datetime, tz="", units = c("hour"))
 #catch$difftime <- as.numeric(catch$difftime)
 
@@ -65,7 +65,7 @@ write.csv(catch, "nautley_2019_dailycatch.csv", row.names=F)
 ########################################################## SHEET 3 INDIVIDUAL SMOLT DATA ######################################################
 
 ##################
-# LOAD AND CLEAN #
+# LOAD AND CLEAN #                # THIS HAS SINCE BEEN EXPORTED TO EXCEL AND MANUALLY MODIFIED (SEE BELOW)
 ##################
 
 # read data
@@ -103,7 +103,18 @@ smolts <- ind.dat %>%
 
 view(smolts %>% filter(ewatch_sample_bin=="1"))
 
-write.csv(smolts, "nautley_2019_smoltdata.csv", row.names=F)
+# write.csv(smolts, "nautley_2019_smoltdata.csv", row.names=F)     THIS HAS BEEN IMPORTED AND EDITED IN EXCEL, DO NOT RE-RUN
+
+  # If you do need to re-run, the following changes were done post-this script in Excel: 
+    # Confirmed that dna_select_bin was always 1 when DNA results were available, or if amplification comments existed.
+    # Changed all NA in dna_select_bin to 0 
+    # Some dna_select_bin set to 1 had NA for regions and no dna lab comments, so they were changed to 0
+    # Changed all NA in scales_select_bin to 0
+    # If fish had age data, scales_select_bin was set to 1
+    # There were a few fish without age data but that appear to be DP Ewatch fish. Their scale_select_bin status was set to 0 as no age data exist
+
+
+
 
 
 ################################################################################################################################################
@@ -111,6 +122,7 @@ write.csv(smolts, "nautley_2019_smoltdata.csv", row.names=F)
 ###########################
 # DATA FOR DAVE PATTERSON #
 ###########################
+# 17-Jan-2020
 
 dpcatch <- catch %>% 
   filter(trap_type=="small RST") %>% 
