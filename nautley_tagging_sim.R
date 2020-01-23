@@ -23,6 +23,19 @@ setwd("~/ANALYSIS/Data")
 
 # read data 
 ind.dat <- read.xlsx("nautley_ANALYTICAL_database_2019.xlsx", sheet = 3, detectDates = T)
+catch <- read.xlsx("nautley_ANALYTICAL_database_2019.xlsx", sheet = 2, detectDates = T)
+
+# how many DNA samples were taken all together each day? Excluding E-Watch fish
+dailydna <- ind.dat %>% 
+  filter(!is.na(whatman_sheet), is.na(ewatch_fid)) %>%
+  group_by(date) %>% 
+  summarize(n=n()) %>%
+  print()
+
+dailycatch <- catch %>% 
+  group_by(date) %>% 
+  summarize(sum=sum(sox_smolts)) %>% 
+  print()
 
 # Select only DNA - n=175 sent in first round DNA
 dna <- ind.dat %>% 
@@ -48,7 +61,6 @@ sample_n()
 
 #                                                                 POWER ANALYSIS
 
-# Power of 0.80 is considered appropriate 
 
 
                                                         #####################################
@@ -124,52 +136,51 @@ pooled_s <- dna %>%
 #####
 # MODEL 1: length ~ date + stock
 #####
-summary(lm(lxw$length_mm ~ lxw$date + lxw$region1))
-summary(aov(lxw$length_mm ~ lxw$date + lxw$region1))                    # no significant interaction effect
-
+  summary(lm(lxw$length_mm ~ lxw$date + lxw$region1))
+  summary(aov(lxw$length_mm ~ lxw$date + lxw$region1))                    # no significant interaction effect
 # Power: Regression
-  # r2 full = 0.66  ,  because i'm interested in both predictors, R2 reduced=0
-  # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.66-0)/(1-0.66) = 1.94
-wp.regression(n=NULL, p1=2, p2=0, f2=1.94, power=0.8)             # n = 9 fish
-wp.regression(n=NULL, p1=2, p2=0, f2=0.02, power=0.8)             # Cohen small effect size 
-wp.regression(n=NULL, p1=2, p2=0, f2=0.15, power=0.8)             # Cohen medium effect size
-wp.regression(n=NULL, p1=2, p2=0, f2=0.35, power=0.8)             # Cohen large effect size
+    # r2 full = 0.66  ,  because i'm interested in both predictors, R2 reduced=0
+    # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.66-0)/(1-0.66) = 1.94
+  wp.regression(n=NULL, p1=2, p2=0, f2=1.94, power=0.8)             # n = 9 fish
+  wp.regression(n=NULL, p1=2, p2=1, f2=0.35, power=0.8)             # how much does adding date affect? n = 26 fish
+  wp.regression(n=NULL, p1=2, p2=1, f2=0.85, power=0.8)             # how much does adding GSID affect? n = 13 fish
+  wp.regression(n=NULL, p1=2, p2=0, f2=0.02, power=0.8)             # Cohen small effect size 
+  wp.regression(n=NULL, p1=2, p2=0, f2=0.15, power=0.8)             # Cohen medium effect size
+  wp.regression(n=NULL, p1=2, p2=0, f2=0.35, power=0.8)             # Cohen large effect size
 # Power: Correlation
-  # r2 = 0.66
-wp.correlation(n=NULL, r=0.66, alpha=0.05, power=0.8)             # n = 15 fish
-pwr.r.test(n=NULL, r=0.66, sig.level=0.05, power=0.8)             # n = 15 fish
+    # r2 = 0.66
+  wp.correlation(n=NULL, r=0.66, alpha=0.05, power=0.8)             # n = 15 fish
+  pwr.r.test(n=NULL, r=0.66, sig.level=0.05, power=0.8)             # n = 15 fish
 
 
 #####
 # MODEL 2: length ~ stock
 #####
-summary(lm(lxw$length_mm ~ lxw$region1))  
-
+  summary(lm(lxw$length_mm ~ lxw$region1))  
 # Power: Regression - not really relevant to this model
-  # r2 full = 0.54  ,  because i'm interested in both predictors, R2 reduced=0
-  # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.53-0)/(1-0.53) = 1.94
-wp.regression(n=NULL, p1=2, p2=0, f2=1.12, power=0.8)                                # n = 12 fish
+    # r2 full = 0.54  ,  because i'm interested in both predictors, R2 reduced=0
+    # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.53-0)/(1-0.53) = 1.94
+  wp.regression(n=NULL, p1=2, p2=0, f2=1.12, power=0.8)                                # n = 12 fish
 # Power: Correlation - not really relevant to this model
-  # r2 = 0.66
-wp.correlation(n=NULL, r=0.53, alpha=0.05, power=0.8)                                # n = 25 fish
-pwr.r.test(n = NULL, r = 0.53, sig.level = 0.05, power = 0.8)                        # n = 25 fish.
+    # r2 = 0.66
+  wp.correlation(n=NULL, r=0.53, alpha=0.05, power=0.8)                                # n = 25 fish
+  pwr.r.test(n = NULL, r = 0.53, sig.level = 0.05, power = 0.8)                        # n = 25 fish.
 # Power: t-test
-  cohensD(lxw$length_mm ~ lxw$region1, method="pooled")
-pwr.t.test(n=NULL, d=2.14, sig.level=0.05, power=0.8, type = "two.sample")           # n = 5 fish in each group
+    cohensD(lxw$length_mm ~ lxw$region1, method="pooled")
+  pwr.t.test(n=NULL, d=2.14, sig.level=0.05, power=0.8, type = "two.sample")           # n = 5 fish in each group
 
 #####
 # MODEL 3: length ~ date
 #####
-summary(lm(lxw$length_mm ~ lxw$date))    
-
+  summary(lm(lxw$length_mm ~ lxw$date))    
 # Power: Regression
-  # r2 full = 0.37  ,  because i'm interested in both predictors, R2 reduced=0
-  # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.37-0)/(1-0.37) = 0.59
-wp.regression(n=NULL, p1=2, p2=0, f2=0.59, power=0.8)                               # n = 20 fish
+    # r2 full = 0.37  ,  because i'm interested in both predictors, R2 reduced=0
+    # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.37-0)/(1-0.37) = 0.59
+  wp.regression(n=NULL, p1=2, p2=0, f2=0.59, power=0.8)                               # n = 20 fish
 # Power: Correlation
-  # r2 = 0.37
-wp.correlation(n=NULL, r=0.37, alpha=0.05, power=0.8)                               # n = 55 fish
-pwr.r.test(n=NULL, r=0.37, sig.level=0.05, power=0.8)                               # n = 55 fish
+    # r2 = 0.37
+  wp.correlation(n=NULL, r=0.37, alpha=0.05, power=0.8)                               # n = 55 fish
+  pwr.r.test(n=NULL, r=0.37, sig.level=0.05, power=0.8)                               # n = 55 fish
 
 
 ##########
@@ -179,88 +190,91 @@ pwr.r.test(n=NULL, r=0.37, sig.level=0.05, power=0.8)                           
 #####
 # MODEL 1: Weight ~ date + stock
 #####
-summary(lm(lxw$weight_g ~ lxw$date + lxw$region1))
-summary(aov(lxw$weight_g ~ lxw$date + lxw$region1))
-
+  summary(lm(lxw$weight_g ~ lxw$date + lxw$region1))
+  summary(aov(lxw$weight_g ~ lxw$date + lxw$region1))
 # Power: Regression
-  # r2 full = 0.73  ,  because i'm interested in both predictors, R2 reduced=0
-  # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.73-0)/(1-0.73) = 2.7
-wp.regression(n=NULL, p1=2, p2=0, f2=2.7, power=0.8)                           # n = 8 fish
-wp.regression(n=NULL, p1=2, p2=0, f2=0.02, power=0.8)                          # Cohen small effect size 
-wp.regression(n=NULL, p1=2, p2=0, f2=0.15, power=0.8)                          # Cohen medium effect size
-wp.regression(n=NULL, p1=2, p2=0, f2=0.35, power=0.8)                          # Cohen large effect size
+    # r2 full = 0.73  ,  because i'm interested in both predictors, R2 reduced=0
+    # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.73-0)/(1-0.73) = 2.7
+  wp.regression(n=NULL, p1=2, p2=0, f2=2.7, power=0.8)                           # n = 8 fish
+  wp.regression(n=NULL, p1=2, p2=1, f2=0.73, power=0.8)                          # how much does adding date affect? n = 14 fish
+  wp.regression(n=NULL, p1=2, p2=1, f2=0.93, power=0.8)                          # how much does adding GSID affect? n = 12 fish
+  wp.regression(n=NULL, p1=2, p2=0, f2=0.02, power=0.8)                          # Cohen small effect size 
+  wp.regression(n=NULL, p1=2, p2=0, f2=0.15, power=0.8)                          # Cohen medium effect size
+  wp.regression(n=NULL, p1=2, p2=0, f2=0.35, power=0.8)                          # Cohen large effect size
 # Power: Correlation
-  # r2 = 0.73
-wp.correlation(n=NULL, r=0.73, alpha=0.05, power=0.8)                          # n = 12 fish
-pwr.r.test(n=NULL, r=0.73, sig.level=0.05, power=0.8)                          # n = 12 fish
+    # r2 = 0.73
+  wp.correlation(n=NULL, r=0.73, alpha=0.05, power=0.8)                          # n = 12 fish
+  pwr.r.test(n=NULL, r=0.73, sig.level=0.05, power=0.8)                          # n = 12 fish
 
 
 #####
 # MODEL 2: Weight ~ stock
 #####
-summary(lm(lxw$weight_g ~ lxw$region1))
-
+  summary(lm(lxw$weight_g ~ lxw$region1))
 # Power: Regression - not super relevant for this comparison
-  # r2 full = 0.54  ,  because i'm interested in both predictors, R2 reduced=0
-  # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.54-0)/(1-0.54) = 1.17
-wp.regression(n=NULL, p1=2, p2=0, f2=1.17, power=0.8)                          # n = 12 fish
+    # r2 full = 0.54  ,  because i'm interested in both predictors, R2 reduced=0
+    # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.54-0)/(1-0.54) = 1.17
+  wp.regression(n=NULL, p1=2, p2=0, f2=1.17, power=0.8)                          # n = 12 fish
 # Power: Correlation - not super relevant for this comparison
-  # r2 = 0.54
-wp.correlation(n=NULL, r=0.54, alpha=0.05, power=0.8)                          # n = 24 fish
-pwr.r.test(n=NULL, r=0.54, sig.level=0.05, power=0.8)                          # n = 24 fish
+    # r2 = 0.54
+  wp.correlation(n=NULL, r=0.54, alpha=0.05, power=0.8)                          # n = 24 fish
+  pwr.r.test(n=NULL, r=0.54, sig.level=0.05, power=0.8)                          # n = 24 fish
 # Power: ANOVA
-  cohens_f(aov(lxw$weight_g ~ lxw$region1 + lxw$date))     # f = 1.44 and 0.87 for region and date, respectively 
-  # pi = ni/N (0.51 and 0.49)
-  # ni = number of obs in group i (86 and 82)
-  # N = total number of obs (168)
-  # ui = mean group i (115 and 96.9 mm)
-  # u = grand mean (106.5 mm)
-  # s2 = error variance within groups. sds 7.6 and 9.5. se=sd/sqrt(n)=7.6/sqrt(86)=0.82. variance=se^2*n=57.62  //  se=sd/sqrt(n)=9.5/sqrt(82)=1.04. variance=se^2*n=88.56
-  # f = sqrt((sum  pi*(ui - u)^2)/s2)
-    # nadina: (0.51*(115 - 106.5)^2)/27.62 = 1.33
-    # stellako: (0.49*(96.9-106.5)^2)/88.56 = 0.51
-    # f = sqrt(2.92+3.58) = 2.54
-pwr.anova.test(k=2, n=NULL, f=1.44, sig.level=0.05, power=0.8)                # n = 4 per group 
-pwr.anova.test(k=2, n=NULL, f=0.87, sig.level=0.05, power=0.8)                # n = 7 per group 
-wp.anova(f=1.44, k=2, n=NULL, alpha=0.05, power=0.8)                          # n = 7 fish overall 
-wp.anova(f=0.86, k=2, n=NULL, alpha=0.05, power=0.8)                          # n = 13 fish overall
+    cohens_f(aov(lxw$weight_g ~ lxw$region1 + lxw$date))     # f = 1.44 and 0.87 for region and date, respectively 
+    # pi = ni/N (0.51 and 0.49)
+    # ni = number of obs in group i (86 and 82)
+    # N = total number of obs (168)
+    # ui = mean group i (115 and 96.9 mm)
+    # u = grand mean (106.5 mm)
+    # s2 = error variance within groups. sds 7.6 and 9.5. se=sd/sqrt(n)=7.6/sqrt(86)=0.82. variance=se^2*n=57.62  //  se=sd/sqrt(n)=9.5/sqrt(82)=1.04. variance=se^2*n=88.56
+    # f = sqrt((sum  pi*(ui - u)^2)/s2)
+      # nadina: (0.51*(115 - 106.5)^2)/27.62 = 1.33
+      # stellako: (0.49*(96.9-106.5)^2)/88.56 = 0.51
+      # f = sqrt(2.92+3.58) = 2.54
+  pwr.anova.test(k=2, n=NULL, f=1.44, sig.level=0.05, power=0.8)                # n = 4 per group 
+  pwr.anova.test(k=2, n=NULL, f=0.87, sig.level=0.05, power=0.8)                # n = 7 per group 
+  wp.anova(f=1.44, k=2, n=NULL, alpha=0.05, power=0.8)                          # n = 7 fish overall 
+  wp.anova(f=0.86, k=2, n=NULL, alpha=0.05, power=0.8)                          # n = 13 fish overall
 # Power: t-test 
   # d = |u1 - u2|/s2 , ui = group means, s2 = common error variance. 
     # se=12.6/sqrt(168)=0.972 , var=(0.972)^2*168 = 158.72
     # d = (115-96.9)/158.72=0.11
-  cohensD(lxw$weight_g ~ lxw$region1, method="pooled")      # d = 2.15
-pwr.t.test(n=NULL, d=2.15, sig.level=0.05, power=0.8)                         # n = 5 per group
+    cohensD(lxw$weight_g ~ lxw$region1, method="pooled")      # d = 2.15
+  pwr.t.test(n=NULL, d=2.15, sig.level=0.05, power=0.8)                         # n = 5 per group
 
   
 #####
 # MODEL 3: Weight ~ date
 #####
-summary(lm(lxw$weight_g ~ lxw$date))
-
+  summary(lm(lxw$weight_g ~ lxw$date))
 # Power: Regression
-  #r2 full = 0.48  ,  because i'm interested in both predictors, R2 reduced=0
-  # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.48-0)/(1-0.48) = 0.92
-wp.regression(n=NULL, p1=1, p2=0, f2=0.92, power=0.8)                              # n = 11 fish
+    #r2 full = 0.48  ,  because i'm interested in both predictors, R2 reduced=0
+    # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.48-0)/(1-0.48) = 0.92
+  wp.regression(n=NULL, p1=1, p2=0, f2=0.92, power=0.8)                              # n = 11 fish
 # Power: Correlation
-  # R2 = 0.48
-wp.correlation(n=NULL, r=0.48, alpha=0.05, power=0.8)                              # n = 31 fish
-pwr.r.test(n=NULL, r=0.48, sig.level=0.05, power=0.8)                              # n = 31 fish
+    # R2 = 0.48
+  wp.correlation(n=NULL, r=0.48, alpha=0.05, power=0.8)                              # n = 31 fish
+  pwr.r.test(n=NULL, r=0.48, sig.level=0.05, power=0.8)                              # n = 31 fish
   
 
 #####
-# MODEL 3: weight ~ length
+# MODEL 4: weight ~ length           * this comparison can use the larger dataset (not limited by stock ID), but still age-1 only 
 #####
-summary(lm(lxw$weight_g ~ lxw$length_mm))    
-
+lw <- ind.dat %>%
+  filter(!is.na(length_mm), !is.na(weight_g)) %>% 
+  filter(age == "1") %>%                                 
+  print()
+  
+  summary(lm(lw$weight_g ~ lw$length_mm))    
 # Power: Regression
-  #r2 full = 0.95  ,  because i'm interested in both predictors, R2 reduced=0
-  # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.95-0)/(1-0.95) = 19
-  cohens_f(lm.wl)     # f = 4.4
-wp.regression(n=NULL, p1=1, p2=0, f2=2.4, power=0.8)                               # n = 7 fish can't run over f2=2.3
+    #r2 full = 0.94  ,  because i'm interested in both predictors, R2 reduced=0
+    # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.94-0)/(1-0.94) = 15.7
+    cohens_f(lm(lw$weight_g ~ lw$length_mm))     # f = 4.1
+  wp.regression(n=NULL, p1=1, p2=0, f2=2.3, power=0.8)                               # n = 7 fish can't run over f2=2.3
 # Power: Correlation
-  # R2 = 0.95
-wp.correlation(n=NULL, r=0.95, alpha=0.05, power=0.8)                              # n = 5 fish
-pwr.r.test(n=NULL, r=0.95, sig.level=0.05, power=0.8)                              # n = 6 fish
+    # R2 = 0.95
+  wp.correlation(n=NULL, r=0.94, alpha=0.05, power=0.8)                              # n = 5 fish
+  pwr.r.test(n=NULL, r=0.94, sig.level=0.05, power=0.8)                              # n = 6 fish
 
 
 
@@ -289,20 +303,20 @@ sub3 <- lxw %>%
   summary(lm(sub3$length_mm ~ sub3$date + sub3$region1))
   summary(aov(sub3$length_mm ~ sub3$date + sub3$region1))
 # Power: Regression
-  # r2 full = 0.64  ,  because i'm interested in both predictors, R2 reduced=0
-  # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.64-0)/(1-0.64) = 1.8
+    # r2 full = 0.64  ,  because i'm interested in both predictors, R2 reduced=0
+    # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.64-0)/(1-0.64) = 1.8
   wp.regression(n=NULL, p1=2, p2=0, f2=1.8, power=0.8)                           # n = 10 fish
   wp.regression(n=NULL, p1=2, p2=0, f2=0.02, power=0.8)                          # Cohen small effect size 
   wp.regression(n=NULL, p1=2, p2=0, f2=0.15, power=0.8)                          # Cohen medium effect size
   wp.regression(n=NULL, p1=2, p2=0, f2=0.35, power=0.8)                          # Cohen large effect size
 # Power: Correlation
-  # r2 = 0.73
+    # r2 = 0.73
   wp.correlation(n=NULL, r=0.64, alpha=0.05, power=0.8)                          # n = 16 fish
   pwr.r.test(n=NULL, r=0.64, sig.level=0.05, power=0.8)                          # n = 16 fish
 # Power: 2-way ANOVA 
     # Where a=region,  b=date
     # r2 = 0.64
-  cohens_f(lm(sub3$length_mm ~ sub3$date + sub3$region1))    # region f=0.85, date f=1.07, 
+    cohens_f(lm(sub3$length_mm ~ sub3$date + sub3$region1))    # region f=0.85, date f=1.07, 
   pwr.2way(a=2, b=60, alpha=0.05, size.A=NULL, size.B=30, f.A=0.85, f.B=1.07, power.A=0.8, power.B=0.8)
 
 #####
@@ -311,11 +325,11 @@ sub3 <- lxw %>%
   summary(lm(sub3$length_mm ~ sub3$date)) 
   summary(aov(sub3$length_mm ~ sub3$date + sub3$region1))
 # Power: Regression
-  # r2 full = 0.38  ,  because i'm interested in both predictors, R2 reduced=0
-  # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.38-0)/(1-0.38) = 0.61
+    # r2 full = 0.38  ,  because i'm interested in both predictors, R2 reduced=0
+    # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.38-0)/(1-0.38) = 0.61
   wp.regression(n=NULL, p1=2, p2=0, f2=0.61, power=0.8)                               # n = 20 fish
 # Power: Correlation
-  # r2 = 0.29
+    # r2 = 0.29
   wp.correlation(n=NULL, r=0.38, alpha=0.05, power=0.8)                               # n = 52 fish
   pwr.r.test(n=NULL, r=0.38, sig.level=0.05, power=0.8)                               # n = 52 fish
 
@@ -328,16 +342,16 @@ sub3 <- lxw %>%
     cohens_f(lm(sub3$weight_g ~ sub3$date + sub3$region1))    # date f = 1.30, region f = 0.87
   summary(aov(sub3$weight_g ~ sub3$date + sub3$region1))
 # Power: Regression
-  # r2 full = 0.70  ,  because i'm interested in both predictors, R2 reduced=0
-  # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.70-0)/(1-0.70) = 2.3
-wp.regression(n=NULL, p1=2, p2=0, f2=2.3, power=0.8)                           # n = 9 fish
-wp.regression(n=NULL, p1=2, p2=0, f2=0.02, power=0.8)                          # Cohen small effect size 
-wp.regression(n=NULL, p1=2, p2=0, f2=0.15, power=0.8)                          # Cohen medium effect size
-wp.regression(n=NULL, p1=2, p2=0, f2=0.35, power=0.8)                          # Cohen large effect size
+    # r2 full = 0.70  ,  because i'm interested in both predictors, R2 reduced=0
+    # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.70-0)/(1-0.70) = 2.3
+  wp.regression(n=NULL, p1=2, p2=0, f2=2.3, power=0.8)                           # n = 9 fish
+  wp.regression(n=NULL, p1=2, p2=0, f2=0.02, power=0.8)                          # Cohen small effect size 
+  wp.regression(n=NULL, p1=2, p2=0, f2=0.15, power=0.8)                          # Cohen medium effect size
+  wp.regression(n=NULL, p1=2, p2=0, f2=0.35, power=0.8)                          # Cohen large effect size
 # Power: Correlation
-  # r2 = 0.73
-wp.correlation(n=NULL, r=0.70, alpha=0.05, power=0.8)                          # n = 13 fish
-pwr.r.test(n=NULL, r=0.70, sig.level=0.05, power=0.8)                          # n = 13 fish  
+    # r2 = 0.73
+  wp.correlation(n=NULL, r=0.70, alpha=0.05, power=0.8)                          # n = 13 fish
+  pwr.r.test(n=NULL, r=0.70, sig.level=0.05, power=0.8)                          # n = 13 fish  
   
 #####
 # MODEL 3: Weight ~ date
@@ -345,11 +359,11 @@ pwr.r.test(n=NULL, r=0.70, sig.level=0.05, power=0.8)                          #
   summary(lm(sub3$weight_g ~ sub3$date))
   summary(aov(sub3$weight_g ~ sub3$date))
 # Power: Regression
-  #r2 full = 0.48  ,  because i'm interested in both predictors, R2 reduced=0
-  # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.48-0)/(1-0.48) = 0.92
+    #r2 full = 0.48  ,  because i'm interested in both predictors, R2 reduced=0
+    # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.48-0)/(1-0.48) = 0.92
   wp.regression(n=NULL, p1=1, p2=0, f2=0.92, power=0.8)                              # n = 11 fish
 # Power: Correlation
-  # R2 = 0.48
+    # R2 = 0.48
   wp.correlation(n=NULL, r=0.48, alpha=0.05, power=0.8)                              # n = 31 fish
   pwr.r.test(n=NULL, r=0.48, sig.level=0.05, power=0.8)                              # n = 31 fish
 
@@ -372,16 +386,16 @@ sub5 <- lxw %>%
     cohens_f(lm(sub5$length_mm ~ sub5$date + sub5$region1))    # date f = 1.30, region f = 0.87
   summary(aov(sub5$length_mm ~ sub5$date + sub5$region1))
 # Power: Regression
-  # r2 full = 0.66  ,  because i'm interested in both predictors, R2 reduced=0
-  # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.66-0)/(1-0.66) = 1.94
-wp.regression(n=NULL, p1=2, p2=0, f2=1.94, power=0.8)                          # n = 9 fish
-wp.regression(n=NULL, p1=2, p2=0, f2=0.02, power=0.8)                          # Cohen small effect size 
-wp.regression(n=NULL, p1=2, p2=0, f2=0.15, power=0.8)                          # Cohen medium effect size 68 fish
-wp.regression(n=NULL, p1=2, p2=0, f2=0.35, power=0.8)                          # Cohen large effect size
+    # r2 full = 0.66  ,  because i'm interested in both predictors, R2 reduced=0
+    # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.66-0)/(1-0.66) = 1.94
+  wp.regression(n=NULL, p1=2, p2=0, f2=1.94, power=0.8)                          # n = 9 fish
+  wp.regression(n=NULL, p1=2, p2=0, f2=0.02, power=0.8)                          # Cohen small effect size 
+  wp.regression(n=NULL, p1=2, p2=0, f2=0.15, power=0.8)                          # Cohen medium effect size 68 fish
+  wp.regression(n=NULL, p1=2, p2=0, f2=0.35, power=0.8)                          # Cohen large effect size
 # Power: Correlation
-  # r2 = 0.73
-wp.correlation(n=NULL, r=0.66, alpha=0.05, power=0.8)                          # n = 15 fish
-pwr.r.test(n=NULL, r=0.66, sig.level=0.05, power=0.8)                          # n = 15 fish  
+    # r2 = 0.73
+  wp.correlation(n=NULL, r=0.66, alpha=0.05, power=0.8)                          # n = 15 fish
+  pwr.r.test(n=NULL, r=0.66, sig.level=0.05, power=0.8)                          # n = 15 fish  
 
 #####
 # MODEL 3: length ~ date
@@ -389,11 +403,11 @@ pwr.r.test(n=NULL, r=0.66, sig.level=0.05, power=0.8)                          #
   summary(lm(sub5$length_mm ~ sub5$date))
   summary(aov(sub5$length_mm ~ sub5$date))
 # Power: Regression
-  # r2 full = 0.49  ,  because i'm interested in both predictors, R2 reduced=0
-  # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.49-0)/(1-0.49) = 0.96
+    # r2 full = 0.49  ,  because i'm interested in both predictors, R2 reduced=0
+    # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.49-0)/(1-0.49) = 0.96
   wp.regression(n=NULL, p1=2, p2=0, f2=0.96, power=0.8)                               # n = 14 fish
 # Power: Correlation
-  # r2 = 0.29
+    # r2 = 0.29
   wp.correlation(n=NULL, r=0.49, alpha=0.05, power=0.8)                               # n = 30 fish
   pwr.r.test(n=NULL, r=0.49, sig.level=0.05, power=0.8)                               # n = 30 fish
 
@@ -406,27 +420,27 @@ pwr.r.test(n=NULL, r=0.66, sig.level=0.05, power=0.8)                          #
     cohens_f(lm(sub5$weight_g ~ sub5$date + sub5$region1))    # date f = 1.30, region f = 0.87
   summary(aov(sub5$weight_g ~ sub5$date + sub5$region1))
 # Power: Regression
-  # r2 full = 0.73  ,  because i'm interested in both predictors, R2 reduced=0
-  # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.73-0)/(1-0.73) = 2.9
-wp.regression(n=NULL, p1=2, p2=0, f2=2.9, power=0.8)                           # n = 8 fish
-wp.regression(n=NULL, p1=2, p2=0, f2=0.02, power=0.8)                          # Cohen small effect size 
-wp.regression(n=NULL, p1=2, p2=0, f2=0.15, power=0.8)                          # Cohen medium effect size 68 fish
-wp.regression(n=NULL, p1=2, p2=0, f2=0.35, power=0.8)                          # Cohen large effect size
+    # r2 full = 0.73  ,  because i'm interested in both predictors, R2 reduced=0
+    # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.73-0)/(1-0.73) = 2.9
+  wp.regression(n=NULL, p1=2, p2=0, f2=2.9, power=0.8)                           # n = 8 fish
+  wp.regression(n=NULL, p1=2, p2=0, f2=0.02, power=0.8)                          # Cohen small effect size 
+  wp.regression(n=NULL, p1=2, p2=0, f2=0.15, power=0.8)                          # Cohen medium effect size 68 fish
+  wp.regression(n=NULL, p1=2, p2=0, f2=0.35, power=0.8)                          # Cohen large effect size
 # Power: Correlation
-  # r2 = 0.73
-wp.correlation(n=NULL, r=0.73, alpha=0.05, power=0.8)                          # n = 12 fish
-pwr.r.test(n=NULL, r=0.73, sig.level=0.05, power=0.8)                          # n = 12 fish  
+    # r2 = 0.73
+  wp.correlation(n=NULL, r=0.73, alpha=0.05, power=0.8)                          # n = 12 fish
+  pwr.r.test(n=NULL, r=0.73, sig.level=0.05, power=0.8)                          # n = 12 fish  
 
 #####
 # MODEL 3: Weight ~ date
 #####
   summary(lm(sub5$weight_g ~ sub5$date))    
 # Power: Regression
-  #r2 full = 0.55  ,  because i'm interested in both predictors, R2 reduced=0
-  # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.55-0)/(1-0.55) = 1.2
+    #r2 full = 0.55  ,  because i'm interested in both predictors, R2 reduced=0
+    # Effect size f2=(R2 full - R2 reduced)/(1-R2 full) = f2=(0.55-0)/(1-0.55) = 1.2
   wp.regression(n=NULL, p1=1, p2=0, f2=1.2, power=0.8)                              # n = 9 fish
 # Power: Correlation
-  # R2 = 0.48
+    # R2 = 0.48
   wp.correlation(n=NULL, r=0.55, alpha=0.05, power=0.8)                              # n = 23 fish
   pwr.r.test(n=NULL, r=0.55, sig.level=0.05, power=0.8)                              # n = 23 fish
 
@@ -461,7 +475,7 @@ lm_test <- function(simNum, N, b1, b2, b0=0, x1m=0, x1sd=1, x2m=0, x2sd=1) {
 
 # we vary N at 200 and 300; we are also setting coefficient of x predicting
 # y to be approx. .15 across all simulations
-power_lm <- grid_search(lm_test, params=list(N=seq(10, 100, by=1)), n.iter=1000, output='data.frame', b1=0, b2=0.5, 
+power_lm <- grid_search(lm_test, params=list(N=seq(10, 100, by=1)), n.iter=1000, output='data.frame', b1=0.6, b2=0, 
     parallel='snow', ncpus=4)
 res<-results(power_lm) %>%
     group_by(N.test) %>%
@@ -470,6 +484,7 @@ res<-results(power_lm) %>%
 ggplot(res) +
   geom_line(aes(x=N.test,y=power_x1), colour="blue") +
   geom_line(aes(x=N.test,y=power_x2), colour="red") 
+
 
 
 
