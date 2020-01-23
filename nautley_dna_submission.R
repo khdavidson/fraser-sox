@@ -160,11 +160,338 @@ dna.wgt <- nad.df %>%
   # plot number and proprotion in one mega graph
   ggarrange(n.d, n.l, p.d, p.l, ncol=2, nrow=2, common.legend = TRUE, legend="right")
 
+  
+#################################################################################################################################################
+#################################################################################################################################################
+#################################################################################################################################################
+
+#                                                           SUBMISSION 1 SAMPLE BREAKDOWN 
+
+  
+####################
+# Whole population #
+####################
+  
+# these are all the length frequency fish that weren't selected for extra sampling so they should be most representative  
+pop <- nad.df %>% 
+  filter(!is.na(length_mm), is.na(whatman_sheet)) %>% 
+  print()
 
 
-################################
-# UNSUBMITTED SAMPLE BREAKDOWN #
-################################
+#############################
+# Random resampling: LENGTH #
+#############################
+boot.l <- prop.table(table(replicate(10000, sample(pop$length_mm, size=100, replace=TRUE))))
+    boot.l <- as.data.frame(boot.l)
+boot.lc <- prop.table(table(replicate(1000, sample(pop$length_class, size=10, replace=TRUE))))
+  boot.lc <- as.data.frame(boot.lc)
+  boot.lc$Var1<-factor(boot.lc$Var1, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130", ordered=T))
+
+ggplot(boot.l, aes(x=Var1,y=Freq))+
+  geom_bar(stat="identity")
+ggplot(boot.lc, aes(x=Var1,y=Freq))+
+  geom_bar(stat="identity")
+
+  
+# All DNA samples taken
+pull1 <- nad.df %>% 
+    mutate_at(vars(c(17)), funs(as.factor)) %>%
+    filter(dna_select_bin == "1") %>% 
+    print()
+  
+# by date 
+pull1.d <- pull1 %>% 
+  group_by(date) %>% 
+  summarize(n=n()) %>%
+  print()
+
+ggplot(pull1.d, aes(x=date, y=n)) +
+  geom_bar(stat="identity")
+
+# by length 
+pull1.l <- pull1 %>% 
+  group_by(length_class) %>% 
+  summarize(n=n()) %>%
+  print()
+pull1.l$length_class <- factor(pull1.l$length_class, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130", ordered=T))
+
+    # whole population not just DNA
+    length <- nad.df %>% 
+      filter(!is.na(length_mm), is.na(whatman_sheet)) %>% 
+      group_by(date,length_class) %>% 
+      summarize(n=n())
+    length$length_class <- factor(length$length_class, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130", ordered=T))
+
+    ggplot(length, aes(x=date, y=length_class, height=n)) +
+      geom_density_ridges(stat="identity", scale=1) 
+    ggplot(length, aes(x=date, y=length_class)) +
+      geom_density_ridges2()
+    
+ggplot() +
+  geom_bar(data=length, aes(x=length_class, y=n/10), stat="identity", fill="white", width=0.8, alpha=0.7) +
+  geom_bar(data=pull1.l, aes(x=length_class, y=n), stat="identity", colour="black", alpha=0.5) 
+
+# by date and length 
+pull1.dl <- pull1 %>% 
+  group_by(date, length_class) %>% 
+  summarize(n=n()) %>%
+  print()
+
+ggplot() +
+  geom_density_ridges(data=length, aes(x=date, y=length_class, height=n),stat="identity", scale=1, fill="white", alpha=0.8) +
+  geom_density_ridges(data=pull1.dl, aes(x=date, y=length_class, height=n),stat="identity", scale=1, alpha=0.5) 
+
+# Linear models 
+lm.dl <- lm(pull1.dl$n ~ pull1.dl$date + pull1.dl$length_class)
+summary(lm.dl)
+r.dl<-resid(lm.dl)
+hist(r.dl)
+plot(r.dl)
+plot(lm.dl)                                             # Obs 16 and 68 are individual points, they determine their own predicted value (same as observed value) therefore leverage=1
+
+lm.d <- lm(pull1.dl$n ~ pull1.dl$date)
+summary(lm.d)
+r.d<-resid(lm.d)
+hist(r.d)
+plot(r.d)
+plot(lm.d)
+
+lm.l <- lm(pull1.dl$n ~ pull1.dl$length_class)
+summary(lm.l)
+r.l<-resid(lm.l)
+hist(r.l)
+plot(r.l)
+plot(lm.l)                                              # Obs 16 and 68 are individual points, they determine their own predicted value (same as observed value) therefore leverage=1
+
+
+# ------ split for each stock: NADINA 
+pullN <- nad.df %>% 
+    mutate_at(vars(c(17)), funs(as.factor)) %>%
+    filter(dna_select_bin == "1" & region1=="4") %>% 
+    print()
+  
+# by date 
+pullN.d <- pullN %>% 
+  group_by(date) %>% 
+  summarize(n=n()) %>%
+  print()
+
+ggplot(pullN.d, aes(x=date, y=n)) +
+  geom_bar(stat="identity")
+
+# by length 
+pullN.l <- pullN %>% 
+  group_by(length_class) %>% 
+  summarize(n=n()) %>%
+  print()
+
+    length <- nad.df %>% 
+      filter(!is.na(length_mm)) %>% 
+      group_by(date,length_class) %>% 
+      summarize(n=n())
+
+    ggplot(length, aes(x=date, y=length_class, height=n)) +
+      geom_density_ridges(stat="identity", scale=1) 
+    ggplot(length, aes(x=date, y=length_class)) +
+      geom_density_ridges2()
+    
+ggplot() +
+  geom_bar(data=length, aes(x=length_class, y=n/10), stat="identity", fill="white", width=0.8, alpha=0.7) +
+  geom_bar(data=pullN.l, aes(x=length_class, y=n), stat="identity", colour="black", alpha=0.5) 
+
+# by date and length 
+pullN.dl <- pullN %>% 
+  group_by(date, length_class) %>% 
+  summarize(n=n()) %>%
+  print()
+
+ggplot(pullN.dl, aes(x=date, y=length_class, height=n)) +
+  geom_density_ridges(stat="identity", scale=1) 
+ggplot(pullN.dl, aes(x=date, y=length_class)) +
+  geom_density_ridges2()
+
+
+# ------ split for each stock: STELLAKO 
+pullS <- nad.df %>% 
+    mutate_at(vars(c(17)), funs(as.factor)) %>%
+    filter(dna_select_bin == "1" & region1=="12") %>% 
+    print()
+  
+# by date 
+pullS.d <- pullS %>% 
+  group_by(date) %>% 
+  summarize(n=n()) %>%
+  print()
+
+ggplot(pullS.d, aes(x=date, y=n)) +
+  geom_bar(stat="identity")
+
+# by length 
+pullS.l <- pullS %>% 
+  group_by(length_class) %>% 
+  summarize(n=n()) %>%
+  print()
+
+    length <- nad.df %>% 
+      filter(!is.na(length_mm)) %>% 
+      group_by(date,length_class) %>% 
+      summarize(n=n())
+
+    ggplot(length, aes(x=date, y=length_class, height=n)) +
+      geom_density_ridges(stat="identity", scale=1) 
+    ggplot(length, aes(x=date, y=length_class)) +
+      geom_density_ridges2()
+    
+ggplot() +
+  geom_bar(data=length, aes(x=length_class, y=n/10), stat="identity", fill="white", width=0.8, alpha=0.7) +
+  geom_bar(data=pullS.l, aes(x=length_class, y=n), stat="identity", colour="black", alpha=0.5) 
+
+# by date and length 
+pullS.dl <- pullS %>% 
+  group_by(date, length_class) %>% 
+  summarize(n=n()) %>%
+  print()
+
+ggplot(pullS.dl, aes(x=date, y=length_class, height=n)) +
+  geom_density_ridges(stat="identity", scale=1) 
+ggplot(pullS.dl, aes(x=date, y=length_class)) +
+  geom_density_ridges2()
+
+
+##########
+# WEIGHT #
+##########
+
+# create a weight integer for easy plotting 
+nad.df <- nad.df %>% 
+  mutate(weight_class = round(weight_g,digits=0)) %>% 
+  print()
+
+boot.w <- prop.table(table(replicate(1000, sample(nad.df$weight_class, size=10, replace=TRUE))))
+    boot.w <- as.data.frame(boot.w)
+
+ggplot(boot.w, aes(x=Var1,y=Freq))+
+  geom_bar(stat="identity")
+ggplot(boot.lc, aes(x=Var1,y=Freq))+
+  geom_bar(stat="identity")
+
+
+wgt <- nad.df %>% 
+  filter(!is.na(weight_g)) %>% 
+  group_by(date, weight_class) %>% 
+  summarize(n=n()) %>% 
+  print()
+
+ggplot(wgt, aes(x=date, y=weight_class, height=n)) +
+  geom_density_ridges(stat="identity", scale=1) 
+
+
+# ------ split for each stock: NADINA 
+pullN <- nad.df %>% 
+    mutate_at(vars(c(17)), funs(as.factor)) %>%
+    filter(region1=="4") %>% 
+    print()
+  
+# by date 
+pullN.d <- pullN %>% 
+  group_by(date) %>% 
+  summarize(n=n()) %>%
+  print()
+
+ggplot(pullN.d, aes(x=date, y=n)) +
+  geom_bar(stat="identity")
+
+# by weight 
+pullN.w <- pullN %>% 
+  group_by(weight_class) %>% 
+  summarize(n=n()) %>%
+  print()
+
+    weight <- nad.df %>% 
+      filter(!is.na(weight_g)) %>% 
+      group_by(weight_class) %>% 
+      summarize(n=n()) %>% 
+      print()
+
+    ggplot(pullN.w, aes(x=date, y=weight_class, height=n)) +
+      geom_density_ridges(stat="identity", scale=1) 
+    ggplot(weight, aes(x=date, y=weight_g)) +
+      geom_density_ridges2()
+    
+ggplot() +
+  geom_bar(data=weight, aes(x=weight_class, y=n), stat="identity", colour="gray90", fill="white", width=1, alpha=0.7) +
+  geom_bar(data=pullN.w, aes(x=weight_class, y=n), stat="identity", colour="black", width=1, alpha=0.4) 
+
+# by date and weight 
+pullN.dw <- pullN %>% 
+  group_by(date, weight_class) %>% 
+  summarize(n=n()) %>%
+  print()
+
+ggplot(pullN.dw, aes(x=date, y=weight_class, height=n)) +
+  geom_density_ridges(stat="identity", scale=1) 
+ggplot(pullN.dl, aes(x=date, y=length_class)) +
+  geom_density_ridges2()
+
+
+# ------ split for each stock: STELLAKO 
+pullS <- nad.df %>% 
+    mutate_at(vars(c(17)), funs(as.factor)) %>%
+    filter(dna_select_bin == "1" & region1=="12") %>% 
+    print()
+  
+# by date 
+pullS.d <- pullS %>% 
+  group_by(date) %>% 
+  summarize(n=n()) %>%
+  print()
+
+ggplot(pullS.d, aes(x=date, y=n)) +
+  geom_bar(stat="identity")
+
+# by length 
+pullS.l <- pullS %>% 
+  group_by(length_class) %>% 
+  summarize(n=n()) %>%
+  print()
+
+    length <- nad.df %>% 
+      filter(!is.na(length_mm)) %>% 
+      group_by(date,length_class) %>% 
+      summarize(n=n())
+
+    ggplot(length, aes(x=date, y=length_class, height=n)) +
+      geom_density_ridges(stat="identity", scale=1) 
+    ggplot(length, aes(x=date, y=length_class)) +
+      geom_density_ridges2()
+    
+ggplot() +
+  geom_bar(data=length, aes(x=length_class, y=n/10), stat="identity", fill="white", width=0.8, alpha=0.7) +
+  geom_bar(data=pullS.l, aes(x=length_class, y=n), stat="identity", colour="black", alpha=0.5) 
+
+# by date and length 
+pullS.dl <- pullS %>% 
+  group_by(date, length_class) %>% 
+  summarize(n=n()) %>%
+  print()
+
+ggplot(pullS.dl, aes(x=date, y=length_class, height=n)) +
+  geom_density_ridges(stat="identity", scale=1) 
+ggplot(pullS.dl, aes(x=date, y=length_class)) +
+  geom_density_ridges2()
+
+
+
+
+
+
+#################################################################################################################################################
+#################################################################################################################################################
+#################################################################################################################################################
+
+
+#                                                           UNSUBMITTED SAMPLE BREAKDOWN 
+
 
 # what is the date range of unsubmitted samples? 
 unsamp.date <- nad.df %>% 
@@ -208,10 +535,14 @@ unsamp.lgth$length_class <- factor(unsamp.lgth$length_class, levels=c("<80", "80
 
   ggarrange(u.d, u.l, ncol=2, common.legend = TRUE, legend="bottom")
 
+  
+
+#################################################################################################################################################
+#################################################################################################################################################
+#################################################################################################################################################
 
 
-
-#################################   JUST LOOKING IN DEPTH AT DNA SAMPLES SOS FAR: NADINA VS STELLAKO
+#                                                       NADINA VS STELLAKO COMPARISONS
 
 
 ##############
@@ -381,7 +712,13 @@ dna.propn <- nad.df %>%
 
 
 
-################################################### PULL FOR SUBMISSION #2
+#################################################################################################################################################
+#################################################################################################################################################
+#################################################################################################################################################
+ 
+
+
+#                                                       PULL FOR SUBMISSION #2
 
 # Decided can take 200 more samples, will take equal number of samples per day and randomly sample across size classes. 
   # Won't take from time period where samples were too small to amplify (Apr 18-22 inclusive)
