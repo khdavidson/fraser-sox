@@ -168,30 +168,28 @@ dna.wgt <- nad.df %>%
 
 #                                                           SUBMISSION 1 SAMPLE BREAKDOWN 
 
-  
-####################
-# Whole population #
-####################
+
+#############################
+# Random resampling: LENGTH #
+#############################
   
 # these are all the length frequency fish that weren't selected for extra sampling so they should be most representative  
 pop <- nad.df %>% 
   filter(!is.na(length_mm), is.na(whatman_sheet)) %>% 
   print()
 
-
-#############################
-# Random resampling: LENGTH #
-#############################
+# random resample
+set.seed(12345)
 boot.l <- prop.table(table(replicate(10000, sample(pop$length_mm, size=100, replace=TRUE))))
-    boot.l <- as.data.frame(boot.l)
-boot.lc <- prop.table(table(replicate(1000, sample(pop$length_class, size=10, replace=TRUE))))
+  boot.l <- as.data.frame(boot.l)
+  ggplot(boot.l, aes(x=Var1,y=Freq))+
+    geom_bar(stat="identity")
+  
+boot.lc <- prop.table(table(replicate(10000, sample(pop$length_class, size=100, replace=TRUE))))
   boot.lc <- as.data.frame(boot.lc)
   boot.lc$Var1<-factor(boot.lc$Var1, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130", ordered=T))
-
-ggplot(boot.l, aes(x=Var1,y=Freq))+
-  geom_bar(stat="identity")
-ggplot(boot.lc, aes(x=Var1,y=Freq))+
-  geom_bar(stat="identity")
+  ggplot(boot.lc, aes(x=Var1,y=Freq))+
+    geom_bar(stat="identity")
 
   
 # All DNA samples taken
@@ -265,7 +263,7 @@ plot(r.l)
 plot(lm.l)                                              # Obs 16 and 68 are individual points, they determine their own predicted value (same as observed value) therefore leverage=1
 
 
-# ------ split for each stock: NADINA 
+# --------------------- split for each stock: NADINA 
 pullN <- nad.df %>% 
     mutate_at(vars(c(17)), funs(as.factor)) %>%
     filter(dna_select_bin == "1" & region1=="4") %>% 
@@ -312,7 +310,7 @@ ggplot(pullN.dl, aes(x=date, y=length_class)) +
   geom_density_ridges2()
 
 
-# ------ split for each stock: STELLAKO 
+# --------------------- split for each stock: STELLAKO 
 pullS <- nad.df %>% 
     mutate_at(vars(c(17)), funs(as.factor)) %>%
     filter(dna_select_bin == "1" & region1=="12") %>% 
@@ -359,9 +357,9 @@ ggplot(pullS.dl, aes(x=date, y=length_class)) +
   geom_density_ridges2()
 
 
-##########
-# WEIGHT #
-##########
+#############################
+# Random resampling: WEIGHT #
+#############################
 
 # create a weight integer for easy plotting 
 nad.df <- nad.df %>% 
@@ -501,7 +499,7 @@ pullS.l <- pullS %>%
     
 ggplot() +
   geom_bar(data=weight, aes(x=weight_class, y=n/2), stat="identity", colour="gray90", fill="white", width=1, alpha=0.7) +
-  geom_bar(data=pullS.l, aes(x=weight_class, y=n),  stat="identity", width=1, colour="black", alpha=0.5) 
+  geom_bar(data=pullS.l, aes(x=weight_class, y=n),  stat="identity", width=1, colour="black", alpha=0.4) 
 
 # by date and length 
 pullS.dl <- pullS %>% 
