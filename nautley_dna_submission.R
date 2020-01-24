@@ -17,6 +17,7 @@ library(padr)
 library(stringr)
 library(withr)
 library(padr)
+library(GmAMisc)
 
 # set wd
 setwd("~/ANALYSIS/Data")
@@ -364,26 +365,59 @@ ggplot(pullS.dl, aes(x=date, y=length_class)) +
 
 # create a weight integer for easy plotting 
 nad.df <- nad.df %>% 
-  mutate(weight_class = round(weight_g,digits=0)) %>% 
+  mutate(weight_round = round(weight_g,digits=0)) %>% 
   print()
 
-boot.w <- prop.table(table(replicate(1000, sample(nad.df$weight_class, size=10, replace=TRUE))))
-    boot.w <- as.data.frame(boot.w)
-
-ggplot(boot.w, aes(x=Var1,y=Freq))+
-  geom_bar(stat="identity")
-ggplot(boot.lc, aes(x=Var1,y=Freq))+
-  geom_bar(stat="identity")
-
-
+# natural breaks to assign weight classes
 wgt <- nad.df %>% 
+  filter(!is.na(weight_g)) %>% 
+  print()
+
+res <- plotJenks(wgt[wgt$weight_round<30,]$weight_round, n=7)
+breaks2 <- classIntervals(wgt$weight_class, n=7, style="jenks")         # breaks at: 7, 10, 14, 18, 24, 45
+breaks3 <- classIntervals(wgt$weight_class, n=7, style="kmeans")        # breaks at: 6.5, 9.5, 13.5, 17.5, 21.5, 62
+
+nad.df <- nad.df %>% 
+  mutate(weight_round = round(weight_g,digits=0)) %>% 
+  mutate(weight_class = ifelse(weight_round <= 7, "<= 7g",
+    ifelse(weight_round > 7 & weight_round <= 10, "7.1-10g" ,
+      ifelse(weight_round > 10 & weight_round <= 14, "10.1-14g", 
+        ifelse(weight_round > 14 & weight_round <= 18, "14.1-18g", 
+          ifelse(weight_round > 18 & weight_round <= 24, "18.1-24g", 
+            ifelse(weight_round > 24 & weight_round <= 45, "24.1-45g", ">45g"))))))) %>% 
+  print()
+
+# bootstrap
+set.seed(12345)
+boot.w <- prop.table(table(replicate(10000, sample(nad.df$weight_class, size=100, replace=TRUE))))
+  boot.w <- as.data.frame(boot.w)
+  boot.w$Var1 <- factor(boot.w$Var1, levels = c("<= 7g", "7.1-10g", "10.1-14g", "14.1-18g", "18.1-24g", "24.1-45g", ">45g", ordered=T))  
+    
+  ggplot(boot.w, aes(x=Var1,y=Freq))+
+    geom_bar(stat="identity")
+
+boot.w2 <- prop.table(table(replicate(10000, sample(nad.df$weight_round, size=100, replace=TRUE))))
+  boot.w2 <- as.data.frame(boot.w2)
+  boot.w$Var1 <- factor(boot.w$Var1, levels = c("<= 7g", "7.1-10g", "10.1-14g", "14.1-18g", "18.1-24g", "24.1-45g", ">45g", ordered=T))  
+
+  ggplot(boot.w2, aes(x=Var1,y=Freq))+
+    geom_bar(stat="identity")
+
+# all fiss
+wc <- nad.df %>% 
   filter(!is.na(weight_g)) %>% 
   group_by(date, weight_class) %>% 
   summarize(n=n()) %>% 
   print()
 
-ggplot(wgt, aes(x=date, y=weight_class, height=n)) +
-  geom_density_ridges(stat="identity", scale=1) 
+wc$weight_class <- factor(wc$weight_class, levels = c("<= 7g", "7.1-10g", "10.1-14g", "14.1-18g", "18.1-24g", "24.1-45g", ">45g", ordered=T))
+nad.df$weight_class <- factor(nad.df$weight_class, levels = c("<= 7g", "7.1-10g", "10.1-14g", "14.1-18g", "18.1-24g", "24.1-45g", ">45g", ordered=T))
+
+ggplot(data=subset(nad.df %>% filter(!is.na(weight_class))), aes(x=date, y=weight_class)) +
+  geom_density_ridges(scale=1) 
+ggplot(wc, aes(x=date, y=weight_class, height=n)) +
+  geom_density_ridges2(stat="identity", scale=1) 
+
 
 
 # ------ split for each stock: NADINA 
@@ -415,11 +449,11 @@ pullN.w <- pullN %>%
 
     ggplot(pullN.w, aes(x=date, y=weight_class, height=n)) +
       geom_density_ridges(stat="identity", scale=1) 
-    ggplot(weight, aes(x=date, y=weight_g)) +
-      geom_density_ridges2()
+    ggplot(wc, aes(x=date, y=weight_class, height=n)) +
+      geom_density_ridges2(stat="identity", scale=1)
     
 ggplot() +
-  geom_bar(data=weight, aes(x=weight_class, y=n), stat="identity", colour="gray90", fill="white", width=1, alpha=0.7) +
+  geom_bar(data=weight, aes(x=weight_class, y=n/2), stat="identity", colour="gray90", fill="white", width=1, alpha=0.7) +
   geom_bar(data=pullN.w, aes(x=weight_class, y=n), stat="identity", colour="black", width=1, alpha=0.4) 
 
 # by date and weight 
@@ -451,23 +485,23 @@ ggplot(pullS.d, aes(x=date, y=n)) +
 
 # by length 
 pullS.l <- pullS %>% 
-  group_by(length_class) %>% 
+  group_by(weight_class) %>% 
   summarize(n=n()) %>%
   print()
 
-    length <- nad.df %>% 
-      filter(!is.na(length_mm)) %>% 
-      group_by(date,length_class) %>% 
+    weight <- nad.df %>% 
+      filter(!is.na(weight_g)) %>% 
+      group_by(weight_class) %>% 
       summarize(n=n())
 
-    ggplot(length, aes(x=date, y=length_class, height=n)) +
-      geom_density_ridges(stat="identity", scale=1) 
-    ggplot(length, aes(x=date, y=length_class)) +
+    ggplot(weight, aes(x=date, y=weight_class, height=n)) +
+      geom_density_ridges2(stat="identity", scale=1) 
+    ggplot(weight, aes(x=date, y=weight_class)) +
       geom_density_ridges2()
     
 ggplot() +
-  geom_bar(data=length, aes(x=length_class, y=n/10), stat="identity", fill="white", width=0.8, alpha=0.7) +
-  geom_bar(data=pullS.l, aes(x=length_class, y=n), stat="identity", colour="black", alpha=0.5) 
+  geom_bar(data=weight, aes(x=weight_class, y=n/2), stat="identity", colour="gray90", fill="white", width=1, alpha=0.7) +
+  geom_bar(data=pullS.l, aes(x=weight_class, y=n),  stat="identity", width=1, colour="black", alpha=0.5) 
 
 # by date and length 
 pullS.dl <- pullS %>% 
