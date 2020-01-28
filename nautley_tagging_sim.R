@@ -1,6 +1,7 @@
 # Nautley tagging sim ## 
 
 setwd("~/ANALYSIS/Data")
+
 library(tidyverse)
 library(lubridate)
 library(XLConnect)
@@ -495,6 +496,7 @@ ggplot(res) +
                                                             ############################
                                                             # ABUNDANCE / TAGGING SIMS #
                                                             ############################
+setwd("~/ANALYSIS/Data")
 
 #####################
 # LOAD & CLEAN DATA #
@@ -518,27 +520,24 @@ nad.hist$end_time <- factor(nad.hist$end_time, levels=c("21:00", "22:00", "22:30
 #####
 # 2018 Data 
 #####
-nad.18 <- read.csv("2019 Nautley_dailydata.csv")
+nad.18raw <- read.xlsx("nautley_ANALYTICAL_database_2019.xlsx", sheet=2, detectDates = T)
 
 # time blocks of interest
 time_of_interest <- c("20:00", "20:15", "20:20", "20:30", "20:40", "20:45", "21:00", "21:30", "22:00", "22:10", "22:20", "22:30", 
-                      "23:00", "23:30", "23:40", "0:00", "0:30", "1:00", "1:10", "1:30", "1:45", "2:00", "2:15", "2:25", "2:30")
+                      "23:00", "23:30", "23:40", "00:00", "00:30", "01:00", "01:10", "01:30", "01:45", "02:00", "02:15", "02:25", "02:30")
 
 # clean data, filter, order
-nad.18 <- nad.18 %>% 
-  mutate(date = lubridate::dmy(date)) %>%
-  mutate(start_date = lubridate::dmy(start_date)) %>%
-  mutate(end_date = lubridate::dmy(end_date)) %>%
+nad.18 <- nad.18raw %>% 
   filter(trap_type == "small RST") %>%
   filter(start_time %in% time_of_interest) %>%
   print()
 
 nad.18$start_time <- factor(nad.18$start_time, 
   levels = c("20:00", "20:15", "20:20", "20:30", "20:40", "20:45", "21:00", "21:30", "22:00", "22:10", "22:20", "22:30", "23:00", "23:30", 
-    "23:40", "0:00", "0:30", "1:00", "1:10", "1:30", "1:45", "2:00", "2:15", "2:25", "2:30"), ordered=T)
+    "23:40", "00:00", "00:30", "01:00", "01:10", "01:30", "01:45", "02:00", "02:15", "02:25", "02:30"), ordered=T)
 nad.18$end_time <- factor(nad.18$end_time, 
-  levels = c("20:00", "22:00", "22:15", "22:30", "23:00", "23:30", "0:00", "0:30", "1:00", "1:30", "1:45", "2:00", "2:15", "2:30",
-    "3:00", "8:30", "9:00"), ordered=T)
+  levels = c("20:00", "22:00", "22:15", "22:30", "23:00", "23:30", "00:00", "00:30", "01:00", "01:30", "01:45", "02:00", "02:15", "02:30",
+    "03:00", "08:30", "09:00"), ordered=T)
 
 ################################################################################################################################################
 
@@ -559,7 +558,6 @@ daily18 <- nad.18 %>%
   group_by(date) %>% 
   summarize(total = sum(sox_smolts)) %>% 
   mutate(year = 2019) %>%
-  select(date, year, total) %>%
   print()
 
 # Join
@@ -598,22 +596,25 @@ hr.propn18 <- nad.18 %>%
   mutate(daily_total = sum(n)) %>%
   mutate(propn = (n/daily_total)*100) %>%
   filter(date >= as.Date("2019-04-26")) %>%
+  filter(date != "2019-04-26" | end_time != "20:00") %>%
   print()
 
 avg.hr.propn.18 <- hr.propn18 %>% 
   group_by(end_time) %>% 
   summarize(avg_propn = mean(propn), sd_propn = sd(propn)) %>% 
   mutate(sd_propn = ifelse(sd_propn == "NaN", 0, sd_propn)) %>%
-  mutate(year = 2018) %>%
-  select(year, end_time, avg_propn, sd_propn) %>%
+  mutate(year = 2019) %>%
+#  select(year, end_time, avg_propn, sd_propn) %>%
   print()
 
 avg.propns <- rbind(as.data.frame(avg.hr.propn), as.data.frame(avg.hr.propn.18))
+avg.propns$end_time <- with_options(c(scipen = 999), str_pad(avg.propns$end_time, 5, pad = "0"))
+
 avg.propns$end_time <- factor(avg.propns$end_time, 
-  levels = c("20:00","21:00", "22:00", "22:15", "22:30", "23:00", "23:30", "0:00", "0:30", "1:00", "1:30", "1:45", "2:00", "2:15", "2:30",
-    "3:00","4:00","5:00", "8:30", "9:00"), ordered=T)
+  levels = c("20:00","21:00", "22:00", "22:15", "22:30", "23:00", "23:30", "00:00", "00:30", "01:00", "01:30", "01:45", "02:00", "02:15", "02:30",
+    "03:00","04:00","05:00", "08:30", "09:00"), ordered=T)
 avg.propns <- avg.propns %>% 
-  filter(end_time != "8:30")
+  filter(end_time != "08:30")
 
 # PLOT
 ggplot(avg.propns, aes(x=end_time, y=avg_propn, group=year)) +
@@ -625,76 +626,55 @@ ggplot(avg.propns, aes(x=end_time, y=avg_propn, group=year)) +
 
 
 
-
-
-
-
-
-
-
-
-
-
-
 #                                                         TAGGING SIMULATIONS
 
-#######################################
-# TAG 50% HOURLY ABUNDANCE, UP TO 300 #
-#######################################
+###################################
+# TAG HOURLY ABUNDANCE, UP TO 300 #
+###################################
 
 # For 1999 & 2000 
-nad.hist <- nad.hist %>%
-  mutate(sox_50 = total_sox*0.5) %>% 
-  mutate(sox_50 = ifelse(sox_50>300, 300, sox_50))
-
-# For 2018
-nad.18 <- nad.18 %>%
-  mutate(sox_50 = sox_smolts*0.50) %>%
-  mutate(sox_50m = ifelse(sox_50>300, 300, sox_50)) %>%
+tags.hist <- nad.hist %>%
+  mutate(sox_tag = paste(total_sox)) %>% 
+  mutate(sox_tag = ifelse(total_sox>300, 300, total_sox)) %>%
+  mutate_at(vars(c(6)), funs(as.numeric)) %>%
   print()
 
-
-
-
-
-
-
-
-
-
-
-
-
   # total tags by year
-  y_tags <- nad.hist %>%
+  y_tags <- tags.hist %>%
     group_by(year) %>%
-    summarize(sum = sum(sox_50)) %>%
+    summarize(sum = sum(sox_tag)) %>%
     print()
   
   # total tags by day
-  d_tags <- nad.hist %>%
+  d_tags <- tags.hist %>%
     group_by(date) %>%
-    summarize(sum = sum(sox_50)) %>%
+    summarize(sum = sum(sox_tag)) %>%
     print()
 
-# hourly abundance 
-ggplot(nad.hist, aes(x=hour, y=total_sox, group=date, colour=year)) + 
-  geom_point(aes(colour=year), size=2.5, fill="white", pch=21, stroke=1.3) +
-  geom_line(size=1) +
-  facet_grid(~year)
+# For 2018
+tags.18 <- nad.18 %>%
+  mutate(sox_tag = paste(sox_smolts)) %>%
+  mutate(sox_tag = ifelse(sox_tag>300, 300, sox_tag)) %>%
+  mutate_at(vars(c(17)), funs(as.numeric)) %>%
+  print()
+
+  # total tags by day
+  d_tags18 <- tags.18 %>%
+    group_by(date) %>%
+    summarize(sum = sum(sox_tag)) %>%
+    print()
+
+  # total tags by year
+  y_tags18 <- tags.18 %>%
+    summarize(applied = sum(sox_tag)) %>%
+    mutate(recovered = applied*.02) %>%
+    print()
 
 
 
-#############
-# 2018 data #
-#############
-
-# tags by date
-d.tag.18 <- nad.18 %>% 
-  group_by(date) %>% 
-  summarize(sum=sum(sox_50)) %>% 
-  print
-
-# plot 
-ggplot(nad.18, aes(x=start_time, y=sox_smolts, group=date)) +
-  geom_line()
+  
+  
+  
+  
+  
+  
