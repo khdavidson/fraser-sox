@@ -65,7 +65,7 @@ write.csv(catch, "nautley_2019_dailycatch.csv", row.names=F)
 ########################################################## SHEET 3 INDIVIDUAL SMOLT DATA ######################################################
 
 ##################
-# LOAD AND CLEAN #                # THIS HAS SINCE BEEN EXPORTED TO EXCEL AND MANUALLY MODIFIED (SEE BELOW)
+# LOAD AND CLEAN #                
 ##################
 
 # read data
@@ -86,32 +86,83 @@ smolts <- ind.dat %>%
   mutate_at(vars(c(14)), funs(as.character)) %>%
   mutate(data_source = ifelse(data_source=="", "Nautley Combined data(Current)Kristy.csv", data_source)) %>%
   mutate(data_source = ifelse(data_source != "Nautley Combined data(Current)Kristy.csv" & 
-      data_source != "2019 Nautley - length frequency entry", "2019 Nautley - length frequency entry", data_source)) %>%
+         data_source != "2019 Nautley - length frequency entry", "2019 Nautley - length frequency entry", data_source)) %>%
   mutate_at(vars(c(10, 16, 18, 30)), funs(as.character)) %>%
   mutate(whatman_sheet = ifelse(whatman_sheet =="N/A", NA, as.character(whatman_sheet))) %>%
   mutate(whatman_sheet = ifelse(whatman_sheet =="", NA, as.character(whatman_sheet))) %>%
   mutate(ewatch_sample_bin = ifelse(is.na(ewatch_sample_bin), 0, ewatch_sample_bin)) %>%
   mutate(sample_id = ifelse(!is.na(psc_book_no), paste(psc_book_no, psc_sample_no, sep="-"), psc_sample_no)) %>%
   mutate(ufid = ifelse(!is.na(sample_id), paste("2019", sample_id, sep="-"), paste("2019", seq(1:length(is.na(sample_id))), sep="-f"))) %>%
-  select(ufid, sample_id, ewatch_fid, date, date_group, 
-         length_mm, length_class, weight_g,
-         region1, prob1, region2, prob2, age, 
-         psc_book_no, psc_sample_no, whatman_sheet,
-         dna_select_bin, scales_select_bin, ewatch_sample_bin, lab_identifier,
-         comment, dna_comment, dejan_comment, data_source, area) %>%        # omitted: sample key, length_code, psc_dna_no, es_file_catch_date, length, weight, scale_lab_date, length_check
+  mutate(dna_select_bin = ifelse(!is.na(region1) & !is.na(dna_comment), 1, 0)) %>% 
+  mutate(scales_select_bin = ifelse(is.na(age), 0, 1)) %>%
+  mutate(jdate = lubridate::yday(date)) %>%
+  mutate_at(vars(c(19)), funs(as.character)) %>%
+  mutate(lab_identifier = gsub("\\(18\\)", "\\(19\\)", lab_identifier)) %>%                     # changed lab ID to NautleyR(19) from NautleyR(18) so that ID's match up between DNA submissions. 
+  select(ufid, sample_id, ewatch_fid, date, date_group, jdate,
+    length_mm, length_class, weight_g,
+    region1, prob1, region2, prob2, age, 
+    psc_book_no, psc_sample_no, whatman_sheet, psc_dna_no,
+    dna_select_bin, scales_select_bin, ewatch_sample_bin, lab_identifier,
+    comment, dna_comment, dejan_comment, data_source, area) %>%        # omitted: sample key, length_code, es_file_catch_date, length, weight, scale_lab_date, length_check
   print()
 
-view(smolts %>% filter(ewatch_sample_bin=="1"))
 
-# write.csv(smolts, "nautley_2019_smoltdata.csv", row.names=F)     THIS HAS BEEN IMPORTED AND EDITED IN EXCEL, DO NOT RE-RUN
 
-  # If you do need to re-run, the following changes were done post-this script in Excel: 
-    # Confirmed that dna_select_bin was always 1 when DNA results were available, or if amplification comments existed.
-    # Changed all NA in dna_select_bin to 0 
-    # Some dna_select_bin set to 1 had NA for regions and no dna lab comments, so they were changed to 0
-    # Changed all NA in scales_select_bin to 0
-    # If fish had age data, scales_select_bin was set to 1
-    # There were a few fish without age data but that appear to be DP Ewatch fish. Their scale_select_bin status was set to 0 as no age data exist
+#########################
+# JOIN WITH DNA BATCH 2 #
+#########################
+
+dna.raw <- read.xlsx("NautleyCombined(19)_2020-01-27.xlsx", sheet=5, detectDates=T, startRow=4)
+dna.raw <- dna.raw[,-c(15:16)]
+
+dna.combo <- dna.raw %>% 
+  filter(Fish != "19.000299999999999") %>% 
+  rename(lab_identifier = Fish,
+    dna_comment = Comment,
+    NEWregion1 = `Region.1`,
+    NEWprob1 = `Prob.1`,
+    NEWregion2 = `Region.2`,
+    NEWprob2 = `Prob.2`,
+    region3 = `Region.3`,
+    prob3 = `Prob.3`,
+    region4 = `Region.4`,
+    prob4 = `Prob.4`,
+    region5 = `Region.5`,
+    prob5 = `Prob.5`, 
+    region6 = X13,
+    prob6 = X14) %>%
+  mutate_at(vars(c(4:5)), funs(as.numeric)) %>%
+  mutate(jdate=substring(lab_identifier, 25, 27)) %>%
+  mutate(psc_dna_no=substring(lab_identifier, 29, 33)) %>%
+  mutate_at(vars(c(15)), funs(as.numeric)) %>% 
+  mutate_at(vars(c(16)), funs(as.integer)) %>%
+  print()
+
+
+# Join
+smolts.join <- left_join(smolts, dna.combo, by=c("jdate", "psc_dna_no"))
+
+# CLEAN 
+smolts.clean <- smolts.join %>% 
+  rename(lab_identifier = lab_identifier.x) %>%
+  mutate(lab_identifier = ifelse(lab_identifier == "", lab_identifier.y, lab_identifier)) %>% 
+  rename(dna_comment = dna_comment.x) %>% 
+  mutate(dna_comment = ifelse(dna_comment == "", dna_comment.y, dna_comment)) %>% 
+  mutate(dna_select_bin = ifelse(str_detect(lab_identifier, "NautSMOLTS_B2"), 2, dna_select_bin)) %>%
+  mutate(dna_select_bin = ifelse(str_detect(dna_comment, "did not amplify") & dna_select_bin==0, 1, dna_select_bin)) %>%
+  select(-c("lab_identifier.y", "dna_comment.y")) %>%
+  select(ufid, sample_id, ewatch_fid, date, date_group, jdate,
+    length_mm, length_class, weight_g, 
+    region1, NEWregion1, prob1, NEWprob1, region2, NEWregion2, prob2, NEWprob2,
+    region3, prob3, region4, prob4, region5, prob5, region6, prob6, age,
+    psc_book_no, psc_sample_no, whatman_sheet, psc_dna_no,
+    dna_select_bin, scales_select_bin, ewatch_sample_bin, lab_identifier, 
+    comment, dna_comment, dejan_comment, data_source, area) %>%
+  print()
+
+# EXPORT
+write.csv(smolts.clean, "nautley_2019_smoltdata.csv", row.names=F)   
+
 
 
 
