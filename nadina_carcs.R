@@ -38,7 +38,7 @@ areaT <- area %>%
 # proportion
 ggplot() +
   geom_line(data=areaT, aes(x=area2, y=T_propn), size=1.2) +
-  geom_bar(data=area, aes(x=area2, y=propn, group=sex, fill=sex), stat="identity", colour="black", alpha=0.6, position=position_dodge(width=0.9))
+  geom_bar(data=area, aes(x=area2, y=propn, group=sex, fill=sex), stat="identity", colour="black", alpha=0.6, position=position_dodge(width=0.9)) +
   #geom_line(data=area, aes(x=area2, y=propn, group=sex, colour=sex)) +
   ylim(0,1)
 
@@ -56,7 +56,8 @@ year <- data %>%
     
 # proportion
 ggplot() +
-  geom_line(data=year, aes(x=year, y=propn, group=sex, colour=sex), size=1.2)
+  geom_line(data=year, aes(x=year, y=propn, group=sex, colour=sex), size=1.2) +
+  scale_x_discrete(limits=seq(2003,2018,by=2)) +
   ylim(0,1)
 
   
@@ -71,13 +72,14 @@ yearea <- data %>%
   group_by(year) %>% 
   mutate(propn=total/sum(total)) %>%
   ungroup() %>%
-  mutate_at(vars(c(1:2)), funs(as.factor)) %>%
+  mutate_at(vars(c(2)), funs(as.factor)) %>%
   print()
 
-ggplot(yarea, aes(x=year, y=propn, group=area2, colour=area2)) +
+ggplot(yearea, aes(x=year, y=propn, group=area2, colour=area2)) +
   geom_line(size=1.2) +
   geom_point(size=2.7, fill="white", pch=21, stroke=1.2) +
-  facet_grid(~sex)
+  scale_x_discrete(limits=seq(2004, 2018, by=1)) +
+  facet_grid(~sex) 
 
 
 ##################
@@ -85,7 +87,6 @@ ggplot(yarea, aes(x=year, y=propn, group=area2, colour=area2)) +
 ##################
 
 data$monthday <- format(as.Date(data$date, format="%Y-%m-%d"),"%b-%d")
-
 
 ggplot(data, aes(x=monthday, y=count, group=sex, colour=sex)) +
   geom_point() +
