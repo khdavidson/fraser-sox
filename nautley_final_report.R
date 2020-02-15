@@ -58,7 +58,7 @@ gsid <- dat %>%
 # DNA - Migration Timing #
 ##########################
 
-stocks_of_interest <- c(4, 12)
+stocks_of_interest <- c("Nadina", "Stellako")
 
 stock_ot_r1 <- gsid %>% 
   filter(NEWregion1 %in% stocks_of_interest) %>%
@@ -100,8 +100,8 @@ ggplot(stock_ot_r1, aes(x=date, y=propn, group=NEWregion1, colour=NEWregion1)) +
 
 # proportion - BLACK
 ggplot(stock_ot_r1, aes(x=date, y=propn, group=NEWregion1)) +
-  #geom_point(aes(colour=NEWregion1, fill=NEWregion1), size=5.5, shape=21, alpha=0.6) +
-  #geom_smooth(aes(colour=NEWregion1), se=F, size=2) +
+  geom_point(aes(colour=NEWregion1, fill=NEWregion1), size=5.5, shape=21, alpha=0.6) +
+  geom_smooth(aes(colour=NEWregion1), se=F, size=2) +
   scale_x_date(date_breaks = "3 days", date_labels = "%b %d") +
   scale_fill_manual(values=c("#00ffc1", "#ff9a00")) +
   scale_colour_manual(values=c("#00ffc1", "#ff9a00")) +
@@ -116,7 +116,7 @@ ggplot(stock_ot_r1, aes(x=date, y=propn, group=NEWregion1)) +
     plot.background = element_rect(fill="black", colour="black"),
     panel.border = element_rect(colour="white"),
     panel.background = element_rect(fill="black"),
-    panel.grid = element_line(colour = "gray30"), 
+    panel.grid = element_line(colour = "black"), 
     legend.background = element_rect(fill="black", colour="white"),
     legend.key = element_rect(fill="black"),
     legend.box.margin = margin(0.1,0.1,0.1,0.1),
@@ -214,8 +214,8 @@ ggplot(stock_lw_r1, aes(x=length_mm, y=weight_g, group=NEWregion1, colour=NEWreg
 
 # Length - BLACK
 ggplot(stock_lw_r1, aes(x=date, y=length_mm, group=NEWregion1)) + 
-  #geom_point(aes(colour=NEWregion1, fill=NEWregion1), size=8.5, shape=21, alpha=0.5, stroke=1.1) +
-  #geom_smooth(aes(colour=NEWregion1, fill=NEWregion1), method="lm", se=F, size=4.5, alpha=0.3) +
+  geom_point(aes(colour=NEWregion1, fill=NEWregion1), size=8.5, shape=21, alpha=0.5, stroke=1.1) +
+  geom_smooth(aes(colour=NEWregion1), method="lm", se=T, size=4.5, alpha=0.3, fill="gray60") +
   scale_fill_manual(values=c("#00ffc1", "#ff9a00")) +
   scale_colour_manual(values=c("#00ffc1", "#ff9a00")) +
   scale_x_date(date_breaks = "4 days", date_labels = "%b %d") +
@@ -231,7 +231,7 @@ ggplot(stock_lw_r1, aes(x=date, y=length_mm, group=NEWregion1)) +
     plot.background = element_rect(fill="black", colour="black"),
     panel.border = element_rect(colour="white", size=1.7),
     panel.background = element_rect(fill="black"),
-    panel.grid = element_line(colour = "gray50"), 
+    panel.grid = element_line(colour = "black"), 
     legend.background = element_rect(fill="black"),
     legend.key = element_rect(fill="black"),
     legend.box.margin = margin(0.1,0.1,0.1,0.1),
