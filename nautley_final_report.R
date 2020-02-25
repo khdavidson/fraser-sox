@@ -561,7 +561,7 @@ ggplot() +
 
 # CPUE ONLY - black
 ggplot(data=cpue2, aes(x=start_date, y=cpue)) +
-  geom_bar(stat="identity", fill="#fff7a4", colour="#fff7a4", alpha=0.85, width=1.15) + 
+  #geom_bar(stat="identity", fill="#fff7a4", colour="#fff7a4", alpha=0.85, width=1.15) + 
   scale_y_continuous(breaks = seq(0,1300,300))+
   scale_x_date(limits=as.Date(c("2019-04-13", "2019-05-27")), breaks="4 day", labels = date_format("%b %d")) +
   labs(x="Date", y="CPUE") +
@@ -615,6 +615,6 @@ ggplot() +
         legend.spacing.y = unit(0, 'cm'),
         legend.position = c(0.2,0.2))
 
-
+# copied as 1100 x 630 image
 
 
