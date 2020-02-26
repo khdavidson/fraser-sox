@@ -53,7 +53,15 @@ gsid <- dat %>%
 
   # NO CLEAR TEMPORAL TREND. 33 samples omitted having less than p = 0.80 
 
-
+# % Nadina and Stellako all together
+p <- dat %>% 
+  filter(!is.na(NEWregion1)) %>% 
+  group_by(NEWregion1) %>% 
+  summarize(n=n()) %>% 
+  mutate(total=sum(n)) %>% 
+  mutate(propn = n/total) %>% 
+  print()
+ 
 ##########################
 # DNA - Migration Timing #
 ##########################
