@@ -549,15 +549,15 @@ discharge2 <- discharge2 %>%
 # plot #
 ########
 
-# CPUE - white
+# CPUE and discharge - white report
 ggplot() +
-  geom_ribbon(data=discharge2, aes(x=date, ymin=min_dis*10, ymax=max_dis*10), fill="gray60") +
-  geom_line(data=discharge2, aes(x=date, y=mean_dis*10), size=1.2, colour="black") +
-  geom_bar(data=cpue2, aes(x=start_date, y=cpue), stat="identity", fill="gray80", colour="black") + 
+  geom_ribbon(data=discharge2, aes(x=date, ymin=min_dis*10, ymax=max_dis*10), fill="#1785fc", alpha=0.4) +
+  geom_line(data=discharge2, aes(x=date, y=mean_dis*10), size=1.2, colour="#1785fc") +
+  geom_bar(data=cpue2, aes(x=start_date, y=cpue), size=0.9, width=1.1, stat="identity", fill="#fc992e", colour="#e27f14") + 
   scale_y_continuous(breaks = seq(0,1300,250),
                      sec.axis = sec_axis(~./10, name = expression(bold("Discharge"~m^3/s)), breaks=seq(0,150,25))) +
-  scale_x_date(limits=as.Date(c("2019-04-13", "2019-05-27")), breaks="3 day", labels = date_format("%b %d")) +
-  labs(x="Date", y="CPUE \n(smolts/hour in peak period)") +
+  scale_x_date(limits=as.Date(c("2019-04-13", "2019-05-27")), breaks="4 day", labels = date_format("%b %d")) +
+  labs(x="Date", y="CPUE") +
   theme_bw() +
   theme(axis.title = element_text(size=18, face="bold"),
     axis.title.y = element_text(margin = margin(t=0, b=0, l=0, r=6)),
@@ -565,9 +565,11 @@ ggplot() +
     axis.text = element_text(size=15, colour="black"),
     axis.text.x = element_text(angle=45, vjust=1, hjust=1),
     legend.text = element_text(size=14), 
-    legend.title = element_text(size=15))
+    legend.title = element_text(size=15),
+    panel.grid.major = element_line(colour="gray85", size=0.8),
+    panel.grid.minor = element_blank())
 
-# CPUE ONLY - black
+# CPUE ONLY - black ppt
 ggplot(data=cpue2, aes(x=start_date, y=cpue)) +
   #geom_bar(stat="identity", fill="#fff7a4", colour="#fff7a4", alpha=0.85, width=1.15) + 
   scale_y_continuous(breaks = seq(0,1300,300))+
@@ -594,7 +596,7 @@ ggplot(data=cpue2, aes(x=start_date, y=cpue)) +
         legend.spacing.y = unit(0, 'cm'),
         legend.position = c(0.2,0.2))
 
-# CPUE + discharge - black
+# CPUE + discharge - black ppt
 ggplot() +
   geom_ribbon(data=discharge2, aes(x=date, ymin=min_dis*10, ymax=max_dis*10), fill="gray80", alpha=0.7) +
   geom_line(data=discharge2, aes(x=date, y=mean_dis*10), size=1.5, colour="white") +
