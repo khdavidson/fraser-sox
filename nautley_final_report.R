@@ -1,7 +1,7 @@
 # NAUTLEY 2019 FINAL REPORT CODE
 # 29-Jan-2020
 # All DNA, scales, length and weight data to be run by DFO are now here.
-# More data may come from E-Watch: DNA and physiological samples. 
+# More data may come from E-Watch: DNA and physiology 
 
 # libraries and wd
 library(tidyverse)
@@ -14,18 +14,39 @@ library(scales)
 setwd("~/ANALYSIS/Data")
 
 
+# read data used for all sections below
+dat <- read.xlsx("nautley_ANALYTICAL_database_2019.xlsx", sheet=3, detectDates=T)          # might be very slow! sometimes 'sheet' may have to be changed to 'sheetIndex' depending on the order packages are loaded
+
+# quick re-code so that figures display real names not numbers. Based on metadata table in sheet1 of the Excel file 
+dat <- dat %>% 
+  mutate(NEWregion1 = ifelse(NEWregion1==4, "Nadina", ifelse(NEWregion1 ==12, "Stellako", NEWregion1))) %>%
+  mutate(cf = (weight_g/length_mm^3)*100000) %>%
+  print()
+
+####################################################################################################################################################
+
+                                                            ##################
+                                                            # SAMPLE SUMMARY #  
+                                                            ##################
+
+# How many fish were sampled for a full 'suite' of samples (length, weight, DNA, scales)?
+# removing entires where: 
+## whatman sheet = NA (i.e., no DNA taken)
+## psc book # = NA (i.e., no scales taken)
+## weight = NA (i.e., no weight recorded)
+## length = NA (i.e., no length recorded)
+dat %>% 
+  filter(!is.na(whatman_sheet) & !is.na(psc_book_no) & !is.na(weight_g) & !is.na(length_mm)) %>%
+  summarize(n=n()) %>%
+  print()
+
+
+
 ####################################################################################################################################################
 
                                                               ################
                                                               # DNA ANALYSIS #
                                                               ################
-
-# read data
-dat <- read.xlsx("nautley_ANALYTICAL_database_2019.xlsx", sheet=3, detectDates=T)          # might be very slow! sometimes 'sheet' may have to be changed to 'sheetIndex' depending on the order packages are loaded
-
-dat <- dat %>% 
-  mutate(NEWregion1 = ifelse(NEWregion1==4, "Nadina", ifelse(NEWregion1 ==12, "Stellako", NEWregion1))) %>%
-  print()
 
 ############
 # BAD GSID #
@@ -80,7 +101,7 @@ badgsid <- dat %>%
   
 # GOOD samples going forward
 gsid <- dat %>% 
-  filter(prob1 >= 0.8 | NEWprob1 >= 0.8) %>%                               # Using K. Flynn's recommendation of p >= 0.8
+  filter(prob1 >= 0.8 | NEWprob1 >= 0.8) %>%                               # Using K. Flynn (DFO Molecular Genetics Lab) recommendation of p >= 0.8
   print()
 
   # NO CLEAR TEMPORAL TREND. 33 samples omitted having less than p = 0.80 
@@ -112,7 +133,7 @@ stock_ot_r1 <- gsid %>%
   print()
 
 # total % nadina/stellako
-summary <- gsid %>% 
+gsid %>% 
   group_by(NEWregion1) %>% 
   summarize(n=n()) %>% 
   print()
@@ -212,10 +233,6 @@ ggplot(stock_ot_r1, aes(x=date, y=propn, group=NEWregion1)) +
 
 
 
-
-
-
-
 ###########################
 # DNA - Length and weight #
 ###########################
@@ -226,7 +243,6 @@ stock_lw_r1 <- gsid %>%
   filter(NEWregion1 %in% stocks_of_interest, age==1) %>%
   mutate_at(vars(c(10:11,13:14,18,20,22,24)), funs(as.character)) %>% 
   mutate_at(vars(c(10:11,13:14,18,20,22,24)), funs(as.factor)) %>% 
-  mutate(cf = (weight_g/length_mm^3)*100000) %>%
   print()
 
 # LENGTH anova
@@ -590,7 +606,9 @@ ggplot(cf_daily_mean, aes(x=date, y=mean, group=NEWregion1, colour=NEWregion1, f
     #legend.key.size = unit(7, "mm"),
     #legend.margin = margin(t=-2,b=4,l=5,r=8))
 
-# Black plots
+
+
+# Black plots (powerpoint)
 # Length - BLACK
 ggplot(stock_lw_r1, aes(x=date, y=length_mm, group=NEWregion1)) + 
   geom_point(aes(colour=NEWregion1, fill=NEWregion1), size=8.5, shape=21, alpha=0.5, stroke=1.1) +
@@ -717,13 +735,13 @@ ggplot(stock_lw_r1, aes(x=date, y=weight_g, group=NEWregion1, colour=NEWregion1)
                                                               ################        
     
 
-# read data
+# read data - same as top just for quick ref
 dat <- read.xlsx("nautley_ANALYTICAL_database_2019.xlsx", sheet=3, detectDates=T)          # might be very slow! sometimes 'sheet' may have to be changed to 'sheetIndex' depending on the order packages are loaded
-
 dat <- dat %>% 
   mutate(NEWregion1 = ifelse(NEWregion1==4, "Nadina", ifelse(NEWregion1 ==12, "Stellako", NEWregion1))) %>%
   print()
 
+# how many readable scale samples (i.e., remove all NA) and what % were age-0, age-1 and age-2?
 age <- dat %>% 
   filter(!is.na(age)) %>% 
   group_by(age) %>% 
@@ -783,7 +801,22 @@ ggplot(subset(age.cu %>% filter(NEWregion1=="Stellako")), aes(x=age, y=n)) +
   geom_segment(aes(x=age, xend=age, y=0, yend=n)) 
     
     
-    
+
+####################################################################################################################################################
+
+                                                              ########################################
+                                                              # LENGTH, WEIGHT, AGE summary by STOCK #
+                                                              ########################################
+
+   
+# overall average length, weight, CF of all ageable and DNA identified individuals  
+# toggle including just filter(!is.na(age)) and group_by(age) for overall age breakdown not limited DNA identified individuals 
+dat %>%
+  filter(!is.na(NEWregion1) & !is.na(age)) %>%
+  group_by(NEWregion1, age) %>%
+  summarize(n = n(), meanL = mean(length_mm, na.rm=T), seL = sd(length_mm, na.rm=T)/sqrt(length(length_mm)), 
+    meanW = mean(weight_g, na.rm=T), seW = sd(weight_g, na.rm=T)/sqrt(length(weight_g)),
+    meanCF = mean(cf, na.rm=T), seCF = sd(cf, na.rm=T)/sqrt(length(cf)))
     
 ####################################################################################################################################################
 
@@ -923,8 +956,11 @@ discharge2 <- discharge2 %>%
 ########
 
 # CPUE and discharge - white report
+no_fishing <- data.frame(xstart = as.Date('2019-04-21'), xend = as.Date('2019-04-25'))
+
 ggplot() +
-  geom_ribbon(data=discharge2, aes(x=date, ymin=min_dis*10, ymax=max_dis*10), fill="#1785fc", alpha=0.4) +
+  geom_rect(data = no_fishing, aes(xmin = xstart, xmax = xend, ymin = -Inf, ymax = Inf), fill="gray85") +
+  geom_ribbon(data=discharge2, aes(x=date, ymin=min_dis*10, ymax=max_dis*10), fill="#8bc2fd") +
   geom_line(data=discharge2, aes(x=date, y=mean_dis*10, colour="Discharge"), size=1.2) +                          ##1785fc blue
   geom_bar(data=cpue2, aes(x=start_date, y=cpue, colour="CPUE", fill="CPUE"), size=0.9, width=1.1, stat="identity", colour="#e27f14", alpha=0.8) +      ##fc992e fill  #e27f14 outline 
   scale_y_continuous(breaks = seq(0,1300,250),
