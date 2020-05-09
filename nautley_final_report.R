@@ -372,7 +372,7 @@ lines(ci.cf)
 ### anova comparisons so it makes sense doing the breakpoint analysis as the pooled sample, not split by stock. 
 
  
-# ANOVAS BASED ON BIC BREAKPOINTS: UP TO MAY 4 (incl), MAY 5-12 (incl), MAY 13+
+# ONE-WAY ANOVAS BASED ON BIC BREAKPOINTS: UP TO MAY 4 (incl), MAY 5-12 (incl), MAY 13+
 # 1. Start to May 4 (inclusive)
 may4 <- stock_lw_r1 %>% 
   filter(date <= "2019-05-04") %>% 
@@ -416,6 +416,16 @@ qqline(rcf_pm13)
 summary(aov(may13$cf ~ may13$NEWregion1))
 
 
+# TWO-WAY ANOVA WITH NADINA/STELLAKO AND 3 DATE GROUPS 
+# Exporatory - Doesn't make sense - Ignore
+stock_lw_r1 <- stock_lw_r1 %>%
+  mutate(cf_date_group = ifelse(date < as.Date("2019-05-05"), 1, ifelse(date > as.Date("2019-05-12"),3,2))) %>% 
+  mutate_at(vars(c(41)), funs(as.factor)) %>%
+  print()
+
+aov.2 <- aov(stock_lw_r1$cf ~ stock_lw_r1$NEWregion1 + stock_lw_r1$cf_date_group)
+summary(aov.2)
+TukeyHSD(aov.2)
 
 
 
