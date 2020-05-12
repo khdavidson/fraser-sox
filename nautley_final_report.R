@@ -460,14 +460,15 @@ ggplot(stock_lw_r1, aes(x=date, y=length_mm, group=NEWregion1, colour=NEWregion1
 mean_lw <- stock_lw_r1 %>%
   filter(age==1) %>%
   group_by(date, NEWregion1) %>% 
-  summarize(meanl=mean(length_mm), sel=sd(length_mm)/sqrt(length(length_mm)), meanw=mean(weight_g), sew=sd(weight_g)/sqrt(length(weight_g))) %>% 
+  summarize(n=n(), meanl=mean(length_mm), sel=sd(length_mm)/sqrt(length(length_mm)), meanw=mean(weight_g), sew=sd(weight_g)/sqrt(length(weight_g))) %>% 
   print()
 
-ggplot(mean_lw, aes(x=date, y=meanl, group=NEWregion1, colour=NEWregion1, fill=NEWregion1)) + 
-  geom_errorbar(aes(ymin=meanl-sel, ymax=meanl+sel), width=0, size=1.5, alpha=0.7) +
-  geom_point(shape=21, size=4, stroke=1.5, colour="black") +
+ggplot(mean_lw, aes(x=date, y=meanl)) + 
+  geom_errorbar(aes(ymin=meanl-sel, ymax=meanl+sel, colour=NEWregion1), width=0, size=1.5, alpha=0.7) +
+  geom_point(aes(fill=NEWregion1, size=n), shape=21, stroke=1.5, colour="black") +  #POINTS SCALED BY SAMPLE SIZE HERE- NOT THE SAME AS IN THE REPORT
   scale_x_date(date_breaks = "3 days", date_labels = "%b %d") +
-  scale_colour_manual(values=c("#44bd44", "blue")) +
+  scale_size(range=c(2,10), guide="none") +                          # REMOVE TO GET REPORT VERSION
+  scale_colour_manual(values=c("#44bd44", "blue"), guide="none") +   # REMOVE GUIDE="NONE" TO GET REPORT VERSION
   scale_fill_manual(values=c("#4cd24c", "blue")) +
   labs(x="", y="Length (mm)", fill="Region", colour="Region") +
   theme_bw() +
@@ -485,7 +486,10 @@ ggplot(mean_lw, aes(x=date, y=meanl, group=NEWregion1, colour=NEWregion1, fill=N
     legend.position = c(0.09,0.86),
     legend.background = element_rect(colour="black", size=0.8),
     legend.key.size = unit(7, "mm"),
-    legend.margin = margin(t=-2,b=4,l=5,r=8))
+    legend.margin = margin(t=-2,b=4,l=5,r=8)) +
+  guides(fill = guide_legend(override.aes = list(size=4)))         # REMOVE TO GET REPORT VERSION
+# scaling points by sample size is hard because the legend point size and errorbar line size change sizes. Didn't do for the report in the end. 
+
 
 # Weight - white
 ggplot(stock_lw_r1, aes(x=date, y=weight_g, group=NEWregion1, colour=NEWregion1, fill=NEWregion1)) + 
@@ -821,12 +825,14 @@ ggplot(subset(age.cu %>% filter(NEWregion1=="Stellako")), aes(x=age, y=n)) +
    
 # overall average length, weight, CF of all ageable and DNA identified individuals  
 # toggle including just filter(!is.na(age)) and group_by(age) for overall age breakdown not limited DNA identified individuals 
-dat %>%
-  filter(!is.na(NEWregion1) & !is.na(age)) %>%
+View(dat %>%
+  filter(!is.na(NEWregion1), !is.na(age)) %>%
+  #filter(!is.na(age)) %>%
   group_by(NEWregion1, age) %>%
+  #group_by(age) %>%
   summarize(n = n(), meanL = mean(length_mm, na.rm=T), seL = sd(length_mm, na.rm=T)/sqrt(length(length_mm)), 
     meanW = mean(weight_g, na.rm=T), seW = sd(weight_g, na.rm=T)/sqrt(length(weight_g)),
-    meanCF = mean(cf, na.rm=T), seCF = sd(cf, na.rm=T)/sqrt(length(cf)))
+    meanCF = mean(cf, na.rm=T), seCF = sd(cf, na.rm=T)/sqrt(length(cf))))
     
 ####################################################################################################################################################
 
@@ -940,7 +946,7 @@ cpue2 <- cpue %>%
 # DISCHARGE DATA #
 ##################
 
-# read in discharge data 
+# read in & clean discharge data 
 discharge <- read.csv("NAUT_DISCH_08JB003_QR_Dec-19-2019_12_44_31AM.csv")
 
 discharge2 <- discharge %>% 
@@ -978,7 +984,7 @@ ggplot() +
   scale_x_date(limits=as.Date(c("2019-04-13", "2019-05-27")), breaks="4 day", labels = date_format("%b %d")) +
   scale_fill_manual("", values = c("CPUE" = "#fc992e")) + 
   scale_colour_manual("", values = c("Discharge"="#1785fc")) + 
-  labs(x="Date", y="CPUE") +
+  labs(x="Date", y="CPUE (smolts/hour)") +
   theme_bw() +
   theme(axis.title = element_text(size=24, face="bold"),
     axis.title.y = element_text(margin = margin(t=0, b=0, l=0, r=6)),
