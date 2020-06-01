@@ -1,5 +1,6 @@
 # chilko temporal long-term 
 ## daily smolt outmigration by year (1 and 2 year olds combined), last update by S. Decker Feb 21, 2019
+# provided to S LePage to inform drop-dead dates for covid-related Chilko plans Mar 2020
 
 library(tidyverse)
 library(lubridate)
@@ -44,7 +45,7 @@ ggplot(data2, aes(as.Date(doy, origin = "2020-01-01"), y=cuml_smolt, group=year,
 
 # recent since 2000 
 recent <- data2 %>% 
-  filter(year > 2000) %>% 
+  filter(year > 2010) %>% 
   print()
 
 ggplot(recent, aes(as.Date(doy, origin = "2020-01-01"), y=cuml_smolt, group=year, colour=year, fill=year)) +
@@ -54,6 +55,16 @@ ggplot(recent, aes(as.Date(doy, origin = "2020-01-01"), y=cuml_smolt, group=year
   labs(x="Date", y="Cumulative smolt count") +
   theme_bw()+
   theme(text = element_text(size=25))
+
+ggplot(recent, aes(as.Date(doy, origin = "2020-01-01"), y=smolt_count, group=year, colour=year, fill=year)) +
+  geom_point(shape=21, colour="black", stroke=1.3, size=3) +
+  geom_line(size=1.2) +
+  scale_x_date(date_labels = "%b-%d", date_breaks="7 days") +
+  labs(x="Date", y="Cumulative smolt count") +
+  theme_bw()+
+  theme(text = element_text(size=10),
+    axis.text.x = element_text(angle=45, hjust=1)) +
+  facet_grid(~year)
 
 
 #########
