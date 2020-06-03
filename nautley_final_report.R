@@ -11,7 +11,7 @@ library(openxlsx)
 library(withr)
 library(scales)
 
-setwd("~/ANALYSIS/Data")
+setwd("~/Documents/ANALYSIS/Data")
 
 
 # read data used for all sections below
@@ -22,6 +22,8 @@ dat <- dat %>%
   mutate(NEWregion1 = ifelse(NEWregion1==4, "Nadina", ifelse(NEWregion1 ==12, "Stellako", NEWregion1))) %>%
   mutate(cf = (weight_g/length_mm^3)*100000) %>%
   print()
+
+# note from BB June 2020: the RST was moved once, 
 
 ####################################################################################################################################################
 
@@ -138,6 +140,32 @@ gsid %>%
   summarize(n=n()) %>% 
   print()
 
+# Optimize loess smooth span trial - not included in report, exploratory exercise 
+# define function that returns the SSE - from http://r-statistics.co/Loess-Regression-With-R.html
+calcSSE <- function(x){
+  loessMod <- try(loess(propn ~ date, data=stock_ot_r1, span=x), silent=T)
+  res <- try(loessMod$residuals, silent=T)
+  if(class(res)!="try-error"){
+    if((sum(res, na.rm=T) > 0)){
+      sse <- sum(res^2)  
+    }
+  }else{
+    sse <- 99999
+  }
+  return(sse)
+}
+
+# Run optim to find span that gives min SSE, starting at 0.5 - from http://r-statistics.co/Loess-Regression-With-R.html
+optim(par=c(0.5), calcSSE, method="SANN")
+# $par: -11.47
+# $value: 99999        <- minimum SSE maxed out, didn't converge (?), too much var probably given optimum span is -11 (out of 0:1 bounds)
+# $counts:
+#  function gradient 
+#    10000       NA 
+# $convergence: 0
+# $message: NULL
+
+
 # plot samples per day
 ggplot(stock_ot_r1, aes(x=date, y=daily, group=NEWregion1, colour=NEWregion1)) + 
   geom_point() +
@@ -156,7 +184,7 @@ ggplot(stock_ot_r1, aes(x=date, y=daily, group=NEWregion1, colour=NEWregion1)) +
 # proportion - WHITE
 ggplot(stock_ot_r1, aes(x=date, y=propn, group=NEWregion1, colour=NEWregion1, fill=NEWregion1)) + 
   #geom_hline(yintercept = 0.5, size=1, linetype="dashed", colour="red", alpha=0.8) +
-  geom_smooth(se=F, size=1.5) +      # note having SE bars make no sense here - there is no variation in daily %s because just 1 value per group
+  geom_smooth(se=F, size=1.5, method="loess", span=0.25) +      # note having SE bars make no sense here - there is no variation in daily %s because just 1 value per group
   geom_point(shape=21, size=4, stroke=1.5, colour="black") +
   scale_x_date(date_breaks = "3 days", date_labels = "%b %d") +
   scale_colour_manual(values=c("#44bd44", "blue")) +
@@ -864,73 +892,74 @@ cpue <- catch %>%
   summarize(sum=sum(sox_smolts)) %>%
   mutate(hrs_in_window = 6) %>%
   print()
+# NOTE: THIS PIPE LOOP ABOVE CAN'T REALLY BE CHANGED BECAUSE THE 'hrs_in_window" changes on the next code block refer to specific column and row #s
 
-  # manually change hrs_in_window for shorter times 
-  cpue[46,5] <- 5.5
-  cpue[47,5] <- 5.5
-  cpue[48,5] <- 5.5
-  cpue[49,5] <- 5.5
+# manually change hrs_in_window for shorter times - these were determined visually looking at start and end times as they aren't always consistent
+cpue[46,5] <- 5.5
+cpue[47,5] <- 5.5
+cpue[48,5] <- 5.5
+cpue[49,5] <- 5.5
 
-  cpue[55,5] <- 5.5
-  cpue[56,5] <- 5.5
-  cpue[57,5] <- 5.5
-  cpue[58,5] <- 5.5
-  cpue[59,5] <- 5.5
+cpue[55,5] <- 5.5
+cpue[56,5] <- 5.5
+cpue[57,5] <- 5.5
+cpue[58,5] <- 5.5
+cpue[59,5] <- 5.5
 
-  cpue[66,5] <- 5.5
-  cpue[67,5] <- 5.5
-  cpue[68,5] <- 5.5
-  cpue[69,5] <- 5.5
-  cpue[70,5] <- 5.5
+cpue[66,5] <- 5.5
+cpue[67,5] <- 5.5
+cpue[68,5] <- 5.5
+cpue[69,5] <- 5.5
+cpue[70,5] <- 5.5
   
-  cpue[71,5] <- 5.5
-  cpue[72,5] <- 5.5
-  cpue[73,5] <- 5.5
-  cpue[74,5] <- 5.5
-  cpue[75,5] <- 5.5
+cpue[71,5] <- 5.5
+cpue[72,5] <- 5.5
+cpue[73,5] <- 5.5
+cpue[74,5] <- 5.5
+cpue[75,5] <- 5.5
   
-  cpue[81,5] <- 5.5
-  cpue[82,5] <- 5.5
-  cpue[83,5] <- 5.5
-  cpue[84,5] <- 5.5
-  cpue[85,5] <- 5.5
+cpue[81,5] <- 5.5
+cpue[82,5] <- 5.5
+cpue[83,5] <- 5.5
+cpue[84,5] <- 5.5
+cpue[85,5] <- 5.5
   
-  cpue[111,5] <- 5.5
-  cpue[112,5] <- 5.5
-  cpue[113,5] <- 5.5
-  cpue[114,5] <- 5.5
+cpue[111,5] <- 5.5
+cpue[112,5] <- 5.5
+cpue[113,5] <- 5.5
+cpue[114,5] <- 5.5
   
-  cpue[115,5] <- 5.5
-  cpue[116,5] <- 5.5
-  cpue[117,5] <- 5.5
-  cpue[118,5] <- 5.5
+cpue[115,5] <- 5.5
+cpue[116,5] <- 5.5
+cpue[117,5] <- 5.5
+cpue[118,5] <- 5.5
   
-  cpue[124,5] <- 5.5
-  cpue[125,5] <- 5.5
-  cpue[126,5] <- 5.5
-  cpue[127,5] <- 5.5
+cpue[124,5] <- 5.5
+cpue[125,5] <- 5.5
+cpue[126,5] <- 5.5
+cpue[127,5] <- 5.5
   
-  cpue[133,5] <- 5.5
-  cpue[134,5] <- 5.5
-  cpue[135,5] <- 5.5
-  cpue[136,5] <- 5.5
+cpue[133,5] <- 5.5
+cpue[134,5] <- 5.5
+cpue[135,5] <- 5.5
+cpue[136,5] <- 5.5
   
-  cpue[137,5] <- 5.5
-  cpue[138,5] <- 5.5
-  cpue[139,5] <- 5.5
-  cpue[140,5] <- 5.5
+cpue[137,5] <- 5.5
+cpue[138,5] <- 5.5
+cpue[139,5] <- 5.5
+cpue[140,5] <- 5.5
   
-  cpue[145,5] <- 5.5
-  cpue[146,5] <- 5.5
-  cpue[147,5] <- 5.5
-  cpue[148,5] <- 5.5
-  cpue[149,5] <- 5.5
-  cpue[150,5] <- 5.5
-  cpue[151,5] <- 5.5
-  cpue[152,5] <- 5.5
-  cpue[153,5] <- 5.5
-  cpue[154,5] <- 5.5
-  cpue[155,5] <- 5.5
+cpue[145,5] <- 5.5
+cpue[146,5] <- 5.5
+cpue[147,5] <- 5.5
+cpue[148,5] <- 5.5
+cpue[149,5] <- 5.5
+cpue[150,5] <- 5.5
+cpue[151,5] <- 5.5
+cpue[152,5] <- 5.5
+cpue[153,5] <- 5.5
+cpue[154,5] <- 5.5
+cpue[155,5] <- 5.5
 
 cpue2 <- cpue %>% 
   group_by(start_date) %>% 
@@ -967,6 +996,8 @@ discharge2 <- discharge2 %>%
   summarize(mean_dis=mean(discharge_m3s), min_dis=min(discharge_m3s), max_dis=max(discharge_m3s)) %>%
   print()
 
+ggplot(discharge2)
+
 ########
 # plot #
 ########
@@ -974,17 +1005,18 @@ discharge2 <- discharge2 %>%
 # CPUE and discharge - white report
 no_fishing <- data.frame(xstart = as.Date('2019-04-21'), xend = as.Date('2019-04-25'))
 
+# CPUE + discharge figure - legend item changed to 'catch' for report figure a and b, but here represents CPUE
 ggplot() +
   geom_rect(data = no_fishing, aes(xmin = xstart, xmax = xend, ymin = -Inf, ymax = Inf), fill="gray85") +
-  geom_ribbon(data=discharge2, aes(x=date, ymin=min_dis*10, ymax=max_dis*10), fill="#8bc2fd") +
-  geom_line(data=discharge2, aes(x=date, y=mean_dis*10, colour="Discharge"), size=1.2) +                          ##1785fc blue
-  geom_bar(data=cpue2, aes(x=start_date, y=cpue, colour="CPUE", fill="CPUE"), size=0.9, width=1.1, stat="identity", colour="#e27f14", alpha=0.8) +      ##fc992e fill  #e27f14 outline 
+  geom_ribbon(data=discharge2, aes(x=date, ymin=min_dis*12, ymax=max_dis*12), fill="#8bc2fd") +
+  geom_line(data=discharge2, aes(x=date, y=mean_dis*12, colour="Discharge"), size=1.2) +                          ##1785fc blue
+  geom_bar(data=cpue2, aes(x=start_date, y=cpue, colour="Catch", fill="Catch"), size=0.9, width=1.1, stat="identity", colour="#e27f14", alpha=0.8) +      ##fc992e fill  #e27f14 outline 
   scale_y_continuous(breaks = seq(0,1300,250),
-                     sec.axis = sec_axis(~./10, name = expression(bold("Discharge"~m^3/s)), breaks=seq(0,150,25))) +
+                     sec.axis = sec_axis(~./12, name = expression(bold("Discharge"~m^3/s)), labels=seq(0,100,25), breaks=seq(0,100,25))) +
   scale_x_date(limits=as.Date(c("2019-04-13", "2019-05-27")), breaks="4 day", labels = date_format("%b %d")) +
-  scale_fill_manual("", values = c("CPUE" = "#fc992e")) + 
+  scale_fill_manual("", values = c("Catch" = "#fc992e")) + 
   scale_colour_manual("", values = c("Discharge"="#1785fc")) + 
-  labs(x="Date", y="CPUE (smolts/hour)") +
+  labs(x="Date", y="Catch (smolts/hour)") +
   theme_bw() +
   theme(axis.title = element_text(size=24, face="bold"),
     axis.title.y = element_text(margin = margin(t=0, b=0, l=0, r=6)),
@@ -999,6 +1031,35 @@ ggplot() +
     legend.title = element_blank(),
     legend.position = c(0.85,0.87),
     #legend.background = element_rect(colour="black"),
+    panel.border = element_rect(size=1.1),
+    panel.grid.major = element_blank(),#line(colour="gray85", size=0.5),
+    panel.grid.minor = element_blank())
+
+# raw catch + discharge figure
+ggplot() +
+  geom_rect(data=no_fishing, aes(xmin = xstart, xmax = xend, ymin = -Inf, ymax = Inf), fill="gray85") +
+  geom_ribbon(data=discharge2, aes(x=date, ymin=min_dis*75, ymax=max_dis*75), fill="#8bc2fd") +
+  geom_line(data=discharge2, aes(x=date, y=mean_dis*75, colour="Discharge"), size=1.2) +                          ##1785fc blue
+  geom_bar(data=cpue2, aes(x=start_date, y=sum, colour="Raw catch", fill="Raw catch"), size=0.9, width=1.1, stat="identity", colour="#e27f14", alpha=0.8) +      ##fc992e fill  #e27f14 outline 
+  scale_y_continuous(limits=c(0,8000), breaks = seq(0,8000,1500),
+                     sec.axis = sec_axis(~./75, name = expression(bold("Discharge"~m^3/s)), labels=seq(0,100,25), breaks=seq(0,100,25))) +
+  scale_x_date(limits=as.Date(c("2019-04-13", "2019-05-27")), breaks="4 day", labels = date_format("%b %d")) +
+  scale_fill_manual("", values = c("Raw catch" = "#fc992e")) + 
+  scale_colour_manual("", values = c("Discharge"="#1785fc")) + 
+  labs(x="Date", y="Raw catch") +
+  theme_bw() +
+  theme(axis.title = element_text(size=24, face="bold"),
+    axis.title.y = element_text(margin = margin(t=0, b=0, l=0, r=6)),
+    axis.title.y.right = element_text(margin=margin(t=0, b=0, l=7, r=0), face="bold"),
+    axis.text = element_text(size=21, colour="black"),
+    axis.text.x = element_text(angle=45, vjust=1, hjust=1),
+    axis.ticks = element_line(size=1),
+    axis.ticks.length = unit(1.5, "mm"),
+    #legend.text = element_text(size=21), 
+    #legend.spacing = unit(0, "cm"),
+    #legend.margin = margin(t = 0, r = 1, b = 1, l = 1, unit = "mm"),
+    #legend.title = element_blank(),
+    legend.position = "none", #c(0.85,0.87),
     panel.border = element_rect(size=1.1),
     panel.grid.major = element_blank(),#line(colour="gray85", size=0.5),
     panel.grid.minor = element_blank())
