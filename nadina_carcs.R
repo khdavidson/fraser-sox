@@ -4,16 +4,16 @@ library(tidyverse)
 library(lubridate)
 library(strptime)
 
-setwd("~/ANALYSIS/Data")
+setwd("~/Documents/ANALYSIS/Data")
 
 # read
 data <- read.csv("nadina_recoveries_spatiotemporal.csv")
-data$date <- as.Date(data$date)
 
 # clean
 data <- data %>% 
   gather("sex", "count", 7:8) %>% 
   mutate_at(vars(c(8)), funs(as.numeric)) %>%
+  mutate(date = lubridate::dmy(date)) %>%
   print()
 
 
@@ -86,12 +86,58 @@ ggplot(yearea, aes(x=year, y=propn, group=area2, colour=area2)) +
 # OT WITHIN YEAR #
 ##################
 
-data$monthday <- format(as.Date(data$date, format="%Y-%m-%d"),"%b-%d")
+data$jdate <- format(data$date, "%j")
 
-ggplot(data, aes(x=monthday, y=count, group=sex, colour=sex)) +
-  geom_point() +
-  geom_line() +
-  facet_wrap(~area2)
+summary <- data %>% 
+  group_by(year, date) %>%
+  summarize(total_carcs = sum(count, na.rm=T)) %>% 
+  mutate(yday = lubridate::yday(date)) %>%
+  print()
+
+ggplot(summary, aes(x=as.Date(yday, origin = as.Date("2003-01-01")), y=total_carcs)) +
+  geom_bar(stat="identity") +
+  scale_x_date(date_labels="%b %d") +
+  labs(x="date", y="total carcasses") +
+  facet_wrap(~year)
+
+
+
+####################################################################################################################################################
+
+# Similar as above but for STELLAKO
+
+# read
+s.data <- read.csv("stellako_recoveries_spatiotemporal.csv")
+
+# clean
+s.data <- s.data %>% 
+  select(1:7, 11:14) %>%
+  gather("sex", "count", 8:11) %>% 
+  mutate_at(vars(c(8)), funs(as.numeric)) %>%
+  mutate(date = lubridate::dmy(date)) %>%
+  print()
+
+
+##################
+# OT WITHIN YEAR #
+##################
+
+s.data$jdate <- format(s.data$date, "%j")
+
+s.summary <- s.data %>% 
+  group_by(year, date) %>%
+  summarize(total_carcs = sum(count, na.rm=T)) %>% 
+  mutate(yday = lubridate::yday(date)) %>%
+  print()
+
+ggplot(s.summary, aes(x=as.Date(yday, origin = as.Date("2003-01-01")), y=total_carcs)) +
+  geom_bar(stat="identity") +
+  scale_x_date(date_labels="%b %d") +
+  labs(x="date", y="total carcasses") +
+  facet_wrap(~year)
+
+
+
 
 
 
