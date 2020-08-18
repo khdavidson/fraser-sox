@@ -126,7 +126,7 @@ s.data$jdate <- format(s.data$date, "%j")
 
 s.summary <- s.data %>% 
   group_by(year, date) %>%
-  summarize(total_carcs = sum(count, na.rm=T)) %>% 
+  summarize(total_carcs = sum(count, na.rm=T), n_surveys=n()) %>% 
   mutate(yday = lubridate::yday(date)) %>%
   print()
 
