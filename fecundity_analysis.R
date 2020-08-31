@@ -251,6 +251,10 @@ fec_temp <- fec %>%
   #summarize(fec_avg = mean(fecundity, na.rm=T), sd_fec = sd(fecundity, na.rm=T)) %>% 
   print()
 
+#----------------- Fecundity ~ time
+summary(lm(fec_temp[fec_temp$age_total=="5",]$fecundity ~ fec_temp[fec_temp$age_total=="5",]$year))
+summary(lm(fec_temp[fec_temp$age_total=="4",]$fecundity ~ fec_temp[fec_temp$age_total=="4",]$year))
+
 ggplot(fec_temp) +
   geom_point(aes(x=year, y=fecundity, fill=age_total, colour=age_total), shape=21, size=4, alpha=0.5) +
   geom_smooth(aes(x=year, y=fecundity, colour=age_total, fill=age_total), method="lm", se=T, size=1, alpha=0.15) +
@@ -258,13 +262,24 @@ ggplot(fec_temp) +
   theme_bw() 
 # I would remove the one 3yo point from 1986 as it does not seem to be reliable. 
 
+View(fec_temp %>% group_by(year, age_total) %>% summarize(mean=mean(fecundity, na.rm=T), sd=sd(fecundity, na.rm=T)))
+
+#----------------- Length ~ time
 ggplot(fec_temp) +
   geom_point(aes(x=year, y=length_std, fill=age_total, colour=age_total), shape=21, size=4, alpha=0.5) +
   geom_smooth(aes(x=year, y=length_std, colour=age_total, fill=age_total), method="lm", se=T, size=1, alpha=0.15) +
   scale_x_continuous(breaks=seq(1960,2020,by=15)) +
   theme_bw() 
 
+View(fec_temp %>% group_by(year, age_total) %>% summarize(mean=mean(length_std, na.rm=T), sd=sd(length_std, na.rm=T)))
+
+summary(lm(fec_temp[fec_temp$age_total=="5",]$length_std ~ fec_temp[fec_temp$age_total=="5",]$year))
+summary(lm(fec_temp[fec_temp$age_total=="4",]$length_std ~ fec_temp[fec_temp$age_total=="4",]$year))
+
 # As expected, the linear trends of fecundity~time and size~time are very similar, because fecundity~size is a strong relationship. How strong: 
+
+
+#----------------- Fecundity ~ length
 ggplot(fec_temp) +
   geom_point(aes(x=length_std, y=fecundity, fill=age_total, colour=age_total), shape=21, size=3, alpha=0.4) +
   #geom_point(aes(x=length_std, y=log(fecundity), fill=age_total, colour=age_total), shape=21, size=3, alpha=0.4) +  # LOG(Y) COMPARISON
