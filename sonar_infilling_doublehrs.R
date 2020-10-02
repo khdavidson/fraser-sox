@@ -10,11 +10,11 @@ library(grid)          # for grid.draw()
 
 setwd("~/Documents/ANALYSIS/data/Sonar")
 
-nad.dat.raw <- read.csv("Nadina Sonar_tool_2020_KDinfill_DATAENTRY.csv")
-
-
 
 ####################################################################################################################################################
+
+
+nad.dat.raw <- read.csv("Nadina Sonar_tool_2020_KDinfill_DATAENTRY.csv")
 
 #                                                          CLEANING
 
@@ -1312,19 +1312,805 @@ ggplot() +
 
 
 
+####################################################################################################################################################
+
+####################################################################################################################################################
+
+####################################################################################################################################################
+
+#                                                                TEST REMOVAL
+
+
+# Try removing known counts within each hour subset and see how well each infilling method performs 
+# 20% of the points with data is ~6 therefore remove 6 data points to test
+set.seed(100)
+
+####################################################################################################################################################
+
+
+#                                                                      0300
+
+dat.3$sox_us_check <- dat.3$sox_us
+dat.3$sox_us_check[sample(1:length(dat.3$sox_us_check),6)] <- NA
+
+
+######################
+# CREATE TIME SERIES #
+######################
+ts.us.all3test <- ts(dat.3$sox_us_check)
+
+
+
 #----------------------------------------------------------
+
+
+################################
+# METHOD 2: na_interpolation() #
+################################
+
+# Note: na_interpolation() uses the full time series regardless of where it's subsetted, so for this exercise I just used the full timeseries 
+
+####
+# 1a. Linear interpolation - interpolation using 'approx'
+#### "linearly interpolate given data points, or a function performing the linear (or constant) interpolation."
+
+# infill using INTERPOLATION over FULL SERIES
+infill_linterp3alltest <- na_interpolation(ts.us.all3test, option="linear")
+
+# make the infilled time series a data frame and rename it 
+infill_linterp3alltest.df <- as.data.frame(infill_linterp3alltest)
+
+infill_linterp3alltest.df <- infill_linterp3alltest.df %>% 
+  rename(sox_us_infill_linterp_test=x) %>% 
+  print()
+
+# bind existing dataframe and the infilled time series dataframe 
+dat.3 <- cbind(dat.3, infill_linterp3alltest.df)
+
+
+####
+# 1b. Spline interpolation
+#### "Perform cubic (or Hermite) spline interpolation of given data points"
+
+# infill using INTERPOLATION over FULL SERIES
+infill_spinterp3alltest <- na_interpolation(ts.us.all3test, option="spline")
+
+# make the infilled time series a data frame and rename it 
+infill_spinterp3alltest.df <- as.data.frame(infill_spinterp3alltest)
+
+infill_spinterp3alltest.df <- infill_spinterp3alltest.df %>% 
+  rename(sox_us_infill_spinterp_test=x) %>% 
+  print()
+
+# bind existing dataframe and the infilled time series dataframe 
+dat.3 <- cbind(dat.3, infill_spinterp3alltest.df)
+
+
+
+####
+# 1c. Stine interpolation
+#### "Returns the values of an interpolating function that runs through a set of points in the xy-plane according to the algorithm of Stineman (1980)"
+
+# infill using INTERPOLATION over FULL SERIES
+infill_stinterp3alltest <- na_interpolation(ts.us.all3test, option="stine")
+
+# make the infilled time series a data frame and rename it 
+infill_stinterp3alltest.df <- as.data.frame(infill_stinterp3alltest)
+
+infill_stinterp3alltest.df <- infill_stinterp3alltest.df %>% 
+  rename(sox_us_infill_stinterp_test=x) %>% 
+  print()
+
+# bind existing dataframe and the infilled time series dataframe 
+dat.3 <- cbind(dat.3, infill_stinterp3alltest.df)
+
+
 #----------------------------------------------------------
+
+
+#########################
+# METHOD 3: na_kalman() #
+#########################
+
+# Kalman smoothing over structural time series - can take into account seasonality, but we don't have that so may end up same as interpolation
+# results above.
+
+# infill using KALMAN over FULL SERIES
+infill_kal3alltest <- na_kalman(ts.us.all3test, model="StructTS")
+
+# make the infilled time series a data frame and rename it 
+infill_kal3alltest.df <- as.data.frame(infill_kal3alltest)
+
+infill_kal3alltest.df <- infill_kal3alltest.df %>% 
+  rename(sox_us_infill_kal_test=x) %>% 
+  print()
+
+# bind existing dataframe and the infilled time series dataframe 
+dat.3 <- cbind(dat.3, infill_kal3alltest.df)
+
+
 #----------------------------------------------------------
 
 
-################
-# ALL TOGETHER #
-################
+############
+# Evaluate #
+############
 
-grid.newpage()
-grid.draw(rbind(ggplotGrob(p3), ggplotGrob(p4), ggplotGrob(p5), ggplotGrob(p6), ggplotGrob(p7), ggplotGrob(p8), size="last"))
+# Assess
+ggplot() +
 
-grid.arrange(p3, p4, p5, p6, p7, p8, ncol = 3, nrow = 2)
+  geom_line(data=dat.3, aes(x=date, y=sox_us_infill_linterp_test), linetype="dashed", size=1.1) +
+  geom_point(data=dat.3, aes(x=date, y=sox_us_infill_linterp_test), size=5.3, fill="dark green", colour="black", shape=24) +
+    
+  geom_line(data=dat.3, aes(x=date, y=sox_us_infill_spinterp_test), linetype="dashed", size=1.1) +
+  geom_point(data=dat.3, aes(x=date, y=sox_us_infill_spinterp_test), size=5.3, fill="green", colour="black", shape=24) +
+  
+  geom_line(data=dat.3, aes(x=date, y=sox_us_infill_stinterp_test), linetype="dashed", size=1.1) +
+  geom_point(data=dat.3, aes(x=date, y=sox_us_infill_stinterp_test), size=5.3, fill="light green", colour="black", shape=24) +
+
+  geom_line(data=dat.3, aes(x=date, y=sox_us_infill_kal_test), linetype="dashed", size=1.1) +
+  geom_point(data=dat.3, aes(x=date, y=sox_us_infill_kal_test), size=5.3, fill="orange", colour="black", shape=25) +
+  
+  geom_line(data=dat.3, aes(x=date, y=sox_us), size=1.2) +
+  geom_point(data=dat.3, aes(x=date, y=sox_us), size=6.5, colour="black", fill="gray60", stroke=1.1, shape=21) +
+  
+  labs(x="Date", y="Number of U/S sockeye") +
+  annotate(geom="text", label="0300", x=as.Date("2020-09-22"), y=145, size=10, face="bold") +
+  scale_y_continuous(limits=c(0,150)) +
+  theme_bw() +
+  theme(axis.text = element_text(colour="black", size=24),
+    axis.title=element_text(size=28, face="bold"))
+
+
+
+
+################################################################################################################################################
+
+
+#                                                                           0400 
+
+dat.4$sox_us_check <- dat.4$sox_us
+dat.4$sox_us_check[sample(1:length(dat.4$sox_us_check),6)] <- NA
+
+
+######################
+# CREATE TIME SERIES #
+######################
+ts.us.all4test <- ts(dat.4$sox_us_check)
+
+
+
+#----------------------------------------------------------
+
+
+################################
+# METHOD 2: na_interpolation() #
+################################
+
+# Note: na_interpolation() uses the full time series regardless of where it's subsetted, so for this exercise I just used the full timeseries 
+
+####
+# 1a. Linear interpolation - interpolation using 'approx'
+#### "linearly interpolate given data points, or a function performing the linear (or constant) interpolation."
+
+# infill using INTERPOLATION over FULL SERIES
+infill_linterp4alltest <- na_interpolation(ts.us.all4test, option="linear")
+
+# make the infilled time series a data frame and rename it 
+infill_linterp4alltest.df <- as.data.frame(infill_linterp4alltest)
+
+infill_linterp4alltest.df <- infill_linterp4alltest.df %>% 
+  rename(sox_us_infill_linterp_test=x) %>% 
+  print()
+
+# bind existing dataframe and the infilled time series dataframe 
+dat.4 <- cbind(dat.4, infill_linterp4alltest.df)
+
+
+####
+# 1b. Spline interpolation
+#### "Perform cubic (or Hermite) spline interpolation of given data points"
+
+# infill using INTERPOLATION over FULL SERIES
+infill_spinterp4alltest <- na_interpolation(ts.us.all4test, option="spline")
+
+# make the infilled time series a data frame and rename it 
+infill_spinterp4alltest.df <- as.data.frame(infill_spinterp4alltest)
+
+infill_spinterp4alltest.df <- infill_spinterp4alltest.df %>% 
+  rename(sox_us_infill_spinterp_test=x) %>% 
+  print()
+
+# bind existing dataframe and the infilled time series dataframe 
+dat.4 <- cbind(dat.4, infill_spinterp4alltest.df)
+
+
+
+####
+# 1c. Stine interpolation
+#### "Returns the values of an interpolating function that runs through a set of points in the xy-plane according to the algorithm of Stineman (1980)"
+
+# infill using INTERPOLATION over FULL SERIES
+infill_stinterp4alltest <- na_interpolation(ts.us.all4test, option="stine")
+
+# make the infilled time series a data frame and rename it 
+infill_stinterp4alltest.df <- as.data.frame(infill_stinterp4alltest)
+
+infill_stinterp4alltest.df <- infill_stinterp4alltest.df %>% 
+  rename(sox_us_infill_stinterp_test=x) %>% 
+  print()
+
+# bind existing dataframe and the infilled time series dataframe 
+dat.4 <- cbind(dat.4, infill_stinterp4alltest.df)
+
+
+#----------------------------------------------------------
+
+
+#########################
+# METHOD 4: na_kalman() #
+#########################
+
+# Kalman smoothing over structural time series - can take into account seasonality, but we don't have that so may end up same as interpolation
+# results above.
+
+# infill using KALMAN over FULL SERIES
+infill_kal4alltest <- na_kalman(ts.us.all4test, model="StructTS")
+
+# make the infilled time series a data frame and rename it 
+infill_kal4alltest.df <- as.data.frame(infill_kal4alltest)
+
+infill_kal4alltest.df <- infill_kal4alltest.df %>% 
+  rename(sox_us_infill_kal_test=x) %>% 
+  print()
+
+# bind existing dataframe and the infilled time series dataframe 
+dat.4 <- cbind(dat.4, infill_kal4alltest.df)
+
+
+#----------------------------------------------------------
+
+
+############
+# Evaluate #
+############
+
+# Assess
+ggplot() +
+
+  geom_line(data=dat.4, aes(x=date, y=sox_us_infill_linterp_test), linetype="dashed", size=1.1) +
+  geom_point(data=dat.4, aes(x=date, y=sox_us_infill_linterp_test), size=5.3, fill="dark green", colour="black", shape=24) +
+    
+  geom_line(data=dat.4, aes(x=date, y=sox_us_infill_spinterp_test), linetype="dashed", size=1.1) +
+  geom_point(data=dat.4, aes(x=date, y=sox_us_infill_spinterp_test), size=5.3, fill="green", colour="black", shape=24) +
+  
+  geom_line(data=dat.4, aes(x=date, y=sox_us_infill_stinterp_test), linetype="dashed", size=1.1) +
+  geom_point(data=dat.4, aes(x=date, y=sox_us_infill_stinterp_test), size=5.3, fill="light green", colour="black", shape=24) +
+
+  geom_line(data=dat.4, aes(x=date, y=sox_us_infill_kal_test), linetype="dashed", size=1.1) +
+  geom_point(data=dat.4, aes(x=date, y=sox_us_infill_kal_test), size=5.3, fill="orange", colour="black", shape=25) +
+  
+  geom_line(data=dat.4, aes(x=date, y=sox_us), size=1.2) +
+  geom_point(data=dat.4, aes(x=date, y=sox_us), size=6.5, colour="black", fill="gray60", stroke=1.1, shape=21) +
+  
+  labs(x="Date", y="Number of U/S sockeye") +
+  annotate(geom="text", label="0400", x=as.Date("2020-09-22"), y=120, size=10, face="bold") +
+  scale_y_continuous(limits=c(0,125)) +
+  theme_bw() +
+  theme(axis.text = element_text(colour="black", size=24),
+    axis.title=element_text(size=28, face="bold"))
+
+
+
+##################################################################################################################################################
+
+
+#                                                                     0500
+
+dat.5$sox_us_check <- dat.5$sox_us
+dat.5$sox_us_check[sample(1:length(dat.5$sox_us_check),6)] <- NA
+
+######################
+# CREATE TIME SERIES #
+######################
+ts.us.all5test <- ts(dat.5$sox_us_check)
+
+
+
+#----------------------------------------------------------
+
+
+################################
+# METHOD 2: na_interpolation() #
+################################
+
+# Note: na_interpolation() uses the full time series regardless of where it's subsetted, so for this exercise I just used the full timeseries 
+
+####
+# 1a. Linear interpolation - interpolation using 'approx'
+#### "linearly interpolate given data points, or a function performing the linear (or constant) interpolation."
+
+# infill using INTERPOLATION over FULL SERIES
+infill_linterp5alltest <- na_interpolation(ts.us.all5test, option="linear")
+
+# make the infilled time series a data frame and rename it 
+infill_linterp5alltest.df <- as.data.frame(infill_linterp5alltest)
+
+infill_linterp5alltest.df <- infill_linterp5alltest.df %>% 
+  rename(sox_us_infill_linterp_test=x) %>% 
+  print()
+
+# bind existing dataframe and the infilled time series dataframe 
+dat.5 <- cbind(dat.5, infill_linterp5alltest.df)
+
+
+####
+# 1b. Spline interpolation
+#### "Perform cubic (or Hermite) spline interpolation of given data points"
+
+# infill using INTERPOLATION over FULL SERIES
+infill_spinterp5alltest <- na_interpolation(ts.us.all5test, option="spline")
+
+# make the infilled time series a data frame and rename it 
+infill_spinterp5alltest.df <- as.data.frame(infill_spinterp5alltest)
+
+infill_spinterp5alltest.df <- infill_spinterp5alltest.df %>% 
+  rename(sox_us_infill_spinterp_test=x) %>% 
+  print()
+
+# bind existing dataframe and the infilled time series dataframe 
+dat.5 <- cbind(dat.5, infill_spinterp5alltest.df)
+
+
+
+####
+# 1c. Stine interpolation
+#### "Returns the values of an interpolating function that runs through a set of points in the xy-plane according to the algorithm of Stineman (1980)"
+
+# infill using INTERPOLATION over FULL SERIES
+infill_stinterp5alltest <- na_interpolation(ts.us.all5test, option="stine")
+
+# make the infilled time series a data frame and rename it 
+infill_stinterp5alltest.df <- as.data.frame(infill_stinterp5alltest)
+
+infill_stinterp5alltest.df <- infill_stinterp5alltest.df %>% 
+  rename(sox_us_infill_stinterp_test=x) %>% 
+  print()
+
+# bind existing dataframe and the infilled time series dataframe 
+dat.5 <- cbind(dat.5, infill_stinterp5alltest.df)
+
+
+#----------------------------------------------------------
+
+
+#########################
+# METHOD 5: na_kalman() #
+#########################
+
+# Kalman smoothing over structural time series - can take into account seasonality, but we don't have that so may end up same as interpolation
+# results above.
+
+# infill using KALMAN over FULL SERIES
+infill_kal5alltest <- na_kalman(ts.us.all5test, model="StructTS")
+
+# make the infilled time series a data frame and rename it 
+infill_kal5alltest.df <- as.data.frame(infill_kal5alltest)
+
+infill_kal5alltest.df <- infill_kal5alltest.df %>% 
+  rename(sox_us_infill_kal_test=x) %>% 
+  print()
+
+# bind existing dataframe and the infilled time series dataframe 
+dat.5 <- cbind(dat.5, infill_kal5alltest.df)
+
+
+#----------------------------------------------------------
+
+
+############
+# Evaluate #
+############
+
+# Assess
+ggplot() +
+
+  geom_line(data=dat.5, aes(x=date, y=sox_us_infill_linterp_test), linetype="dashed", size=1.1) +
+  geom_point(data=dat.5, aes(x=date, y=sox_us_infill_linterp_test), size=5.3, fill="dark green", colour="black", shape=24) +
+    
+  geom_line(data=dat.5, aes(x=date, y=sox_us_infill_spinterp_test), linetype="dashed", size=1.1) +
+  geom_point(data=dat.5, aes(x=date, y=sox_us_infill_spinterp_test), size=5.3, fill="green", colour="black", shape=24) +
+  
+  geom_line(data=dat.5, aes(x=date, y=sox_us_infill_stinterp_test), linetype="dashed", size=1.1) +
+  geom_point(data=dat.5, aes(x=date, y=sox_us_infill_stinterp_test), size=5.3, fill="light green", colour="black", shape=24) +
+
+  geom_line(data=dat.5, aes(x=date, y=sox_us_infill_kal_test), linetype="dashed", size=1.1) +
+  geom_point(data=dat.5, aes(x=date, y=sox_us_infill_kal_test), size=5.3, fill="orange", colour="black", shape=25) +
+  
+  geom_line(data=dat.5, aes(x=date, y=sox_us), size=1.2) +
+  geom_point(data=dat.5, aes(x=date, y=sox_us), size=6.5, colour="black", fill="gray60", stroke=1.1, shape=21) +
+  
+  labs(x="Date", y="Number of U/S sockeye") +
+  annotate(geom="text", label="0500", x=as.Date("2020-09-22"), y=195, size=10, face="bold") +
+  scale_y_continuous(limits=c(0,200)) +
+  theme_bw() +
+  theme(axis.text = element_text(colour="black", size=24),
+    axis.title=element_text(size=28, face="bold"))
+
+
+
+####################################################################################################################################################
+
+
+#                                                                      0600
+
+dat.6$sox_us_check <- dat.6$sox_us
+dat.6$sox_us_check[sample(1:length(dat.6$sox_us_check),6)] <- NA
+
+
+######################
+# CREATE TIME SERIES #
+######################
+ts.us.all6test <- ts(dat.6$sox_us_check)
+
+
+
+#----------------------------------------------------------
+
+
+################################
+# METHOD 2: na_interpolation() #
+################################
+
+# Note: na_interpolation() uses the full time series regardless of where it's subsetted, so for this exercise I just used the full timeseries 
+
+####
+# 1a. Linear interpolation - interpolation using 'approx'
+#### "linearly interpolate given data points, or a function performing the linear (or constant) interpolation."
+
+# infill using INTERPOLATION over FULL SERIES
+infill_linterp6alltest <- na_interpolation(ts.us.all6test, option="linear")
+
+# make the infilled time series a data frame and rename it 
+infill_linterp6alltest.df <- as.data.frame(infill_linterp6alltest)
+
+infill_linterp6alltest.df <- infill_linterp6alltest.df %>% 
+  rename(sox_us_infill_linterp_test=x) %>% 
+  print()
+
+# bind existing dataframe and the infilled time series dataframe 
+dat.6 <- cbind(dat.6, infill_linterp6alltest.df)
+
+
+####
+# 1b. Spline interpolation
+#### "Perform cubic (or Hermite) spline interpolation of given data points"
+
+# infill using INTERPOLATION over FULL SERIES
+infill_spinterp6alltest <- na_interpolation(ts.us.all6test, option="spline")
+
+# make the infilled time series a data frame and rename it 
+infill_spinterp6alltest.df <- as.data.frame(infill_spinterp6alltest)
+
+infill_spinterp6alltest.df <- infill_spinterp6alltest.df %>% 
+  rename(sox_us_infill_spinterp_test=x) %>% 
+  print()
+
+# bind existing dataframe and the infilled time series dataframe 
+dat.6 <- cbind(dat.6, infill_spinterp6alltest.df)
+
+
+
+####
+# 1c. Stine interpolation
+#### "Returns the values of an interpolating function that runs through a set of points in the xy-plane according to the algorithm of Stineman (1980)"
+
+# infill using INTERPOLATION over FULL SERIES
+infill_stinterp6alltest <- na_interpolation(ts.us.all6test, option="stine")
+
+# make the infilled time series a data frame and rename it 
+infill_stinterp6alltest.df <- as.data.frame(infill_stinterp6alltest)
+
+infill_stinterp6alltest.df <- infill_stinterp6alltest.df %>% 
+  rename(sox_us_infill_stinterp_test=x) %>% 
+  print()
+
+# bind existing dataframe and the infilled time series dataframe 
+dat.6 <- cbind(dat.6, infill_stinterp6alltest.df)
+
+
+#----------------------------------------------------------
+
+
+#########################
+# METHOD 6: na_kalman() #
+#########################
+
+# Kalman smoothing over structural time series - can take into account seasonality, but we don't have that so may end up same as interpolation
+# results above.
+
+# infill using KALMAN over FULL SERIES
+infill_kal6alltest <- na_kalman(ts.us.all6test, model="StructTS")
+
+# make the infilled time series a data frame and rename it 
+infill_kal6alltest.df <- as.data.frame(infill_kal6alltest)
+
+infill_kal6alltest.df <- infill_kal6alltest.df %>% 
+  rename(sox_us_infill_kal_test=x) %>% 
+  print()
+
+# bind existing dataframe and the infilled time series dataframe 
+dat.6 <- cbind(dat.6, infill_kal6alltest.df)
+
+
+#----------------------------------------------------------
+
+
+############
+# Evaluate #
+############
+
+# Assess
+ggplot() +
+
+  geom_line(data=dat.6, aes(x=date, y=sox_us_infill_linterp_test), linetype="dashed", size=1.1) +
+  geom_point(data=dat.6, aes(x=date, y=sox_us_infill_linterp_test), size=5.3, fill="dark green", colour="black", shape=24) +
+    
+  geom_line(data=dat.6, aes(x=date, y=sox_us_infill_spinterp_test), linetype="dashed", size=1.1) +
+  geom_point(data=dat.6, aes(x=date, y=sox_us_infill_spinterp_test), size=5.3, fill="green", colour="black", shape=24) +
+  
+  geom_line(data=dat.6, aes(x=date, y=sox_us_infill_stinterp_test), linetype="dashed", size=1.1) +
+  geom_point(data=dat.6, aes(x=date, y=sox_us_infill_stinterp_test), size=5.3, fill="light green", colour="black", shape=24) +
+
+  geom_line(data=dat.6, aes(x=date, y=sox_us_infill_kal_test), linetype="dashed", size=1.1) +
+  geom_point(data=dat.6, aes(x=date, y=sox_us_infill_kal_test), size=5.3, fill="orange", colour="black", shape=25) +
+  
+  geom_line(data=dat.6, aes(x=date, y=sox_us), size=1.2) +
+  geom_point(data=dat.6, aes(x=date, y=sox_us), size=6.5, colour="black", fill="gray60", stroke=1.1, shape=21) +
+  
+  labs(x="Date", y="Number of U/S sockeye") +
+  annotate(geom="text", label="0600", x=as.Date("2020-09-22"), y=295, size=10, face="bold") +
+  scale_y_continuous(limits=c(0,300)) +
+  theme_bw() +
+  theme(axis.text = element_text(colour="black", size=24),
+    axis.title=element_text(size=28, face="bold"))
+
+
+
+
+####################################################################################################################################################
+
+
+#                                                                        0700
+
+dat.7$sox_us_check <- dat.7$sox_us
+dat.7$sox_us_check[sample(1:length(dat.7$sox_us_check),6)] <- NA
+
+######################
+# CREATE TIME SERIES #
+######################
+ts.us.all7test <- ts(dat.7$sox_us_check)
+
+
+
+#----------------------------------------------------------
+
+
+################################
+# METHOD 2: na_interpolation() #
+################################
+
+# Note: na_interpolation() uses the full time series regardless of where it's subsetted, so for this exercise I just used the full timeseries 
+
+####
+# 1a. Linear interpolation - interpolation using 'approx'
+#### "linearly interpolate given data points, or a function performing the linear (or constant) interpolation."
+
+# infill using INTERPOLATION over FULL SERIES
+infill_linterp7alltest <- na_interpolation(ts.us.all7test, option="linear")
+
+# make the infilled time series a data frame and rename it 
+infill_linterp7alltest.df <- as.data.frame(infill_linterp7alltest)
+
+infill_linterp7alltest.df <- infill_linterp7alltest.df %>% 
+  rename(sox_us_infill_linterp_test=x) %>% 
+  print()
+
+# bind existing dataframe and the infilled time series dataframe 
+dat.7 <- cbind(dat.7, infill_linterp7alltest.df)
+
+
+####
+# 1b. Spline interpolation
+#### "Perform cubic (or Hermite) spline interpolation of given data points"
+
+# infill using INTERPOLATION over FULL SERIES
+infill_spinterp7alltest <- na_interpolation(ts.us.all7test, option="spline")
+
+# make the infilled time series a data frame and rename it 
+infill_spinterp7alltest.df <- as.data.frame(infill_spinterp7alltest)
+
+infill_spinterp7alltest.df <- infill_spinterp7alltest.df %>% 
+  rename(sox_us_infill_spinterp_test=x) %>% 
+  print()
+
+# bind existing dataframe and the infilled time series dataframe 
+dat.7 <- cbind(dat.7, infill_spinterp7alltest.df)
+
+
+
+####
+# 1c. Stine interpolation
+#### "Returns the values of an interpolating function that runs through a set of points in the xy-plane according to the algorithm of Stineman (1980)"
+
+# infill using INTERPOLATION over FULL SERIES
+infill_stinterp7alltest <- na_interpolation(ts.us.all7test, option="stine")
+
+# make the infilled time series a data frame and rename it 
+infill_stinterp7alltest.df <- as.data.frame(infill_stinterp7alltest)
+
+infill_stinterp7alltest.df <- infill_stinterp7alltest.df %>% 
+  rename(sox_us_infill_stinterp_test=x) %>% 
+  print()
+
+# bind existing dataframe and the infilled time series dataframe 
+dat.7 <- cbind(dat.7, infill_stinterp7alltest.df)
+
+
+#----------------------------------------------------------
+
+
+#########################
+# METHOD 7: na_kalman() #
+#########################
+
+# Kalman smoothing over structural time series - can take into account seasonality, but we don't have that so may end up same as interpolation
+# results above.
+
+# infill using KALMAN over FULL SERIES
+infill_kal7alltest <- na_kalman(ts.us.all7test, model="StructTS")
+
+# make the infilled time series a data frame and rename it 
+infill_kal7alltest.df <- as.data.frame(infill_kal7alltest)
+
+infill_kal7alltest.df <- infill_kal7alltest.df %>% 
+  rename(sox_us_infill_kal_test=x) %>% 
+  print()
+
+# bind existing dataframe and the infilled time series dataframe 
+dat.7 <- cbind(dat.7, infill_kal7alltest.df)
+
+
+#----------------------------------------------------------
+
+
+############
+# Evaluate #
+############
+
+# Assess
+ggplot() +
+
+  geom_line(data=dat.7, aes(x=date, y=sox_us_infill_linterp_test), linetype="dashed", size=1.1) +
+  geom_point(data=dat.7, aes(x=date, y=sox_us_infill_linterp_test), size=5.3, fill="dark green", colour="black", shape=24) +
+    
+  geom_line(data=dat.7, aes(x=date, y=sox_us_infill_spinterp_test), linetype="dashed", size=1.1) +
+  geom_point(data=dat.7, aes(x=date, y=sox_us_infill_spinterp_test), size=5.3, fill="green", colour="black", shape=24) +
+  
+  geom_line(data=dat.7, aes(x=date, y=sox_us_infill_stinterp_test), linetype="dashed", size=1.1) +
+  geom_point(data=dat.7, aes(x=date, y=sox_us_infill_stinterp_test), size=5.3, fill="light green", colour="black", shape=24) +
+
+  geom_line(data=dat.7, aes(x=date, y=sox_us_infill_kal_test), linetype="dashed", size=1.1) +
+  geom_point(data=dat.7, aes(x=date, y=sox_us_infill_kal_test), size=5.3, fill="orange", colour="black", shape=25) +
+  
+  geom_line(data=dat.7, aes(x=date, y=sox_us), size=1.2) +
+  geom_point(data=dat.7, aes(x=date, y=sox_us), size=6.5, colour="black", fill="gray60", stroke=1.1, shape=21) +
+  
+  labs(x="Date", y="Number of U/S sockeye") +
+  annotate(geom="text", label="0700", x=as.Date("2020-09-22"), y=195, size=10) +
+  scale_y_continuous(limits=c(-50,200)) +
+  theme_bw() +
+  theme(axis.text = element_text(colour="black", size=24),
+    axis.title=element_text(size=28, face="bold"))
+
+
+
+
+
+
+####################################################################################################################################################
+
+
+#                                                           NADINA vs. STELLAKO
+
+
+# Comparing Nadina and Stellako sonars (with offset) can help inform which infilling method might be best
+
+
+####################################################################################################################################################
+
+#                                                               CLEANING
+
+nad.raw <- read.csv("nadina2020_dailyreport.csv")
+stel.raw <- read.csv("stellako2020_dailyreport.csv")
+
+nad.sonar <- nad.raw %>% 
+  rename(date=DATE,
+    water_temp_C = Water.Temp...deg..C.,
+    water_gauge_m = Water.Gauge..m.,
+    n_files = Total.Files.Counted, 
+    sox_us = Daily.Net.Upstream..expanded.) %>% 
+  mutate(date = lubridate::dmy(date)) %>%
+  print()
+
+stel.sonar <- stel.raw %>% 
+  rename(date=DATE,
+    water_temp_C = Water.Temp...deg..C.,
+    water_gauge_m = Water.Gauge..m.,
+    n_files = Total.Files.Counted, 
+    sox_us = Daily.Net.Upstream..expanded.) %>% 
+  mutate(date = lubridate::dmy(date)) %>%
+  print()
+
+
+
+
+####################
+# DETERMINE OFFSET #
+####################
+
+# Lining up overall profiles to determine travel time -- should be 5-6 days but just confirm
+
+
+# plot
+ggplot() +
+  geom_point(data=nad.sonar, aes(x=date-6, y=sox_us), colour="aquamarine") +
+  geom_line(data=nad.sonar, aes(x=date-6, y=sox_us), colour="aquamarine") +
+  geom_point(data=stel.sonar, aes(x=date, y=sox_us), colour="coral") +
+  geom_line(data=stel.sonar, aes(x=date, y=sox_us), colour="coral") +
+  scale_x_date(breaks="3 day") +
+  theme_bw()
+
+
+# Plot shows travel time is between 5-6 days. The tail end seems to be closer to 6 days while the initial peak is around 5 days. Because this is
+# informing infilling around Sept 10-11, will use 6 days. 
+
+
+
+###################
+# STELLAKO SUBSET #
+###################
+
+# Select the dates of Stellako that correspond to the missing Nadina hours on Sept 10 and 11 (Nadina-6)
+# That would correspond to Stellako on Sept 4 and 5
+
+stel.dat.raw <- read.csv("stellako Sonar_tool_2020_DATAENTRY.csv")
+
+# CLEAN
+stel.dat <- stel.dat.raw %>% 
+  rename(bank=Bank,
+    observer=Observer,
+    date=Date,
+    count_hr=Count.Hour,
+    hr_portion=Portion.of.hour,
+    time_mins=Time.counted_min,
+    sox_us=Sox_us,
+    sox_ds=Sox_ds,
+    ch_us=CH_us,
+    ch_ds=CH_ds,
+    obs_count=Obs.Count..,
+    comments=Comments) %>% 
+  mutate(date = lubridate::dmy(date)) %>%
+  mutate(ydate = lubridate::yday(date)) %>% 
+  print()
+
+ggplot(stel.dat, aes(x=date, y=sox_us)) +
+  geom_point() +
+  geom_line() +
+  theme_bw()
+
+
+
 
 
 
