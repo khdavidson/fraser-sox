@@ -30,7 +30,7 @@ dat.raw <- read.xlsx("daily_counts.xlsx", sheet="all_stocks")
 
 ####################################################################################################################################################
 
-#                                                             CLEANED
+#                                                                      CLEANED
 
 data <- dat.raw %>% 
   mutate(date = as.Date(date, origin="1899-12-30")) %>%
@@ -39,9 +39,9 @@ data <- dat.raw %>%
 
 ####################################################################################################################################################
 
-#                                                              10% of run
+#                                                                     10% of run
 
-# 10% arrival dates for all populations available 
+# 10% arrival dates for all population-years available 
 p10_dates <- data %>% 
   group_by(stock, year) %>% 
   mutate(cuml_daily_abundance = cumsum(daily_abundance)) %>%
@@ -54,17 +54,17 @@ p10_dates <- data %>%
   mutate(p10_yday = lubridate::yday(p10_date)) %>%
   print()
 
-# filter down to relevant 2020 year populations 
-forplot <- p10_dates %>% 
+# filter down to populations relevant to 2020 vs. historical comparisons
+arrival_2020 <- p10_dates %>% 
   mutate(group = ifelse(year==2020, "2020", ifelse(year==2019, "2019", ifelse(year==2011, "2011", "Historical")))) %>% 
   mutate_at(vars(c(1)), funs(as.factor)) %>%
   filter(stock %in% c("Upper Chilliwack", "Cultus", "Scotch Creek", "Birkenhead", "Chilko", "Nadina")) %>%
   mutate(data_quality = ifelse(year!="2020", NA, data_quality)) %>%
   print()
-forplot$stock <- factor(forplot$stock, levels=c("Upper Chilliwack", "Cultus", "Scotch Creek", "Birkenhead", "Chilko", "Nadina"), ordered=T)
+arrival_2020$stock <- arrival_2020(arrival_2020$stock, levels=c("Upper Chilliwack", "Cultus", "Scotch Creek", "Birkenhead", "Chilko", "Nadina"), ordered=T)
 
 # plot 
-ggplot(forplot, aes(x=stock, y=as.Date(p10_yday, origin = as.Date("1970-01-01")))) +
+ggplot(arrival_2020, aes(x=stock, y=as.Date(p10_yday, origin = as.Date("1970-01-01")))) +
   geom_jitter(aes(fill=group, size=group, colour=group), stat="identity", width=0, height=0.4, stroke=1.5, shape=21) +
   scale_fill_manual(name=NULL, breaks=c("2020", "2019", "2011", "Historical"), values=c("#00b8ff", "gray60", "gray80", "gray80")) +
   scale_colour_manual(name=NULL, breaks=c("2020", "2019", "2011", "Historical"), values=c("black", "gray20", "gray20", "gray70")) +
