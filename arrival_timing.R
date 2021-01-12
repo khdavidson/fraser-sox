@@ -12,6 +12,7 @@
 setwd("~/Documents/ANALYSIS/data")
 
 library(tidyverse)
+library(egg)
 library(xlsx)
 library(openxlsx)
 
@@ -298,17 +299,78 @@ ggplot(data=pos, aes(x=as.Date(start_yday, origin = as.Date("1970-01-01")), xend
 
 
 
+####################################################################################################################################################
+####################################################################################################################################################
 
+# SPECIFIC ANALYSIS: NADINA 2020 vs. HISTORICAL
+# jan 11, 2021
 
+alldat.raw <- read.xlsx("daily_counts.xlsx", sheet="all_stocks", detectDates = T)
+stellako <- read.xlsx("daily_counts.xlsx", sheet="stellako", detectDates = T)
 
+# CLEAN
+nadina <- alldat.raw %>% 
+  filter(stock=="Nadina") %>% 
+  print()
 
+# Join
+sn.df <- rbind(nadina, stellako)
 
+# Create day of year var
+sn.df <- sn.df %>% 
+  mutate(yday = lubridate::yday(date)) %>% 
+  mutate_at(vars(c(1,2)), funs(as.factor)) %>%
+  mutate(analysis=ifelse(grepl("extrapolated", comments), "extrapolated", "observed")) %>%
+  print()
 
+sn.df$analysis <- factor(sn.df$analysis, levels=c("observed", "extrapolated"), ordered=T)
 
+# PLOT - nadina
+n<-ggplot(data=sn.df %>% filter(stock=="Nadina", analysis!="extrapolated"), 
+        aes(x=as.Date(yday, origin="1970-01-01"), y=daily_abundance, group=year, colour=year)) +
+  geom_line(size=1.2) +
+  scale_x_date(date_labels="%b %d", breaks="10 day", limits = c(as.Date(210, origin="1970-01-01"), as.Date(285, origin="1970-01-01"))) +
+  scale_y_continuous(breaks=seq(0,10000, by=2000)) +
+  scale_colour_manual(breaks=c(2016,2018,2019,2020), values=c("#1A7CFF", "#bd00ff", "#EA8824", "#24EA25")) +
+  labs(x="", y="Daily abundance", colour="NADINA") +
+  theme_bw() +
+  theme(axis.text=element_text(colour="black", size=10),
+    axis.title=element_text(face="bold", size=12),
+    panel.grid = element_blank(),
+    legend.position=c(0.85,0.80),
+    legend.background = element_rect(colour="black"),
+    legend.margin=margin(t=0.1, r=0.25, b=0.1, l=0.25, unit="cm"),
+    legend.spacing.y = unit(0.2, "cm"),
+    legend.title = element_text(face="bold", size=12),
+    legend.text = element_text(size=10))
 
+# PLOT - stellako
+s<-ggplot(sn.df %>% filter(stock=="Stellako-Nadina", !grepl("late install", comments), analysis!="extrapolated"), 
+    aes(x=as.Date(yday, origin="1970-01-01"), y=daily_abundance, group=year, colour=year)) +
+  geom_line(size=1.2) +
+  scale_x_date(date_labels="%b %d", breaks="10 day", limits=c(as.Date(210, origin="1970-01-01"), as.Date(285, origin="1970-01-01"))) +
+  scale_y_continuous(breaks=seq(0,15000, by=2500)) +
+  scale_colour_manual(breaks=c(2018,2019,2020), values=c("#bd00ff", "#EA8824", "#24EA25")) +
+  labs(x="", y="Daily abundance", colour="STELLAKO") +
+  theme_bw() +
+  theme(axis.text=element_text(colour="black", size=10),
+    axis.title=element_text(face="bold", size=12),
+    panel.grid = element_blank(),
+    legend.position=c(0.85,0.80),
+    legend.background = element_rect(colour="black"),
+    legend.margin=margin(t=0.1, r=0.25, b=0.1, l=0.25, unit="cm"),
+    legend.spacing.y = unit(0.2, "cm"),
+    legend.title = element_text(face="bold", size=12),
+    legend.text = element_text(size=10))
 
+ggarrange(s,n,nrow=2)
 
-
+# Stellako program start dates 
+stel.start <- sn.df %>% 
+  filter(stock=="Stellako-Nadina") %>% 
+  group_by(year) %>% 
+  summarize(min(date)) %>%
+  print()
 
 
 
