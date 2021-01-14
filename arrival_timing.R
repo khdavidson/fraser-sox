@@ -63,7 +63,7 @@ pos.raw <- escdb.raw %>%
     peak_spawn=spnpeak,
     total=Total,
     forecast_group=Forecast) %>%
-  filter(year>2000, !is.na(peak_spawn), !grepl("Early", peak_spawn), !grepl("Late", peak_spawn), !grepl("Mid", peak_spawn)) %>% 
+  filter(!is.na(peak_spawn), !grepl("Early", peak_spawn), !grepl("Late", peak_spawn), !grepl("Mid", peak_spawn)) %>% 
   print()
 
 # fixing dates - there are all sorts of entry typos, extra commas, etc. so this cleans up the dates so they are all the same formats
@@ -126,6 +126,7 @@ pos <- pos %>%
   filter(!is.na(forecast_group)) %>%
   mutate(timing_group = ifelse(timing_group=="T1", "", ifelse(timing_group=="T2", "Early Summer", ifelse(timing_group=="T3", "Summer", "Late")))) %>%
   mutate_at(vars(c(4)), funs(as.factor)) %>%
+  mutate(era = ifelse(year<2000, "Pre-2000", "2000-present")) %>%
   print()
 
 pos$group <- factor(pos$group, levels=c("Historical", "2019", "2020"), ordered=T)
@@ -269,12 +270,12 @@ ggplot(data=forplot) +
 # - variable data quality exists based on effort (survey frequency and duration) so these should be taken with a grain of salt! 
 
 
-#-------- PLOT
+#-------- PLOT - ****2020 not showing yet because it is not in the escapement database***
 ggplot(data=pos, aes(x=as.Date(start_yday, origin = as.Date("1970-01-01")), xend=as.Date(end_yday, origin = as.Date("1970-01-01")), 
   y=reorder(forecast_group, desc(forecast_group)), 
   yend=reorder(forecast_group, desc(forecast_group)), colour=group, alpha=group, size=group)) +
   geom_segment(stat="identity") +
-  scale_colour_manual(name="Peak of spawn", breaks=c("2020", "2019", "Historical"), values=c("#00b8ff", "#00b8ff", "gray60")) +
+  scale_colour_manual(name="Peak of spawn", breaks=c("2020", "2019", "Historical"), values=c("purple", "#00b8ff", "gray60")) +
   scale_alpha_manual(name="Peak of spawn", breaks=c("2020", "2019", "Historical"), values=c(0.9, 0.6, 0.35)) +
   scale_size_manual(name="Peak of spawn", breaks=c("2020", "2019", "Historical"), values=c(4, 4.5, 3)) +
   scale_x_date(date_labels = "%b %d", date_breaks="10 day") +
@@ -282,7 +283,7 @@ ggplot(data=pos, aes(x=as.Date(start_yday, origin = as.Date("1970-01-01")), xend
   facet_wrap(~timing_group, strip.position = "left", scales = "free_y",  nrow=4) +
   theme_bw() +
   theme(text = element_text(colour="black", size=15),
-    panel.grid.major.x = element_blank(),
+    panel.grid.major.x = element_line(colour="gray85"),
     panel.grid.minor.x = element_blank(),
     panel.grid.major.y = element_line(colour="gray85"),
     panel.spacing = unit(0, "lines"),
