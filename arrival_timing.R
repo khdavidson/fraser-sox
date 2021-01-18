@@ -12,6 +12,7 @@ setwd("~/Documents/ANALYSIS/data")
 
 library(tidyverse)
 library(egg)
+library(ggridges)
 library(xlsx)
 library(openxlsx)
 
@@ -20,6 +21,7 @@ set.seed(1234)
 
 dat.raw <- read.xlsx("daily_counts.xlsx", sheet="all_stocks")
 escdb.raw <- read.xlsx("SKAll-Forecast (June 2020).xlsx", sheet="SKAll")
+roving.raw <- read.xlsx("Master Roving Analysis Spreadsheet.xlsx", sheet="count_data", detectDates=T)
 
 # ALLOO! SUPER IMPORTANT: 
 # this code needs to be updated each year depending on the focal year of interest and which systems have useable programs (e.g., Quesnel only
@@ -91,7 +93,7 @@ pos <- cbind(pos.raw, dates)
 
 #-------- Clean joined frame 
 pos <- pos %>% 
-  select(year, watershed_group, stock, timing_group, cu, total, eff_fem, est_type, forecast_group, start_date, end_date) %>%
+  select(year, watershed_group, stock, timing_group, cu, total, eff_fem, est_type, forecast_group, start_date, end_date, est_type) %>%
   mutate(start_yday = lubridate::yday(start_date),
     end_yday = lubridate::yday(end_date)) %>%
   mutate(forecast_group = ifelse(forecast_group==1, "Early Stuart",
@@ -131,6 +133,43 @@ pos <- pos %>%
 
 pos$group <- factor(pos$group, levels=c("Historical", "2019", "2020"), ordered=T)
 pos$timing_group <- factor(pos$timing_group, levels = c("", "Early Summer", "Summer", "Late"), ordered=T)
+
+
+###############
+# ROVING DATA #
+###############
+
+roving.data <- roving.raw %>% 
+  rename(year=Year,
+    timing_group=Run.Timing,
+    watershed_group=Watershed.Group,
+    system=`Stream/Shore`,
+    survey=`Survey.#`,
+    date=Date,
+    survey_type=Survey.Type,
+    area=Area,
+    area_descr=Area.Description,
+    live_obs1=Live.Count.1,
+    live_obs2=Live.Count.2,
+    oe=`Obs..Eff.`,
+    hold_perc=`%Hold`,
+    spawn_perc=`%Spawning`,
+    spawnout_perc=`%SpawnedOut`,
+    carc_male=Carcass.Male,
+    carc_fem=Carcass.Female,
+    male_nr=Male.Carcass.NR,
+    fem_nr=Female.Carcass.NR,
+    fem_0=`Female.Carcass.0%`,
+    fem_50=`Female.Carcass.50%`,
+    fem_100=`Female.Carcass.100%`,
+    carc_jack=Carcass.Jack,
+    carc_unsex_ground=Ground.Carcass.Unsexed,
+    carc_unsex_aerial1=Aerial.Carcass.Unsexed.Observer.1,
+    carc_unsex_aerial2=Aerial.Carcass.Unsexed.Observer.2,
+    carc_unsex=`Carcass.Unsexed.(interpret."blank".as.zero.carcasses)`) %>% 
+  mutate(date=as.Date(date)) %>% 
+  print()
+
 
 
 ###################################################################################################################################################
@@ -370,6 +409,147 @@ s<-ggplot(sn.df %>% filter(stock=="Stellako-Nadina", !grepl("late install", comm
     legend.text = element_text(size=10))
 
 ggarrange(s, n, nrow=2)
+
+
+####################################################################################################################################################
+####################################################################################################################################################
+
+#                                                            TASEKO EXPLORATION
+
+# SD request Jan 14 2021
+# using both roving and escapement databases
+
+
+###################
+# ROVING ANALYSIS #
+###################
+taseko_rov <- roving.data %>% 
+  filter(grepl("Yohetta", system) | grepl("Taseko", system) | grepl("Lastman", system)) %>% 
+  select(year:survey_type, area, area_descr, live_obs1:spawnout_perc, carc_male, carc_fem, carc_jack:carc_unsex_aerial2) %>%
+  mutate(total_gcarc=carc_male+carc_fem+carc_jack+carc_unsex_ground,
+    total_acarc=carc_unsex_aerial1+carc_unsex_aerial2,
+    live_avg=(live_obs1+live_obs2)/2) %>%
+  select(-c(carc_male, carc_fem, carc_jack, carc_unsex_ground, carc_unsex_aerial1, carc_unsex_aerial2, live_obs1, live_obs2)) %>%
+  mutate(total_carcs=ifelse(!is.na(total_acarc), total_acarc, total_gcarc)) %>%
+  mutate(system_coarse=ifelse(grepl("Yohetta", system), "Yohetta", system)) %>%
+  select(-c(total_gcarc, total_acarc)) %>%
+  group_by(year, system_coarse, survey, date) %>%
+  summarize(total_carcs=sum(total_carcs, na.rm=T), total_live=sum(live_avg, na.rm=T)) %>%
+  mutate_at("year", as.factor) %>%
+  mutate(yday=lubridate::yday(date)) %>%
+  pivot_longer(cols=c(total_carcs, total_live), names_to="count_type") %>%
+  print()
+
+
+#-------- Plots
+t<-ggplot() +
+  geom_bar(data=taseko_rov%>%filter(system_coarse=="Taseko Lake", value>0), 
+    aes(x=as.Date(yday, origin="1970-01-01"), y=value, group=interaction(count_type,year), fill=year), 
+    position="stack", stat="identity", colour="black", width=1, size=0.6) +
+  scale_x_date(date_labels="%b %d", date_breaks="3 day", limits=c(as.Date(245, origin="1970-01-01"), as.Date(276, origin="1970-01-01"))) +
+  scale_y_continuous(limits=c(0,140), breaks=seq(0,140,by=20)) +
+  scale_fill_manual(breaks=c(2004,2005,2006,2010,2011,2018), values = c("#ff6701","#ffc101","#fdff01","#01ff52","#01c5ff","gray70"),
+    labels=c("2004","2005","2006","2010","2011","2018 (live only)")) +
+  labs(x="", y="Count", fill="Taseko") +
+  theme_bw() +
+  theme(axis.text=element_text(colour="black", size=12),
+    axis.title=element_text(face="bold", size=14),
+    panel.grid.major = element_line(colour="gray80"),
+    legend.position=c(0.85,0.75),
+    legend.background = element_rect(colour="black"),
+    legend.margin=margin(t=0.1, r=0.25, b=0.1, l=0.25, unit="cm"),
+    legend.spacing.y = unit(0.2, "cm"),
+    legend.title = element_text(face="bold", size=13),
+    legend.text = element_text(size=12))
+
+y<-ggplot() +
+  geom_bar(data=taseko_rov%>%filter(system_coarse=="Yohetta", value>0), 
+    aes(x=as.Date(yday, origin="1970-01-01"), y=value, group=interaction(count_type,year), fill=interaction(count_type,year)), 
+    stat="identity", colour="black", width=1, size=0.6) +
+  scale_x_date(date_labels="%b %d", date_breaks="3 day", limits=c(as.Date(245, origin="1970-01-01"), as.Date(276, origin="1970-01-01"))) +
+  scale_fill_manual(breaks=c("total_carcs.2010","total_carcs.2013","total_live.2013"), values=c("#01ff52","#7001ff","gray70"),
+    labels=c("2010","2013","2013 (live)")) +
+  labs(x="", y="Count", fill="Yohetta") +
+  theme_bw() +
+  theme(axis.text=element_text(colour="black", size=12),
+    axis.title=element_text(face="bold", size=14),
+    panel.grid.major = element_line(colour="gray80"),
+    legend.position=c(0.85,0.75),
+    legend.background = element_rect(colour="black"),
+    legend.margin=margin(t=0.1, r=0.25, b=0.1, l=0.25, unit="cm"),
+    legend.spacing.y = unit(0.2, "cm"),
+    legend.title = element_text(face="bold", size=13),
+    legend.text = element_text(size=12))
+
+ggarrange(t, y, nrow=2)
+
+
+
+#######################
+# ESCAPEMENT ANALYSIS #
+#######################
+taseko_pos <- pos %>%
+  filter(forecast_group=="Taseko") %>%
+  print()
+
+taseko.xtra <- escdb.raw %>% 
+  filter(`Stock.Name(stream)`=="Taseko Lake", grepl("Early", spnpeak) | grepl("Mid", spnpeak) | grepl("Early", arrival)) %>% 
+  rename(year=Year,
+    watershed_group=Watershed.Group.Name,
+    stock=`Stock.Name(stream)`,
+    timing_group=Timing.Group,
+    cu=CU.Name,
+    peak_spawn=spnpeak,
+    total=Total,
+    forecast_group=Forecast) %>%
+  mutate(start_date = as.Date(c("15-Sep-1976","15-Sep-1980","1-Sep-1998", "1-Sep-2007", "1-Aug-2016"), format="%d-%b-%Y")) %>%
+  mutate(end_date = as.Date(c("22-Sep-1976","22-Sep-1980","8-Sep-1998", "2-Sep-2007", "2-Aug-2016"), format="%d-%b-%Y")) %>% 
+  select(year, watershed_group, stock, timing_group, cu, total, eff_fem, est_type, forecast_group, start_date, end_date, est_type) %>%
+  mutate(start_yday = lubridate::yday(start_date), end_yday = lubridate::yday(end_date)) %>%
+  mutate(forecast_group = ifelse(forecast_group==22, "Taseko", forecast_group)) %>%
+  mutate(group = ifelse(year==2020, "2020", ifelse(year==2019, "2019", ifelse(is.na(year), "Historical", "Historical")))) %>%
+  mutate(timing_group = ifelse(timing_group=="T1", "", ifelse(timing_group=="T2", "Early Summer", ifelse(timing_group=="T3", "Summer", "Late")))) %>%
+  mutate_at(vars(c(4)), funs(as.factor)) %>%
+  mutate(era = ifelse(year<2000, "Pre-2000", "2000-present")) %>%
+  print()
+
+taseko_pos <- rbind(taseko_pos, taseko.xtra)
+taseko_pos <- taseko_pos %>%
+  mutate(data_type=ifelse(year%in%c(2007,2016),"arrival",NA)) %>%
+  print()
+
+
+ggplot(taseko_pos, 
+  aes(x=as.Date(start_yday, origin = as.Date("1970-01-01")), xend=as.Date(end_yday, origin = as.Date("1970-01-01")), 
+      y=reorder(year, desc(year)), yend=reorder(year, desc(year)), colour=est_type, size=total)) +
+  geom_segment(stat="identity") +
+  geom_text(aes(label=data_type), size=4, nudge_x=2.5, nudge_y=0, angle=0, check_overlap=T, colour="red") +
+  scale_colour_manual(breaks=c("Type-2: True Abundance, medium resolution","Type-3: Relative Abundance, high resolution","Type-4: Relative Abundance, medium resolution"), 
+    values=c("#4ba0e3", "#ff9f10", "#ce3746")) +
+  scale_size_continuous(breaks=seq(65,31667,by=15000), range=c(3,10)) +
+  scale_x_date(date_labels = "%b %d", date_breaks="5 day") +
+  labs(x="", y="", colour="Estimate type", size="Escapement") +
+  theme_bw() +
+  theme(text = element_text(colour="black", size=12),
+    panel.grid.major.x = element_line(colour="gray80"),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.major.y = element_line(colour="gray80"),
+    panel.spacing = unit(0, "lines"),
+    axis.title.y = element_text(face="bold"),
+    axis.text = element_text(colour="black", size=12),
+    #axis.text.x = element_text(angle=0, hjust=1),
+    legend.position = c(0.2, 0.75),
+    legend.background = element_rect(colour="black"),
+    legend.margin=margin(t=0.1, r=0.25, b=0.1, l=0.1, unit="cm"),
+    legend.spacing.y = unit(0.2, "cm"),
+    legend.title = element_text(face="bold", size=13),
+    legend.text = element_text(size=12)) +
+  guides(colour = guide_legend(override.aes = list(size = 2)),
+    size = guide_legend(override.aes = list(colour = "gray60"))) 
+
+
+
+
 
 
 
