@@ -11,7 +11,8 @@
 #   (e.g., Quesnel only gets a sonar in its dominant year(s)).
 # - forecast groups should be double-checked; taseko in particular might not be represented by forecast grouping value for all yrs (might just be
 #   a subset of years)
-
+# - peak of spawn data: variable data quality exists based on effort (survey frequency and duration) so these should be taken with a grain of salt
+# - no controls for effort etc. made
 
 setwd("~/Documents/ANALYSIS/data")
 
@@ -306,9 +307,8 @@ ggplot(data=forplot) +
 
 #                                                           PEAK OF SPAWN RANGES 
 
-# this script takes the summary database of peak of spawn
-# some caveats to these data:
-# - variable data quality exists based on effort (survey frequency and duration) so these should be taken with a grain of salt! 
+# summary database of peak of spawn
+
 
 
 #-------- PLOT - ****2020 not showing yet because it is not in the escapement database***
@@ -348,8 +348,9 @@ ggplot(data=pos, aes(x=as.Date(start_yday, origin = as.Date("1970-01-01")), xend
 
 #                                                   NADINA MIGRATION 2020 vs. HISTORICAL
 
-# Scott request to share with PSC (Steve Latham, Eric Taylor) 
+# SD request to share with PSC 
 # Jan 11, 2021
+# PSC share (SL, ET)
 
 #########
 # CLEAN #
@@ -419,7 +420,8 @@ ggarrange(s, n, nrow=2)
 #                                                            TASEKO EXPLORATION
 
 # SD request Jan 14 2021
-# using both roving and escapement databases
+# roving and escapement databases
+# RSA share
 
 
 ###################
