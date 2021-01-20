@@ -1,12 +1,17 @@
-# Daily passage exploratory analyses 
+# Daily passage, arrival, and peak of spawn exploratory analyses 
 
-# this script takes the summary database of all high-precision STAD programs that offer daily abundance estimates (fences, sonars) from 2000 onward.
+# this script takes the summary databases available from STAD programs 
 # some caveats to these data:
 # - there are no SEP channel data included
 # - Stellako data are questionable because a) changing program start dates may/may not capture Nadina, and b) uncertainty over the daily % 
 #   Stellako/Nadina each year (DNA is not always taken each year so the opportunity to split daily passage by stock composition is not always known)
-# - these are NOT intended to be used to generate escapement estimates/spawner abundances. much post-processing analysis is done to allocate sockeye
+# - daily passage data are NOT intended to be used to generate escapement estimates/spawner abundances. much post-processing analysis is done to allocate sockeye
 #   to lake spawning, tributaries, channels, etc. These data should NEVER be summed to estimate total escapement.
+# - daily passage code needs to be updated each year depending on the focal year of interest and which systems have useable programs 
+#   (e.g., Quesnel only gets a sonar in its dominant year(s)).
+# - forecast groups should be double-checked; taseko in particular might not be represented by forecast grouping value for all yrs (might just be
+#   a subset of years)
+
 
 setwd("~/Documents/ANALYSIS/data")
 
@@ -23,10 +28,7 @@ dat.raw <- read.xlsx("daily_counts.xlsx", sheet="all_stocks")
 escdb.raw <- read.xlsx("SKAll-Forecast (June 2020).xlsx", sheet="SKAll")
 roving.raw <- read.xlsx("Master Roving Analysis Spreadsheet.xlsx", sheet="count_data", detectDates=T)
 
-# ALLOO! SUPER IMPORTANT: 
-# this code needs to be updated each year depending on the focal year of interest and which systems have useable programs (e.g., Quesnel only
-# gets a sonar in its dominant year(s)).
-# because of this IT IS NOT REPRODUCIBLE IN IT'S CURRENT FORMAT
+
 
 # Organization key:
 
@@ -442,25 +444,29 @@ taseko_rov <- roving.data %>%
 
 
 #-------- Plots
-t<-ggplot() +
+#t<-
+ggplot() +
   geom_bar(data=taseko_rov%>%filter(system_coarse=="Taseko Lake", value>0), 
     aes(x=as.Date(yday, origin="1970-01-01"), y=value, group=interaction(count_type,year), fill=year), 
     position="stack", stat="identity", colour="black", width=1, size=0.6) +
   scale_x_date(date_labels="%b %d", date_breaks="3 day", limits=c(as.Date(245, origin="1970-01-01"), as.Date(276, origin="1970-01-01"))) +
   scale_y_continuous(limits=c(0,140), breaks=seq(0,140,by=20)) +
-  scale_fill_manual(breaks=c(2004,2005,2006,2010,2011,2018), values = c("#ff6701","#ffc101","#fdff01","#01ff52","#01c5ff","gray70"),
+  #scale_fill_manual(values=wes_palette(n=3, name="GrandBudapest"))
+  scale_fill_manual(breaks=c(2004,2005,2006,2010,2011,2018), values = c("#e1783f","#f3f42e","#01ff52","#01c5ff","#c170d0","gray70"),
     labels=c("2004","2005","2006","2010","2011","2018 (live only)")) +
-  labs(x="", y="Count", fill="Taseko") +
+  labs(x="", y="Count", fill="Year of survey(s)", caption="Figure 1. Taseko carcass (colours) and live (gray) counts recorded on each survey (each bar) from 2003-2018. \nNo record for a year means no survey or no sockeye (live or dead) recorded. Data source: 'taseko_roving'.") +
   theme_bw() +
   theme(axis.text=element_text(colour="black", size=12),
     axis.title=element_text(face="bold", size=14),
     panel.grid.major = element_line(colour="gray80"),
+    panel.grid.minor = element_blank(),
     legend.position=c(0.85,0.75),
     legend.background = element_rect(colour="black"),
     legend.margin=margin(t=0.1, r=0.25, b=0.1, l=0.25, unit="cm"),
     legend.spacing.y = unit(0.2, "cm"),
     legend.title = element_text(face="bold", size=13),
-    legend.text = element_text(size=12))
+    legend.text = element_text(size=12),
+    plot.caption = element_text(size=11, color="black", face="italic", hjust=0))
 
 y<-ggplot() +
   geom_bar(data=taseko_rov%>%filter(system_coarse=="Yohetta", value>0), 
@@ -528,7 +534,7 @@ ggplot(taseko_pos,
     values=c("#4ba0e3", "#ff9f10", "#ce3746")) +
   scale_size_continuous(breaks=seq(65,31667,by=15000), range=c(3,10)) +
   scale_x_date(date_labels = "%b %d", date_breaks="5 day") +
-  labs(x="", y="", colour="Estimate type", size="Escapement") +
+  labs(x="", y="", colour="Estimate type", size="Escapement", caption="Figure 2. Estimated peak of spawn date ranges scaled by escapement size and coloured by escapement program data quality (2007 and 2016 \nare arrival dates only). Type-2 data typically collected from high-precision methods (mark-recapture, SONAR, fence). Type-3 data typically \ncollected from visual surveys or uncertain high-precision programs. Type-4 data from visual surveys with uncertainty, presence/absence, \ncarcass expansions, etc. Data source: 'taseko_escapement'.") +
   theme_bw() +
   theme(text = element_text(colour="black", size=12),
     panel.grid.major.x = element_line(colour="gray80"),
@@ -540,12 +546,33 @@ ggplot(taseko_pos,
     #axis.text.x = element_text(angle=0, hjust=1),
     legend.position = c(0.2, 0.75),
     legend.background = element_rect(colour="black"),
-    legend.margin=margin(t=0.1, r=0.25, b=0.1, l=0.1, unit="cm"),
+    legend.margin=margin(t=0.1, r=0.4, b=0.1, l=0.1, unit="cm"),
     legend.spacing.y = unit(0.2, "cm"),
     legend.title = element_text(face="bold", size=13),
-    legend.text = element_text(size=12)) +
+    legend.text = element_text(size=12),
+    plot.caption = element_text(size=11, color="gray20", face="italic", hjust=0)) +
   guides(colour = guide_legend(override.aes = list(size = 2)),
     size = guide_legend(override.aes = list(colour = "gray60"))) 
+
+
+################################
+# EXPORTING SUPPLEMENTARY DATA #
+################################
+
+# Exporting raw data uncleaned: pos.raw and roving.raw
+# but with just taseko 
+
+taseko.pos.raw <- escdb.raw %>% 
+  filter(grepl("Taseko", `Stock.Name(stream)`)) %>% 
+  print()
+
+taseko.roving.raw <- roving.raw %>% 
+  filter(grepl("Taseko", `Stream/Shore`)) %>% 
+  print()
+
+write.xlsx(x=list("taseko_escapement"=taseko.pos.raw, "taseko_roving"=taseko.roving.raw), file="taseko_jan2020_RSA.xlsx", row.names=F)
+
+
 
 
 
