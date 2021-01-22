@@ -21,6 +21,9 @@ library(egg)
 library(ggridges)
 library(xlsx)
 library(openxlsx)
+library(ggmap)
+library(maps)
+library(mapdata)
 
 options(scipen = 9999)
 set.seed(1234)
@@ -573,6 +576,41 @@ taseko.roving.raw <- roving.raw %>%
   print()
 
 write.xlsx(x=list("taseko_escapement"=taseko.pos.raw, "taseko_roving"=taseko.roving.raw), file="taseko_jan2020_RSA.xlsx", row.names=F)
+
+
+###########
+# SPATIAL #
+###########
+register_google(key = "[your key]", write = TRUE)
+
+#specifying map boundaries 
+taseko_bbox <- c(-123.8, 51.4, -123.4, 51.2)
+
+#generating the map vairables, can change maptype for different aesthetics
+bc_big <- get_map(location=taseko_bbox, source="google", maptype="terrain")
+get_map(location = "texas", zoom = 6, source = "stamen")
+
+#Can dictate colours used. Run this and then the plot again for changes to take affect.
+scale_color_manual(values=c("#cc3333", "#FF9933", "#00ff00"))
+
+#plotting the map, with points, and then labels
+#shapes 21-25 are ones that have fill vs. colour. So to get black border require shape input. Rename x, y, and owner to match your file lat long details. 
+receivers<-filter(Receivers, subarray=="RENFREW")
+
+receiver.map<-ggmap(bc_big)+ geom_point(data = Receivers, shape=21,stroke=.5, size=3, mapping = aes(x=dep_long, y=dep_lat,fill=owner))+geom_point(data=receivers, shape = 24, mapping=aes(x=dep_long, y=dep_lat))
+receiver.map
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
