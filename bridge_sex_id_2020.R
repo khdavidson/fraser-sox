@@ -12,11 +12,13 @@ library(lubridate)
 
 fence.raw <- read.xlsx("LBR_Fish fence_2020_sockeye tissue samples.xlsx", sheet="Sheet1", detectDates = T)
 dna.raw <- read.xlsx("LBR_sockeye-L_Bridge_R_bb_resp_2020_2020-11-30.xlsx", sheet="Genetic_Sex")
+gsid.raw <- read.xlsx("LBR-fence-clean.xlsx", sheet="LBR-gsid-clean")
 
 ###################################################################################################################################################
 
 #                                                                 CLEAN
 
+#------ fence visual sex id data
 fence <- fence.raw %>%
   rename(date=Date,
     check_time=Trap.check,
@@ -31,11 +33,12 @@ fence <- fence.raw %>%
   mutate(yday=lubridate::yday(date)) %>%
   filter(spp=="Sockeye") %>%
   select(yday, cs_fish_no, fl_cm, sex_fence) %>%
-  mutate(ufid=seq(1:nrow(fence))) %>%
+  mutate(ufid=seq(1:nrow(fence.raw))) %>%
   print()
 
-write.csv(fence, "LBR-fence-clean.csv", row.names=F)
+#write.csv(fence, "LBR-fence-clean.csv", row.names=F)   already written
 
+#------ genetic sex ID data
 dna <- dna.raw %>%
   rename(stock=Stock,
     yday=JulDate,
@@ -47,6 +50,13 @@ dna <- dna.raw %>%
   mutate_at("sex_sdy", as.factor) %>%
   select(yday, ufid, sex_sdy) %>%
   print()
+
+
+#------ genetic stock ID data
+gsid <- gsid.raw %>% 
+  mutate_at(c("gsid_level", "region1_name", "region2_name", "region3_name", "region4_name", "region5_name"), as.factor) %>%
+  print()
+
  
 ###################################################################################################################################################
 
@@ -137,7 +147,67 @@ ggplot(sex_lgth, aes(x=fence_group, y=fl_cm, fill=sex_fence)) +
     plot.caption = element_text(size=10, color="gray20", face="italic", hjust=0),
     legend.position = c(0.9,0.8),
     legend.background = element_rect(colour="black"))
-  
+ 
+
+ 
+###################################################################################################################################################
+###################################################################################################################################################
+###################################################################################################################################################
+
+
+#                                                            STOCK PROPORTIONS
+
+# on yday 235 there is one fish missing from the genetic sample that was recorded in the sex/length data, i.e., sex-length data has n=7 fish on 
+# day 235 while there are only n=6 genetic samples. It appears fish number 73 was missing but not sure details of this as all fish are recorded
+# as having dna taken. *** UPDATE fish 73 had "number of missing loci exceeded" for the individual ID run therefore obviously lab issues.
+
+# using 80% GSID cut-off recommended by K. Flynn @ MGL Jan 2020
+
+gsid$region1_name <- factor(gsid$region1_name, 
+  levels=c("Early_Stuart(Fr)", "Takla-Trembleur - Early Stuart", "Early Stuart", "Driftwood-Nar", "Paula-Felix",
+    "Early_Summer(Fr)", "Bowron - Early Summer", "Bowron", 
+      "Nadina-Francois - Early Summer", "Nadina", 
+      "Chilko - Early Summer", "Chilko_south", "Chilko",
+      "Anderson-Seton - Early Summer", "Gates_Cr", "Gates",
+      "Shuswap - Early Summer", "Misc. Early Summer - Early Shuswap", "Anstey_R",
+      "Summer(Fr)_", "Francois-Fraser - Summer", "Stellako",
+      "Quesnel - Summer", "Quesnel", "M_Horsefly"), ordered=T)
+
+lines <- c("Early_Stuart(Fr)", "Early_Summer(Fr)", "Summer(Fr)_")
+
+#------ visualize prior to filtering 
+ggplot(gsid %>% filter(!is.na(region1_name)) %>% arrange(ufid), aes(x=ufid, y=region1_name)) + 
+  geom_hline(yintercept = "Early_Stuart(Fr)", colour="black") +
+  geom_hline(yintercept = "Early_Summer(Fr)", colour="black") +
+  geom_hline(yintercept = "Summer(Fr)_", colour="black") +
+  geom_point(shape=21, fill="gray70", colour="gray20", alpha=0.7, stroke=1.1, size=1.3) +
+  #scale_size_continuous(range=c(0.2,4)) +
+  scale_x_continuous(limits = c(1,116), breaks=seq(1,116,by=4)) +
+  scale_y_discrete(labels=c("Early_Stuart(Fr)"=expression(bold(`Early_Stuart(Fr)`)), "Early_Summer(Fr)"=expression(bold(`Early_Summer(Fr)`)),
+                            "Summer(Fr)_"=expression(bold(`Summer(Fr)_`)), parse=TRUE)) +
+  labs(x="UFID", y="First Regional Assignment") +
+  theme_bw() +
+  theme(axis.text = element_text(colour="black"))
+
+
+
+#------ filter by 80% stock id cutoff
+gsid.ass <- gsid %>% 
+  filter(region1_prob >= 0.8) %>%
+  print()
+
+# examine those less than 0.8
+gsid.nass <- gsid %>% 
+  filter(region1_prob < 0.8) %>%
+  print()
+### there are some here with quite high assignment rates (~78%), and also some where the cumulative 
+
+
+
+
+
+
+
 
 
 
