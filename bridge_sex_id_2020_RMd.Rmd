@@ -1,0 +1,266 @@
+---
+title: "Bridge River strays 2020"
+date: "February 10, 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+setwd("~/Documents/ANALYSIS/data")
+
+library(tidyverse)
+library(egg)
+library(xlsx)
+library(openxlsx)
+library(lubridate)
+
+fence.raw <- read.xlsx("LBR_Fish fence_2020_sockeye tissue samples.xlsx", sheet="Sheet1", detectDates = T)
+dna.raw <- read.xlsx("LBR_sockeye-L_Bridge_R_bb_resp_2020_2020-11-30.xlsx", sheet="Genetic_Sex")
+gsid.raw <- read.xlsx("LBR-fence-clean.xlsx", sheet="LBR-gsid-clean")
+```
+
+```{r, include=F}
+#                                                                 CLEAN
+#------ fence visual sex id data
+fence <- fence.raw %>%
+  rename(date=Date,
+    check_time=Trap.check,
+    spp=Species,
+    cs_fish_no=`Fish.#`,
+    sex_fence=Sex,
+    fl_cm=`Fork.Length.(cm)`,
+    dna=`DNA.(Y/N)`,
+    comments=Comments) %>%
+  mutate(date=as.Date(date, origin = "1899-12-30")) %>%
+  mutate_at("sex_fence", as.factor) %>%
+  mutate(yday=lubridate::yday(date)) %>%
+  filter(spp=="Sockeye") %>%
+  select(yday, cs_fish_no, fl_cm, sex_fence) %>%
+  mutate(ufid=seq(1:nrow(fence.raw))) %>%
+  print()
+
+write.csv(fence, "LBR-fence-clean.csv", row.names=F)
+
+#------ genetic sex ID data
+dna <- dna.raw %>%
+  rename(stock=Stock,
+    yday=JulDate,
+    ufid=`Fish#`,
+    vial_no=`Vial#`,
+    sex_sdy=`Genetic_Sex.(sdY)`,
+    tray=Tray,
+    marker=Marker) %>%
+  mutate_at("sex_sdy", as.factor) %>%
+  select(yday, ufid, sex_sdy) %>%
+  print()
+
+
+#------ genetic stock ID data
+gsid <- gsid.raw %>% 
+  mutate_at(c("gsid_level", "region1_name", "region2_name", "region3_name", "region4_name", "region5_name"), as.factor) %>%
+  print()
+
+
+#------ pair up
+sex_db <- left_join(fence, dna, by=c("yday", "ufid"))
+```
+
+<br>
+
+## Genetic vs. phenotypic sex ID ## 
+
+```{r, echo=F, include=F}
+# assess
+sex_db <- sex_db %>%
+  mutate(sex_fence = ifelse(sex_fence=="M", "Male", ifelse(sex_fence=="F", "Female", "Unknown"))) %>%
+  mutate(sex_sdy = ifelse(grepl("Male", sex_sdy), "Male", ifelse(grepl("Female", sex_sdy), "Female", "Unknown"))) %>%
+  mutate(flag = ifelse(sex_fence == sex_sdy, "ok", "FLAG")) %>%
+  mutate_at("flag", as.factor) %>%
+  print()
+
+# summarize: number and % wrongly ID'd
+sex_sum <- sex_db %>%
+  filter(sex_sdy != "Unknown") %>%
+  group_by(flag) %>%
+  summarize(n_instance = length(flag)) %>%
+  mutate(propn_instance = n_instance/sum(n_instance)) %>%
+  print()
+
+# investigate directionality of fence sex ID 
+sex_dir <- sex_db %>% 
+  filter(flag=="FLAG", sex_sdy != "Unknown") %>%
+  group_by(sex_fence) %>%
+  summarize(n_sex = length(sex_fence)) %>%
+  print()
+```
+
+Of the sockeye encountered at the Bridge River fence (n=116), approximately one-quarter (24.8%, n=28) had a phenotypic sex assignment that did not match their genetic sex identification. Of these 28 sockeye, the majority (n=24) were phenotypically identified as female (but later screened as genetic males); 3 had the opposite issue, and 1 result was unknown (Figure 1).
+
+```{r, echo=F, warning=F, message=F}
+ggplot(sex_dir, aes(x=sex_fence, y=n_sex)) +
+  geom_bar(stat="identity", colour="black", fill="gray70", size=1.3) +
+  labs(x="Phenotypic sex assigned at fence", y="Number of sex ID disagreements") +
+  theme_bw() +
+  theme(axis.text = element_text(colour="black"),
+    axis.title=element_text(face="bold"),
+    plot.caption = element_text(size=11, color="gray20", face="italic", hjust=0))
+```
+
+*Figure 1. Number of cases from the Bridge River fence where the sockeye phenotypic sex did not match the genetic sex ID (sdY). *
+
+```{r, include=F}
+# summary of avg +/- sd FLs for males and females flagged and ok
+sex_lgth_sum <- sex_db %>%
+  filter(sex_sdy != "Unknown") %>%
+  group_by(flag, sex_fence, sex_sdy) %>%
+  summarize(mean_fl = mean(fl_cm), sd_fl=sd(fl_cm)) %>%
+  print()
+
+#------- STATS
+# remove unknown genetic sex and create grouping var
+sex_lgth <- sex_db %>%
+  filter(sex_sdy != "Unknown") %>%
+  mutate(fence_group = paste(sex_fence, flag, sep="-")) %>%
+  print()
+
+# calculate sample sizes of each group
+sample_sizes <- sex_lgth %>%
+  group_by(fence_group) %>%
+  summarize(n = n()) %>%
+  print()
+
+lm <- lm(sex_lgth$fl_cm ~ sex_lgth$flag)
+r<-resid(lm)
+plot(r)
+hist(r)
+qqnorm(r)
+qqline(r)
+
+aov <- aov(sex_lgth$fl_cm ~ sex_lgth$fence_group)
+summary(aov)
+TukeyHSD(aov)
+```
+
+<br>
+
+The initial assumption might be that these phenotypic females (that screened as genetic males) were in fact jacks, which is known to produce issues with visual sex ID in other systems. The mean (SD) fork length of phenotypic females that screened as genetic males was 53.7cm (4.5) which was not significantly different from 'true' females (54.8 +/- 3.3cm) (see Code 1 and Figure 2). 
+
+```{r, echo=F}
+TukeyHSD(aov)
+```
+
+```{r, echo=F, message=F, warning=F}
+ggplot(sex_lgth, aes(x=fence_group, y=fl_cm, fill=sex_fence)) +
+  geom_boxplot(size=0.5) +
+  labs(x="Visual sex ID agreement/disagreement", y="Fork length (cm)", fill="Sex") +
+  annotate("text", x=c(1,2,3,4,5), y=c(55,54,55,59,41), label=c(24,45,3,40,1), colour="gray40", size=4) +
+  scale_y_continuous(breaks=seq(40,70,by=10), limits=c(40,70)) +
+  theme_bw() +
+  theme(axis.text = element_text(colour="black"),
+    axis.title=element_text(face="bold"),
+    plot.caption = element_text(size=10, color="gray20", face="italic", hjust=0),
+    legend.position = c(0.9,0.8),
+    legend.background = element_rect(colour="black"))
+```
+
+*Figure 2. Fork length (cm) of sockeye visually identified as female (pink) and male (green) at the Bridge River fence grouped by agreement ('ok') or disagreement ('FLAG') with their genetic sex ID. For example, 'Female-FLAG' indicates sockeye visually called females that later screened as genetically male. One fish of unknown phenotypic sex was later assigned as a male. Sample sizes given in gray for each group.*
+
+<br>
+
+<br>
+
+## GSID and strays ## 
+
+IN PROGRESS 
+
+```{r, inclue=F, echo=F}
+gsid$region1_name <- factor(gsid$region1_name, 
+  levels=c("Early_Stuart(Fr)", "Takla-Trembleur - Early Stuart", "Early Stuart", "Driftwood-Nar", "Paula-Felix",
+    "Early_Summer(Fr)", "Bowron - Early Summer", "Bowron", 
+      "Nadina-Francois - Early Summer", "Nadina", 
+      "Chilko - Early Summer", "Chilko_south", "Chilko",
+      "Anderson-Seton - Early Summer", "Gates_Cr", "Gates",
+      "Shuswap - Early Summer", "Misc. Early Summer - Early Shuswap", "Anstey_R",
+      "Summer(Fr)_", "Francois-Fraser - Summer", "Stellako",
+      "Quesnel - Summer", "Quesnel", "M_Horsefly"), ordered=T)
+
+lines <- c("Early_Stuart(Fr)", "Early_Summer(Fr)", "Summer(Fr)_")
+```
+
+```{r, echo=F, warning=F, message=F}
+ggplot(gsid %>% filter(!is.na(region1_name)) %>% arrange(ufid), aes(x=ufid, y=region1_name)) + 
+  #annotate("text", x=116, y="Takla-Trembleur - Early Stuart", label="A") +
+  geom_hline(yintercept = "Early_Stuart(Fr)", colour="black") +
+  geom_hline(yintercept = "Early_Summer(Fr)", colour="black") +
+  geom_hline(yintercept = "Summer(Fr)_", colour="black") +
+  geom_point(shape=21, fill="gray70", colour="gray20", alpha=0.7, stroke=1.1, size=1.3) +
+  #scale_size_continuous(range=c(0.2,4)) +
+  scale_x_continuous(limits = c(1,116), breaks=seq(1,116,by=4)) +
+  scale_y_discrete(labels=c("Early_Stuart(Fr)"=expression(bold(`Early_Stuart(Fr)`)), "Early_Summer(Fr)"=expression(bold(`Early_Summer(Fr)`)),
+                            "Summer(Fr)_"=expression(bold(`Summer(Fr)_`)), parse=TRUE)) +
+  labs(x="UFID", y="First Regional Assignment (all probabilities)") +
+  theme_bw() +
+  theme(axis.text = element_text(colour="black"))
+
+ggplot(gsid %>% filter(!is.na(region1_name), region1_prob>=0.8) %>% arrange(ufid), aes(x=ufid, y=region1_name)) + 
+  #annotate("text", x=116, y="Takla-Trembleur - Early Stuart", label="B") +
+  geom_hline(yintercept = "Early_Stuart(Fr)", colour="black") +
+  geom_hline(yintercept = "Early_Summer(Fr)", colour="black") +
+  geom_hline(yintercept = "Summer(Fr)_", colour="black") +
+  geom_point(shape=21, fill="gray70", colour="gray20", alpha=0.7, stroke=1.1, size=1.3) +
+  #scale_size_continuous(range=c(0.2,4)) +
+  scale_x_continuous(limits = c(1,116), breaks=seq(1,116,by=4)) +
+  scale_y_discrete(labels=c("Early_Stuart(Fr)"=expression(bold(`Early_Stuart(Fr)`)), "Early_Summer(Fr)"=expression(bold(`Early_Summer(Fr)`)),
+                            "Summer(Fr)_"=expression(bold(`Summer(Fr)_`)), parse=TRUE)) +
+  labs(x="UFID", y="First Regional Assignment (>=80% probability)") +
+  theme_bw() +
+  theme(axis.text = element_text(colour="black"))
+```
+
+*Figure 3. GSID results at 4 regional levels for each unique fish ID (UFID) a) prior to filtering out those with <80% GSID assignment certainty and b) after selecting only those with >= 80% assignment certainty. UFIDs were assigned numerically so also represent temporal changes in stock ID (UFID 1 corresponds to the first date of sampling on Aug 13, UFID 116 corresponds to the last date of sampling on Sept 28).*
+
+<br>
+
+Figure 3 shows some interesting fine-scale temporal changes in GSID presence over time, for example the transition from Driftwood Early Stuarts to Paula/Felix Early Stuarts. High-level examination of those sockeye genetically assigned to a stock with >= 80% certainty shows clear changes over time in stock presence as would be expected based on their run timing (Figure 4).
+
+```{r include=F}
+gsid.r2 <- gsid %>%
+  filter(gsid_level=="IDs Region 2", region1_prob>=0.8) %>%
+  group_by(yday, region1_name) %>%
+  summarize(n=n()) %>%
+  group_by(yday) %>%
+  mutate(daily_propn=n/sum(n)) %>%
+  mutate(date = as.Date(yday, origin = "2020-01-01")) %>%
+  print()
+```
+
+```{r, echo=F, message=F, warning=F}
+ggplot(gsid.r2, aes(x=date, y=daily_propn, fill=region1_name, group=region1_name)) +
+  geom_bar(stat="identity", colour="black", stroke=0.1, width=1) +
+  geom_text(aes(label=n), position=position_stack(vjust=0.5), size=3, colour="red") +
+  scale_x_date(date_labels = "%b %d", date_breaks="2 day") +
+  labs(x="", y="Daily proportion", fill="First region assignment \n(>=80% probability)") +
+  theme_bw() +
+  theme(axis.text=element_text(colour="black", size=8),
+    axis.text.x=element_text(angle=45, hjust=1),
+    axis.title=element_text(face="bold"),
+    legend.title=element_text(face="bold"))
+```
+
+*Figure 4. Daily proportion of each stock encountered at the Bridge River fence in 2020. Text indicates sample sizes for each bar. Stocks shown are only those with >= 80% assignment probability.*
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
