@@ -216,8 +216,11 @@ arrival_10p_2019_20 <- dates_10p %>%
 write.csv(arrival_10p_2019_20, "arrival_10p_dates.csv")
 
 # join for plotting
-forplot <- left_join(data, arrival_10p_2019_20, by=c("stock", "year", "date", "yday", "group"))
+forplot <- left_join(daily.data, arrival_10p_2019_20, by=c("stock", "year", "date", "yday", "group"))
 
+forplot <- forplot %>% 
+  mutate_at("year", as.factor) %>%
+  print()
 
 #########
 # PLOTS #
@@ -253,29 +256,30 @@ forplot <- forplot %>%
 
 # Fig 2a. Single stock - manually change stock=="" call
 ggplot(data=forplot) +
-  geom_line(data=subset(forplot %>% filter(stock=="Cultus")), 
-    aes(x=as.Date(yday, origin = as.Date("1970-01-01")), y=daily_abundance, group=year, colour=group, alpha=group), size=1) +
-  geom_point(data=subset(forplot %>% filter(stock=="Cultus", p10_flag=="10% date")), 
-    aes(x=as.Date(yday, origin = as.Date("1970-01-01")), y=daily_abundance, group=year, colour=group, fill=group, size=group, alpha=group), 
-    stroke=1.5, shape=21) +
-  scale_colour_manual(name="Cultus", breaks=c("2020", "2019", "Historical"), values=c("#00b8ff", "gray40", "gray60")) +
-  scale_fill_manual(name="Cultus", breaks=c("2020", "2019", "Historical"), values=c("#00b8ff", "gray40", "gray60")) +
-  scale_alpha_manual(name="Cultus", breaks=c("2020", "2019", "Historical"), values=c(0.9, 0.9, 0.5)) +
-  scale_size_manual(name="Cultus", breaks=c("2020", "2019", "Historical"), values=c(6.5, 5, 4.5)) +
+  geom_line(data=subset(forplot %>% filter(stock=="Quesnel")), 
+    aes(x=as.Date(yday, origin = as.Date("1970-01-01")), y=daily_abundance, group=year, colour=year), size=1.2) +   #alpha=group
+  #geom_point(data=subset(forplot %>% filter(stock=="Quesnel", p10_flag=="10% date")), 
+  #  aes(x=as.Date(yday, origin = as.Date("1970-01-01")), y=daily_abundance, group=year, colour=group, fill=group, size=group, alpha=group), 
+  #  stroke=1.5, shape=21) +
+  #scale_colour_manual(name="Quesnel", breaks=c("2020", "2019", "Historical"), values=c("#00b8ff", "gray40", "gray60")) +
+  #scale_fill_manual(name="Quesnel", breaks=c("2020", "2019", "Historical"), values=c("#00b8ff", "gray40", "gray60")) +
+  scale_alpha_manual(name="Quesnel", breaks=c("2020", "2019", "Historical"), values=c(0.9, 0.9, 0.9)) +
+  scale_size_manual(name="Quesnel", breaks=c("2020", "2019", "Historical"), values=c(6.5, 5, 4.5)) +
   scale_x_date(date_labels = "%b %d", date_breaks="7 day") +
-  scale_y_continuous(breaks=seq(0,1300,by=400)) +
+  #scale_y_continuous(breaks=seq(0,1300,by=400)) +
   labs(x="", y="Daily abundance") +
   theme_bw() +
   theme(text = element_text(colour="black", size=27),
-    panel.grid = element_line(colour="gray85"),
+    panel.grid = element_blank(),
     axis.title.y = element_text(face="bold"),
     axis.text = element_text(colour="black"),
     axis.text.x = element_text(angle=30, hjust=1),
-    legend.position = c(0.16,0.85),
+    legend.position = c(0.86,0.75),
     legend.background = element_rect(colour="black"),
     legend.margin=margin(t=0, r=0.15, b=0.1, l=0.1, unit="cm"),
     legend.spacing.y = unit(0.2, "cm"),
-    legend.title = element_text(face="bold")) 
+    legend.title = element_text(size=19, face="bold"),
+    legend.text = element_text(size=17)) 
 
 # Fig 2b. Faceted stocks
 ggplot(data=forplot) +
