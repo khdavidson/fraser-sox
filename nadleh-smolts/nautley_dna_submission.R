@@ -20,7 +20,7 @@ library(padr)
 library(GmAMisc)
 
 # set wd
-setwd("~/ANALYSIS/Data")
+setwd("~/Documents/ANALYSIS/data")
 
 # read in individual data 
 nad.df <- read.xlsx("nautley_ANALYTICAL_database_2019.xlsx", sheet = 3, colNames=T, detectDates=T)
@@ -172,75 +172,68 @@ dna.wgt <- nad.df %>%
 #############################
 # Random resampling: LENGTH #
 #############################
-  
-# these are all the length frequency fish that weren't selected for extra sampling so they should be most representative  
+
+
+#-------- ISOLATING SUBSAMPLE FISH BY DIFFERENT SAMPLING METHODS
+
+###CORE LF FISH: these are all the length frequency fish that weren't selected for extra sampling so they should be most representative  
 pop <- nad.df %>% 
   filter(!is.na(length_mm), is.na(whatman_sheet)) %>% 
   print()
-
-# random resample
-set.seed(12345)
-boot.l <- prop.table(table(replicate(10000, sample(pop$length_mm, size=100, replace=TRUE))))
-  boot.l <- as.data.frame(boot.l)
-  ggplot(boot.l, aes(x=Var1,y=Freq))+
-    geom_bar(stat="identity")
-  
-boot.lc <- prop.table(table(replicate(10000, sample(pop$length_class, size=100, replace=TRUE))))
-  boot.lc <- as.data.frame(boot.lc)
-  boot.lc$Var1<-factor(boot.lc$Var1, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130", ordered=T))
-  ggplot(boot.lc, aes(x=Var1,y=Freq))+
-    geom_bar(stat="identity")
+pop$length_class <- factor(pop$length_class, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130"), ordered=T)
 
   
-# All DNA samples taken
+###DNA SUBSAMPLED FISH: Select the DNA sampled fish and summarize the number of fish sampled...
 pull1 <- nad.df %>% 
-    mutate_at(vars(c(17)), funs(as.factor)) %>%
-    filter(dna_select_bin == "1") %>% 
-    print()
-  
-# by date 
-pull1.d <- pull1 %>% 
-  group_by(date) %>% 
-  summarize(n=n()) %>%
+  filter(dna_select_bin == "1") %>% 
   print()
 
-ggplot(pull1.d, aes(x=date, y=n)) +
-  geom_bar(stat="identity")
-
-# by length 
-pull1.l <- pull1 %>% 
-  group_by(length_class) %>% 
-  summarize(n=n()) %>%
-  print()
-pull1.l$length_class <- factor(pull1.l$length_class, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130", ordered=T))
-
-    # whole population not just DNA
-    length <- nad.df %>% 
-      filter(!is.na(length_mm), is.na(whatman_sheet)) %>% 
-      group_by(date,length_class) %>% 
-      summarize(n=n())
-    length$length_class <- factor(length$length_class, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130", ordered=T))
-
-    ggplot(length, aes(x=date, y=length_class, height=n)) +
-      geom_density_ridges(stat="identity", scale=1) 
-    ggplot(length, aes(x=date, y=length_class)) +
-      geom_density_ridges2()
-    
-ggplot() +
-  geom_bar(data=length, aes(x=length_class, y=n/10), stat="identity", fill="white", width=0.8, alpha=0.7) +
-  geom_bar(data=pull1.l, aes(x=length_class, y=n), stat="identity", colour="black", alpha=0.5) 
-
-# by date and length 
+# ...by date and length 
 pull1.dl <- pull1 %>% 
   group_by(date, length_class) %>% 
   summarize(n=n()) %>%
   print()
+pull1.dl$length_class <- factor(pull1.dl$length_class, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130"), ordered=T)
 
+
+###ALL FISH: Select all fish measured for length (LF only + DNA sub sampling)
+length <- nad.df %>% 
+  filter(!is.na(length_mm)) %>% 
+  group_by(date,length_class) %>% 
+  summarize(n=n()) %>% 
+  ungroup() %>%
+  add_row(date=as.Date("2020-01-01"), length_class=">130", n=NA) %>%    # added dummy variable for missing ">130mm" length class for plot below 
+  print()
+length$length_class <- factor(length$length_class, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130"), ordered=T)
+
+
+#-------- PLOTS
+
+# Length class "abundance" (i.e., n obs) over time
+ggplot(length, aes(x=date, y=length_class, height=n)) +
+  geom_density_ridges(stat="identity", scale=1) 
+
+# Comparing ALL fish measured for length (white), L-F fish (gray), DNA-lengthed fish (blue) grouped by length class 
 ggplot() +
-  geom_density_ridges(data=length, aes(x=date, y=length_class, height=n),stat="identity", scale=1, fill="white", alpha=0.8) +
-  geom_density_ridges(data=pull1.dl, aes(x=date, y=length_class, height=n),stat="identity", scale=1, alpha=0.5) 
+  geom_bar(data=length%>%group_by(length_class)%>%summarize(sum=sum(n)), aes(x=length_class, y=sum/10), stat="identity", fill="white", colour="black") +
+  geom_bar(data=pop%>%group_by(length_class)%>%summarize(n=n()), aes(x=length_class, y=n/10), stat="identity", fill="gray80", width=0.8, alpha=0.7) +
+  geom_bar(data=pull1.dl%>%group_by(length_class)%>%summarize(n=n()), aes(x=length_class, y=n), fill="blue", stat="identity", alpha=0.3, width=0.8) +
+  scale_y_continuous(breaks=seq(0,150,by=25)) +
+  labs(x="", y="Number of samples (gray and white scaled down 1 \norder of magnitude for visualization)") +
+  theme_bw()
 
-# Linear models 
+# Comparing ALL fish measured for length (white) grouped by length class to the DNA-lengthed fish grouped by length-class (gray) OVER TIME
+ggplot() +
+  geom_density_ridges(data=length%>%filter(date!="2020-01-01"), aes(x=date, y=length_class, height=n), stat="identity", scale=1, fill="white", alpha=0.8) +
+  geom_density_ridges(data=pop%>%group_by(date, length_class)%>%summarize(n=n()), aes(x=date, y=length_class, height=n), stat="identity", scale=1, fill="gray80", alpha=0.7) +
+  geom_density_ridges(data=pull1.dl, aes(x=date, y=length_class, height=n), colour="blue", fill="blue", stat="identity", scale=1, alpha=0.3) +
+  scale_x_date(date_breaks="5 day", date_labels="%b %d") +
+  theme_bw()
+
+# so far it appears that using the DNA sub-sampling method does not mirror the "true" distribution well 
+
+
+#-------- Linear models (for interest)
 lm.dl <- lm(pull1.dl$n ~ pull1.dl$date + pull1.dl$length_class)
 summary(lm.dl)
 r.dl<-resid(lm.dl)
@@ -261,6 +254,36 @@ r.l<-resid(lm.l)
 hist(r.l)
 plot(r.l)
 plot(lm.l)                                              # Obs 16 and 68 are individual points, they determine their own predicted value (same as observed value) therefore leverage=1
+
+
+
+
+
+
+
+
+
+#-------- BOOTSTRAPPING
+  
+# random bootstrap resampling of the length-frequency only "population" of fish 
+set.seed(12345)
+boot.l <- prop.table(table(replicate(10000, sample(pop$length_mm, size=100, replace=TRUE))))
+  boot.l <- as.data.frame(boot.l)
+  ggplot(boot.l, aes(x=Var1,y=Freq))+
+    geom_bar(stat="identity")
+  
+# random boostrap resampling of the DNA length-class sub-sample fish   
+boot.lc <- prop.table(table(replicate(10000, sample(pop$length_class, size=100, replace=TRUE))))
+  boot.lc <- as.data.frame(boot.lc)
+  boot.lc$Var1<-factor(boot.lc$Var1, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130", ordered=T))
+  ggplot(boot.lc, aes(x=Var1,y=Freq))+
+    geom_bar(stat="identity")
+
+
+## **** there shnould be comparison plots here - NEXT DAY!! ********
+GGPLOT
+
+
 
 
 # --------------------- split for each stock: NADINA 
@@ -291,8 +314,7 @@ pullN.l <- pullN %>%
 
     ggplot(length, aes(x=date, y=length_class, height=n)) +
       geom_density_ridges(stat="identity", scale=1) 
-    ggplot(length, aes(x=date, y=length_class)) +
-      geom_density_ridges2()
+
     
 ggplot() +
   geom_bar(data=length, aes(x=length_class, y=n/10), stat="identity", fill="white", width=0.8, alpha=0.7) +
@@ -306,8 +328,6 @@ pullN.dl <- pullN %>%
 
 ggplot(pullN.dl, aes(x=date, y=length_class, height=n)) +
   geom_density_ridges(stat="identity", scale=1) 
-ggplot(pullN.dl, aes(x=date, y=length_class)) +
-  geom_density_ridges2()
 
 
 # --------------------- split for each stock: STELLAKO 
@@ -338,8 +358,7 @@ pullS.l <- pullS %>%
 
     ggplot(length, aes(x=date, y=length_class, height=n)) +
       geom_density_ridges(stat="identity", scale=1) 
-    ggplot(length, aes(x=date, y=length_class)) +
-      geom_density_ridges2()
+
     
 ggplot() +
   geom_bar(data=length, aes(x=length_class, y=n/10), stat="identity", fill="white", width=0.8, alpha=0.7) +
@@ -355,6 +374,13 @@ ggplot(pullS.dl, aes(x=date, y=length_class, height=n)) +
   geom_density_ridges(stat="identity", scale=1) 
 ggplot(pullS.dl, aes(x=date, y=length_class)) +
   geom_density_ridges2()
+
+
+
+
+
+
+
 
 
 #############################
