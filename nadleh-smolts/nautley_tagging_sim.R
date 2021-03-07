@@ -1,6 +1,6 @@
 # Nautley tagging sim ## 
 
-setwd("~/ANALYSIS/Data")
+setwd("~/Documents/ANALYSIS/data")
 
 library(tidyverse)
 library(lubridate)
@@ -15,17 +15,16 @@ library(pwr2)
 library(paramtest)
 library(withr)
 
+# read data 
+ind.dat <- read.xlsx("nautley_ANALYTICAL_database_2019.xlsx", sheet = 3, detectDates = T)
+catch <- read.xlsx("nautley_ANALYTICAL_database_2019.xlsx", sheet = 2, detectDates = T)
+
+
 ###############################################################################################################################################
 
 #                                                         DNA SIMULATIONS 
 
 # Part of what helps to know how much we can tag is to know how much we need to take for DNA as this is key. 
-
-setwd("~/ANALYSIS/Data")
-
-# read data 
-ind.dat <- read.xlsx("nautley_ANALYTICAL_database_2019.xlsx", sheet = 3, detectDates = T)
-catch <- read.xlsx("nautley_ANALYTICAL_database_2019.xlsx", sheet = 2, detectDates = T)
 
 # how many DNA samples were taken all together each day? Excluding E-Watch fish
 dailydna <- ind.dat %>% 
@@ -497,7 +496,6 @@ ggplot(res) +
                                                             ############################
                                                             # ABUNDANCE / TAGGING SIMS #
                                                             ############################
-setwd("~/ANALYSIS/Data")
 
 #####################
 # LOAD & CLEAN DATA #
@@ -519,24 +517,24 @@ nad.hist$start_time <- factor(nad.hist$start_time, levels=c("20:00", "21:00", "2
 nad.hist$end_time <- factor(nad.hist$end_time, levels=c("21:00", "22:00", "22:30", "23:00", "0:00", "1:00", "2:00", "3:00", "4:00", "5:00"), ordered=T)
 
 #####
-# 2018 Data 
+# 2019 Data 
 #####
-nad.18raw <- read.xlsx("nautley_ANALYTICAL_database_2019.xlsx", sheet=2, detectDates = T)
+nad.19raw <- read.xlsx("nautley_ANALYTICAL_database_2019.xlsx", sheet=2, detectDates = T)
 
 # time blocks of interest
 time_of_interest <- c("20:00", "20:15", "20:20", "20:30", "20:40", "20:45", "21:00", "21:30", "22:00", "22:10", "22:20", "22:30", 
                       "23:00", "23:30", "23:40", "00:00", "00:30", "01:00", "01:10", "01:30", "01:45", "02:00", "02:15", "02:25", "02:30")
 
 # clean data, filter, order
-nad.18 <- nad.18raw %>% 
+nad.19 <- nad.19raw %>% 
   filter(trap_type == "small RST") %>%
   filter(start_time %in% time_of_interest) %>%
   print()
 
-nad.18$start_time <- factor(nad.18$start_time, 
+nad.19$start_time <- factor(nad.19$start_time, 
   levels = c("20:00", "20:15", "20:20", "20:30", "20:40", "20:45", "21:00", "21:30", "22:00", "22:10", "22:20", "22:30", "23:00", "23:30", 
     "23:40", "00:00", "00:30", "01:00", "01:10", "01:30", "01:45", "02:00", "02:15", "02:25", "02:30"), ordered=T)
-nad.18$end_time <- factor(nad.18$end_time, 
+nad.19$end_time <- factor(nad.19$end_time, 
   levels = c("20:00", "22:00", "22:15", "22:30", "23:00", "23:30", "00:00", "00:30", "01:00", "01:30", "01:45", "02:00", "02:15", "02:30",
     "03:00", "08:30", "09:00"), ordered=T)
 
@@ -552,63 +550,70 @@ nad.18$end_time <- factor(nad.18$end_time,
 daily <- nad.hist %>% 
   group_by(date, year) %>% 
   summarize(total = sum(total_sox)) %>% 
+  mutate(yday=lubridate::yday(date)) %>%
   print()
 
 # For 2019
-daily18 <- nad.18 %>% 
+daily19 <- nad.19 %>% 
   group_by(date) %>% 
   summarize(total = sum(sox_smolts)) %>% 
   mutate(year = 2019) %>%
+    mutate(yday=lubridate::yday(date)) %>%
   print()
 
 # Join
-daily2 <- rbind(as.data.frame(daily), as.data.frame(daily18))
+daily2 <- rbind(as.data.frame(daily), as.data.frame(daily19))
 
 # Plot
-ggplot(daily2, aes(x=date, y=total, group=year)) +
-  geom_line(size=0.9, aes(colour=year)) +
-  geom_point(pch=21, size=3, fill="white", aes(colour=year), stroke=1.5) + 
-  scale_x_date(labels = function(x) format(x, "%d-%b")) +
-  facet_grid(rows=vars(year))
-
+ggplot(daily2, aes(x=as.Date(yday, origin="2000-01-01"), y=total, group=year)) +
+  geom_line(aes(colour=year), size=0.9) +
+  geom_point(aes(fill=year, colour=year), stroke=1.5, pch=21, size=3, alpha=0.7) + 
+  scale_x_date(date_labels="%b %d", date_breaks="5 day") +
+  labs(x="", y="Raw catch") +
+  facet_wrap(.~year, scales = "free_y", nrow=3) +
+  theme_bw() +
+  theme(legend.position=c(0.1,0.9),
+    legend.title=element_blank(),
+    legend.text=element_text(size=13),
+    legend.spacing.y = unit(0, "mm"),
+    legend.background = element_rect(colour="black"),
+    axis.text = element_text(colour="black", size=13), 
+    axis.title = element_text(face="bold", size=15),
+    strip.text = element_text(size=13))
 
 ##################################################
 # PROPORTION OF RUN EACH HOUR, FOR EACH DAY-YEAR #
 ##################################################
 
 # For 1999 & 2000
-hr.propn <- nad.hist %>% 
+# total number of fish caught each "hour" 
+hr.propn9900 <- nad.hist %>% 
   group_by(year, date, end_time) %>% 
   summarize(n = sum(total_sox)) %>%
   mutate(daily_total = sum(n)) %>%
   mutate(propn = (n/daily_total)*100) %>%
-  print()
 
-avg.hr.propn <- hr.propn %>% 
   group_by(year, end_time) %>% 
   summarize(avg_propn = mean(propn), sd_propn = sd(propn)) %>% 
-  mutate(sd_propn = ifelse(sd_propn == "NaN", 0, sd_propn)) %>%
+  mutate(sd_propn = ifelse(is.na(sd_propn), 0, sd_propn)) %>%
   print()
 
-# For 2018
-hr.propn18 <- nad.18 %>% 
+# For 2019
+hr.propn19 <- nad.19 %>% 
   group_by(date, end_time) %>% 
   summarize(n = sum(sox_smolts)) %>%
   mutate(daily_total = sum(n)) %>%
   mutate(propn = (n/daily_total)*100) %>%
-  filter(date >= as.Date("2019-04-26")) %>%
-  filter(date != "2019-04-26" | end_time != "20:00") %>%
-  print()
+  filter(date > as.Date("2019-04-26")) %>%   # this was done because prior to Apr 26 trap checks were not recorded hourly, just bulk by day
+  #filter(date != "2019-04-26" | end_time != "20:00") %>%    
 
-avg.hr.propn.18 <- hr.propn18 %>% 
   group_by(end_time) %>% 
   summarize(avg_propn = mean(propn), sd_propn = sd(propn)) %>% 
-  mutate(sd_propn = ifelse(sd_propn == "NaN", 0, sd_propn)) %>%
+  mutate(sd_propn = ifelse(is.na(sd_propn), 0, sd_propn)) %>%
   mutate(year = 2019) %>%
-#  select(year, end_time, avg_propn, sd_propn) %>%
   print()
 
-avg.propns <- rbind(as.data.frame(avg.hr.propn), as.data.frame(avg.hr.propn.18))
+avg.propns <- rbind(as.data.frame(hr.propn9900), as.data.frame(hr.propn19))
 avg.propns$end_time <- with_options(c(scipen = 999), str_pad(avg.propns$end_time, 5, pad = "0"))
 
 avg.propns$end_time <- factor(avg.propns$end_time, 
@@ -619,10 +624,20 @@ avg.propns <- avg.propns %>%
 
 # PLOT
 ggplot(avg.propns, aes(x=end_time, y=avg_propn, group=year)) +
-  geom_ribbon(aes(ymin=avg.propns$avg_propn-avg.propns$sd_propn, ymax=avg.propns$avg_propn+avg.propns$sd_propn), linetype=2, alpha=0.15) +
-  geom_line(size=0.9, aes(colour=year)) +
-  geom_point(pch=21, size=3, fill="white", aes(colour=year), stroke=1.5) + 
-  facet_grid(rows=vars(year))
+  geom_ribbon(aes(ymin=avg_propn-sd_propn, ymax=avg_propn+sd_propn), linetype=2, alpha=0.15) +
+  geom_line(aes(colour=year), size=0.9) +
+  geom_point(aes(fill=year, colour=year), stroke=1.5, pch=21, size=3, alpha=0.7) + 
+  labs(x="Time", y="Hourly proportion") +
+  facet_wrap(.~year, scales = "free_y", nrow=3) +
+  theme_bw() +
+  theme(legend.position=c(0.9,0.9),
+    legend.text = element_text(size=13),
+    legend.title=element_blank(),
+    legend.spacing.y = unit(0, "mm"),
+    legend.background = element_rect(colour="black"), 
+    axis.text = element_text(colour="black", size=13), 
+    axis.title = element_text(face="bold", size=15),
+    strip.text = element_text(size=13))
 
 
 
