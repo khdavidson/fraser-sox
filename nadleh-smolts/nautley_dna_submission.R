@@ -47,6 +47,16 @@ sub1 <- nad.df %>%
   summarize(n=n()) %>% 
   print()
 
+dna_temp <- nad.df %>% 
+  filter(!is.na(whatman_sheet)) %>% 
+  group_by(date) %>%
+  summarize(n=n()) %>% 
+  print()
+
+ggplot(dna_temp, aes(x=date, y=n)) +
+  geom_bar(stat="identity") + 
+  theme_bw()
+
 # what % have been successfully run?
 samp_propn <- nad.df %>%
   filter(whatman_sheet != "NA", !grepl("did not amplify", dna_comment), region1 != "0") %>%
@@ -166,74 +176,251 @@ dna.wgt <- nad.df %>%
 #################################################################################################################################################
 #################################################################################################################################################
 
-#                                                           SUBMISSION 1 SAMPLE BREAKDOWN 
+#                                                   (SUBMISSION 1) SAMPLE BREAKDOWN / EXPLORING BIAS
 
+#** Updated March 2021 to include part all DNA samples, not just submission 1 
+
+  
 
 #############################
 # Random resampling: LENGTH #
 #############################
 
+# For ease of analysis later, create dummy grouping variables on sampling types 
+nad.df <- nad.df %>% 
+  mutate(sampling_method = ifelse(!is.na(length_mm) & is.na(whatman_sheet), "Length-frequency",
+    ifelse(!is.na(whatman_sheet), "DNA sub-sample", NA))) %>% 
+  print()
 
 #-------- ISOLATING SUBSAMPLE FISH BY DIFFERENT SAMPLING METHODS
-
 ###CORE LF FISH: these are all the length frequency fish that weren't selected for extra sampling so they should be most representative  
-pop <- nad.df %>% 
-  filter(!is.na(length_mm), is.na(whatman_sheet)) %>% 
+lfpop <- nad.df %>% 
+  filter(sampling_method=="Length-frequency") %>% 
   print()
-pop$length_class <- factor(pop$length_class, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130"), ordered=T)
+lfpop$length_class <- factor(lfpop$length_class, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130"), ordered=T)
 
-  
 ###DNA SUBSAMPLED FISH: Select the DNA sampled fish and summarize the number of fish sampled...
-pull1 <- nad.df %>% 
-  filter(dna_select_bin == "1") %>% 
+dnapop <- nad.df %>% 
+  filter(sampling_method=="DNA sub-sample") %>% 
   print()
 
 # ...by date and length 
-pull1.dl <- pull1 %>% 
+dnapop.dl <- dnapop %>% 
   group_by(date, length_class) %>% 
   summarize(n=n()) %>%
+  mutate(propn=n/sum(n)) %>%
   print()
-pull1.dl$length_class <- factor(pull1.dl$length_class, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130"), ordered=T)
-
+dnapop.dl$length_class <- factor(dnapop.dl$length_class, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130"), ordered=T)
 
 ###ALL FISH: Select all fish measured for length (LF only + DNA sub sampling)
-length <- nad.df %>% 
-  filter(!is.na(length_mm)) %>% 
-  group_by(date,length_class) %>% 
+allpop <- nad.df %>% 
+  filter(!is.na(sampling_method)) %>% 
+  group_by(date, length_class) %>% 
   summarize(n=n()) %>% 
+  mutate(propn=n/sum(n)) %>%
   ungroup() %>%
-  add_row(date=as.Date("2020-01-01"), length_class=">130", n=NA) %>%    # added dummy variable for missing ">130mm" length class for plot below 
+  add_row(date=as.Date("2020-01-01"), length_class=">130", n=NA, propn=NA) %>%    # added dummy variable for missing ">130mm" length class for plot below 
   print()
-length$length_class <- factor(length$length_class, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130"), ordered=T)
+allpop$length_class <- factor(allpop$length_class, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130"), ordered=T)
 
 
-#-------- PLOTS
 
-# Length class "abundance" (i.e., n obs) over time
-ggplot(length, aes(x=date, y=length_class, height=n)) +
-  geom_density_ridges(stat="identity", scale=1) 
+####
+# PLOTS: Sampling method comparison (observed values)
+####
 
-# Comparing ALL fish measured for length (white), L-F fish (gray), DNA-lengthed fish (blue) grouped by length class 
+##### As COUNTS
 ggplot() +
-  geom_bar(data=length%>%group_by(length_class)%>%summarize(sum=sum(n)), aes(x=length_class, y=sum/10), stat="identity", fill="white", colour="black") +
-  geom_bar(data=pop%>%group_by(length_class)%>%summarize(n=n()), aes(x=length_class, y=n/10), stat="identity", fill="gray80", width=0.8, alpha=0.7) +
-  geom_bar(data=pull1.dl%>%group_by(length_class)%>%summarize(n=n()), aes(x=length_class, y=n), fill="blue", stat="identity", alpha=0.3, width=0.8) +
+  #geom_bar(data=nad.df%>%filter(!is.na(sampling_method))%>%group_by(length_mm)%>%summarize(n=n())%>%mutate(propn=n/sum(n)), 
+  #  aes(x=length_mm, y=propn), 
+  #  stat="identity", fill="white", colour="black") +
+  geom_bar(data=nad.df%>%filter(sampling_method=="Length-frequency")%>%group_by(length_mm)%>%summarize(n=n()), 
+    aes(x=length_mm, y=n), 
+    fill="gray80", alpha=0.85, stat="identity", width=0.8) +
+  geom_bar(data=nad.df%>%filter(sampling_method=="DNA sub-sample")%>%group_by(length_mm)%>%summarize(n=n()), 
+    aes(x=length_mm, y=n), 
+    fill="red", alpha=0.25, stat="identity", width=0.6) +
+  scale_x_continuous(limits=c(69,140), breaks=seq(69,140,by=3)) +
+  labs(x="", y="Number of samples") +
+  theme_bw()
+
+# Comparing ALL fish measured for length (white), L-F fish (gray), DNA-lengthed fish (blue) grouped by LENGTH CLASS
+ggplot() +
+  geom_bar(data=allpop%>%group_by(length_class)%>%summarize(sum=sum(n)), aes(x=length_class, y=sum/10),fill="white", stat="identity", colour="black") +
+  geom_bar(data=lfpop%>%group_by(length_class)%>%summarize(n=n()), aes(x=length_class, y=n/10), fill="gray80", alpha=0.7, stat="identity", width=0.8) +
+  geom_bar(data=dnapop.dl%>%group_by(length_class)%>%summarize(n=n()), aes(x=length_class, y=n), fill="red", alpha=0.3, stat="identity", width=0.8) +
   scale_y_continuous(breaks=seq(0,150,by=25)) +
   labs(x="", y="Number of samples (gray and white scaled down 1 \norder of magnitude for visualization)") +
   theme_bw()
 
-# Comparing ALL fish measured for length (white) grouped by length class to the DNA-lengthed fish grouped by length-class (gray) OVER TIME
+# Comparing ALL fish measured for length (white) grouped by length class to the DNA-lengthed fish grouped by LENGTH CLASS OVER TIME
 ggplot() +
-  geom_density_ridges(data=length%>%filter(date!="2020-01-01"), aes(x=date, y=length_class, height=n), stat="identity", scale=1, fill="white", alpha=0.8) +
-  geom_density_ridges(data=pop%>%group_by(date, length_class)%>%summarize(n=n()), aes(x=date, y=length_class, height=n), stat="identity", scale=1, fill="gray80", alpha=0.7) +
-  geom_density_ridges(data=pull1.dl, aes(x=date, y=length_class, height=n), colour="blue", fill="blue", stat="identity", scale=1, alpha=0.3) +
+  geom_density_ridges(data=allpop%>%filter(date!="2020-01-01"), aes(x=date, y=length_class, height=n), 
+    stat="identity", scale=1, fill="white", alpha=0.8) +
+  geom_density_ridges(data=lfpop%>%group_by(date, length_class)%>%summarize(n=n()), aes(x=date, y=length_class, height=n), 
+    stat="identity", scale=1, fill="gray80", colour="transparent", alpha=0.8) +
+  geom_density_ridges(data=dnapop.dl, aes(x=date, y=length_class, height=n), 
+    fill="red", colour="transparent", stat="identity", scale=1, alpha=0.25) +
+  scale_x_date(date_breaks="5 day", date_labels="%b %d") +
+  theme_bw()
+#####
+
+
+##### As PROPORTIONS
+# Comparing ALL fish measured for length (white), L-F fish (gray), DNA-lengthed fish (blue) grouped by LENGTH  
+ggplot() +
+  #geom_bar(data=nad.df%>%filter(!is.na(sampling_method))%>%group_by(length_mm)%>%summarize(n=n())%>%mutate(propn=n/sum(n)), 
+  #  aes(x=length_mm, y=propn), 
+  #  stat="identity", fill="white", colour="black") +
+  geom_bar(data=nad.df%>%filter(sampling_method=="Length-frequency")%>%group_by(length_mm)%>%summarize(n=n())%>%mutate(propn=n/sum(n)), 
+    aes(x=length_mm, y=propn), 
+    fill="gray80", alpha=0.85, stat="identity", width=0.8) +
+  geom_bar(data=nad.df%>%filter(sampling_method=="DNA sub-sample")%>%group_by(length_mm)%>%summarize(n=n())%>%mutate(propn=n/sum(n)), 
+    aes(x=length_mm, y=propn), 
+    fill="red", alpha=0.25, stat="identity", width=0.6) +
+  scale_x_continuous(limits=c(69,140), breaks=seq(69,140,by=3)) +
+  labs(x="", y="Proportion of samples") +
+  theme_bw()
+
+# Comparing ALL fish measured for length (white), L-F fish (gray), DNA-lengthed fish (blue) grouped by LENGTH CLASS 
+ggplot() +
+  geom_bar(data=allpop%>%group_by(length_class)%>%summarize(total=sum(n))%>%mutate(propn=total/sum(total,na.rm=T)), aes(x=length_class, y=propn), 
+    stat="identity", fill="white", colour="black") +
+  geom_bar(data=lfpop%>%group_by(length_class)%>%summarize(n=n())%>%mutate(propn=n/sum(n,na.rm=T)), aes(x=length_class, y=propn), 
+    fill="gray80", alpha=0.7, stat="identity", width=0.8) +
+  geom_bar(data=dnapop.dl%>%group_by(length_class)%>%summarize(n=n())%>%mutate(propn=n/sum(n,na.rm=T)), aes(x=length_class, y=propn), 
+    fill="red", alpha=0.25, stat="identity", width=0.6) +
+  labs(x="", y="Proportion of samples") +
+  theme_bw()
+
+# Comparing ALL fish measured for length (white) grouped by length class to the DNA-lengthed fish grouped by LENGTH CLASS (gray) OVER TIME
+ggplot() +
+  geom_density_ridges(data=allpop%>%filter(date!="2020-01-01"), aes(x=date, y=length_class, height=propn), 
+    stat="identity", scale=1, fill="white", alpha=0.8) +
+  geom_density_ridges(data=lfpop%>%group_by(date, length_class)%>%summarize(n=n())%>%mutate(propn=n/sum(n)), aes(x=date, y=length_class, height=propn), 
+    stat="identity", scale=1, fill="gray80", alpha=0.7, colour="transparent") +
+  geom_density_ridges(data=dnapop.dl, aes(x=date, y=length_class, height=propn), 
+    colour="transparent", fill="red", stat="identity", scale=1, alpha=0.25) +
   scale_x_date(date_breaks="5 day", date_labels="%b %d") +
   theme_bw()
 
-# so far it appears that using the DNA sub-sampling method does not mirror the "true" distribution well 
+# so far it kinda seems like using the DNA sub-sampling method does not mirror the "true" distribution well 
 
 
-#-------- Linear models (for interest)
+
+
+#-------- BOOTSTRAPPING
+  
+# Random bootstrap resampling of the length-frequency only "population" of fish based on length
+set.seed(12345)
+boot.lfl <- prop.table(table(replicate(10000, sample(lfpop$length_mm, size=100, replace=TRUE))))
+boot.lfl <- as.data.frame(boot.lfl)
+boot.lfl$Var1 <- as.numeric(as.character(boot.lfl$Var1))    # for some reason it turns length to a factor 
+# Length-based bootstrap grouped by length_class and re-plotted
+boot.lfl <- boot.lfl %>% 
+  mutate(length_class = ifelse(Var1<80,"<80", 
+    ifelse(Var1>=80&Var1<90,"80-89",
+      ifelse(Var1>=90&Var1<100,"90-99",
+        ifelse(Var1>=100&Var1<110,"100-109",
+          ifelse(Var1>=110&Var1<120,"110-119",
+            ifelse(Var1>=120&Var1<=130,"120-130", ">130"))))))) %>%
+  add_row(Var1=NA, Freq=NA, length_class=">130") %>%
+  print()
+boot.lfl$length_class<-factor(boot.lfl$length_class, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130", ordered=T))
+
+# Random boostrap resampling of the DNA length-class sub-sample fish based on length
+set.seed(12345)
+boot.dnal <- prop.table(table(replicate(10000, sample(dnapop$length_mm, size=100, replace=TRUE))))
+boot.dnal <- as.data.frame(boot.dnal)
+boot.dnal$Var1 <- as.numeric(as.character(boot.dnal$Var1))    # for some reason it turns length to a factor 
+# Length-based bootstrap grouped by length_class and re-plotted
+boot.dnal <- boot.dnal %>% 
+  mutate(length_class = ifelse(Var1<80,"<80", 
+    ifelse(Var1>=80&Var1<90,"80-89",
+      ifelse(Var1>=90&Var1<100,"90-99",
+        ifelse(Var1>=100&Var1<110,"100-109",
+          ifelse(Var1>=110&Var1<120,"110-119",
+            ifelse(Var1>=120&Var1<=130,"120-130", ">130"))))))) %>%
+  print()
+boot.dnal$length_class<-factor(boot.dnal$length_class, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130", ordered=T))
+
+
+####
+# QUANTILES: Compare qualites for sample and bootstrapped datasets
+####
+lfpop.q <- quantile(lfpop$length_mm, na.rm=T)
+lfpop.q <- as.data.frame(lfpop.q)
+lfpop.q$quantiles <- rownames(lfpop.q) 
+lfpop.q.df <- lfpop.q %>% rename(length=`lfpop.q`) %>% mutate(varname="lfpop.q") %>% print()
+
+boot.lf.q <- quantile(boot.lfl$Var1, na.rm=T)
+boot.lf.q <- as.data.frame(boot.lf.q)
+boot.lf.q$quantiles <- rownames(boot.lf.q) 
+boot.lf.q.df <- boot.lf.q %>% rename(length=`boot.lf.q`) %>% mutate(varname="boot.lf.q") %>% print()
+
+boot.dnal.q <- quantile(boot.dnal[!is.na(boot.dnal$Var1),]$Var1)
+boot.dnal.q <- as.data.frame(boot.dnal.q)
+boot.dnal.q$quantiles <- rownames(boot.dnal.q) 
+boot.dnal.q.df <- boot.dnal.q %>% rename(length=`boot.dnal.q`) %>% mutate(varname="boot.dnal.q") %>% print()
+
+q.df <- rbind(lfpop.q.df, boot.lf.q.df, boot.dnal.q.df)
+
+
+####
+# PLOTS: Sampling method comparison (boostrapped values)
+####
+# Bootstrapped length-freq vs. bootstrapped DNA sub-sampled for LENGTH
+ggplot() +
+  geom_vline(data=q.df%>%filter(varname!="lfpop.q", quantiles%in%c("25%", "50%", "100%")), 
+    aes(xintercept=length, colour=varname, linetype=quantiles, size=quantiles), alpha=0.8) +
+  geom_bar(data=boot.lfl, aes(x=Var1, y=Freq), stat="identity", fill="gray70", alpha=0.8, width=0.8) +
+  geom_bar(data=boot.dnal, aes(x=Var1, y=Freq), stat="identity", fill="green", alpha=0.4, width=0.6) +
+  scale_linetype_manual(breaks=c("25%", "50%", "100%"), values=c(3,1,3)) +
+  scale_size_manual(breaks=c("25%", "50%", "100%"), values=c(1.2,1,1.2)) +
+  scale_colour_manual(breaks=c("boot.lf.q", "boot.dnal.q"), values=c("gray50","green")) +
+  scale_x_continuous(breaks=seq(0,200,by=3)) +
+  labs(y="Boostrapped Freq", x="Length (mm)") +
+  theme_bw() +
+  guides(colour = guide_legend(override.aes=list(size=1.1)))
+
+# Bootstrapped length-freq vs. bootstrapped DNA sub-sampled for LENGTH CLASS 
+ggplot() +
+  geom_boxplot(data=boot.lfl, aes(x=length_class, y=Freq), fill="gray70", colour="gray70", alpha=0.7) +
+  geom_boxplot(data=boot.dnal, aes(x=length_class, y=Freq), fill="green", colour="green", alpha=0.4, size=1) +
+  labs(y="Boostrapped Freq", x="Length class (mm)") +
+  theme_bw()
+
+
+########### Extra code - not important, just for reference!
+# Test to make sure it isn't different whether you bootstrap based on length and then group as length classes, or if you bootstrap straight from
+# length classes - it seems to. Believe bootstrapping from length and then re-grouping is appropriate. Fig code below just for reference.  
+
+# Random bootstrap resampling of the length-frequency only "population" of fish based on length length class
+boot.lfc <- prop.table(table(replicate(10000, sample(lfpop$length_class, size=100, replace=TRUE))))
+boot.lfc <- as.data.frame(boot.lfc)
+# create dummy var for plotting below
+boot.lfc <- boot.lfc %>%
+  add_row(Var1=">130", Freq=NA) %>%
+  print()
+boot.lfc$Var1 <- factor(boot.lfc$Var1, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130", ordered=T))  
+
+# Random boostrap resampling of the DNA length-class sub-sample fish based on length class 
+boot.dnac <- prop.table(table(replicate(10000, sample(dnapop$length_class, size=100, replace=TRUE))))
+boot.dnac <- as.data.frame(boot.dnac)
+boot.dnac$Var1<-factor(boot.dnac$Var1, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130", ordered=T))
+
+# PLOT: Bootstrapped length-freq vs. bootstrapped DNA sub-sampled for LENGTH CLASS
+ggplot() +
+  geom_bar(data=boot.lfc, aes(x=Var1, y=Freq), stat="identity", fill="gray80", alpha=0.8) +
+  geom_bar(data=boot.dnac, aes(x=Var1, y=Freq), stat="identity", fill="blue", alpha=0.25, width=0.8) +
+  theme_bw()
+########### 
+
+
+
+
+#-------- Linear models (for interest)     ***** RETURN TO THIS - not updated as of Mar 2021
+
 lm.dl <- lm(pull1.dl$n ~ pull1.dl$date + pull1.dl$length_class)
 summary(lm.dl)
 r.dl<-resid(lm.dl)
@@ -259,121 +446,154 @@ plot(lm.l)                                              # Obs 16 and 68 are indi
 
 
 
+#=================================================================================================================================================
 
 
 
+# Continuing but split by stock 
 
-#-------- BOOTSTRAPPING
-  
-# random bootstrap resampling of the length-frequency only "population" of fish 
+
+#------- Bootstrap Nadina 
+nadina <- nad.df %>% 
+  filter(region1=="4") %>% 
+  print()
+
 set.seed(12345)
-boot.l <- prop.table(table(replicate(10000, sample(pop$length_mm, size=100, replace=TRUE))))
-  boot.l <- as.data.frame(boot.l)
-  ggplot(boot.l, aes(x=Var1,y=Freq))+
-    geom_bar(stat="identity")
-  
-# random boostrap resampling of the DNA length-class sub-sample fish   
-boot.lc <- prop.table(table(replicate(10000, sample(pop$length_class, size=100, replace=TRUE))))
-  boot.lc <- as.data.frame(boot.lc)
-  boot.lc$Var1<-factor(boot.lc$Var1, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130", ordered=T))
-  ggplot(boot.lc, aes(x=Var1,y=Freq))+
-    geom_bar(stat="identity")
+boot.nadl <- prop.table(table(replicate(10000, sample(nadina$length_mm, size=100, replace=TRUE))))
+boot.nadl <- as.data.frame(boot.nadl)
+boot.nadl$Var1 <- as.numeric(as.character(boot.nadl$Var1))    # for some reason it turns length to a factor 
+# Length-based bootstrap grouped by length_class and re-plotted
+boot.nadl <- boot.nadl %>% 
+  mutate(length_class = ifelse(Var1<80,"<80", 
+    ifelse(Var1>=80&Var1<90,"80-89",
+      ifelse(Var1>=90&Var1<100,"90-99",
+        ifelse(Var1>=100&Var1<110,"100-109",
+          ifelse(Var1>=110&Var1<120,"110-119",
+            ifelse(Var1>=120&Var1<=130,"120-130", ">130"))))))) %>%
+  print()
+boot.nadl$length_class<-factor(boot.nadl$length_class, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130", ordered=T))
+
+# Quantiles
+boot.nadl.q <- quantile(boot.nadl[!is.na(boot.nadl$Var1),]$Var1)
+boot.nadl.q <- as.data.frame(boot.nadl.q)
+boot.nadl.q$quantiles <- rownames(boot.nadl.q) 
+boot.nadl.q.df <- boot.nadl.q %>% rename(length=`boot.nadl.q`) %>% mutate(varname="boot.nadl.q") %>% print()
+
+nq.df <- rbind(boot.lf.q.df, boot.nadl.q.df)
 
 
-## **** there shnould be comparison plots here - NEXT DAY!! ********
-GGPLOT
-
-
-
-
-# --------------------- split for each stock: NADINA 
-pullN <- nad.df %>% 
-    mutate_at(vars(c(17)), funs(as.factor)) %>%
-    filter(dna_select_bin == "1" & region1=="4") %>% 
-    print()
-  
-# by date 
-pullN.d <- pullN %>% 
-  group_by(date) %>% 
-  summarize(n=n()) %>%
+#------- Bootstrap Stellako  
+stellako <- nad.df %>% 
+  filter(region1=="12") %>% 
   print()
 
-ggplot(pullN.d, aes(x=date, y=n)) +
-  geom_bar(stat="identity")
-
-# by length 
-pullN.l <- pullN %>% 
-  group_by(length_class) %>% 
-  summarize(n=n()) %>%
+set.seed(12345)
+boot.stel <- prop.table(table(replicate(10000, sample(stellako$length_mm, size=100, replace=TRUE))))
+boot.stel <- as.data.frame(boot.stel)
+boot.stel$Var1 <- as.numeric(as.character(boot.stel$Var1))    # for some reason it turns length to a factor 
+# Length-based bootstrap grouped by length_class and re-plotted
+boot.stel <- boot.stel %>% 
+  mutate(length_class = ifelse(Var1<80,"<80", 
+    ifelse(Var1>=80&Var1<90,"80-89",
+      ifelse(Var1>=90&Var1<100,"90-99",
+        ifelse(Var1>=100&Var1<110,"100-109",
+          ifelse(Var1>=110&Var1<120,"110-119",
+            ifelse(Var1>=120&Var1<=130,"120-130", ">130"))))))) %>%
+  add_row(Var1=NA, Freq=NA, length_class=">130") %>%
   print()
+boot.stel$length_class<-factor(boot.stel$length_class, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130", ordered=T))
 
-    length <- nad.df %>% 
-      filter(!is.na(length_mm)) %>% 
-      group_by(date,length_class) %>% 
-      summarize(n=n())
+# Quantiles
+boot.stel.q <- quantile(boot.stel[!is.na(boot.stel$Var1),]$Var1)
+boot.stel.q <- as.data.frame(boot.stel.q)
+boot.stel.q$quantiles <- rownames(boot.stel.q) 
+boot.stel.q.df <- boot.stel.q %>% rename(length=`boot.stel.q`) %>% mutate(varname="boot.stel.q") %>% print()
 
-    ggplot(length, aes(x=date, y=length_class, height=n)) +
-      geom_density_ridges(stat="identity", scale=1) 
+sq.df <- rbind(boot.lf.q.df, boot.stel.q.df)
 
-    
+
+
+####
+# PLOTS   
+####
+boot.lfl$length_class <- factor(boot.lfl$length_class, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130", ordered=T))
+
+# PLOT: Bootstrapped length-frequency compared to bootstrap Nadina DNA sub-sampled lengths by LENGTH
 ggplot() +
-  geom_bar(data=length, aes(x=length_class, y=n/10), stat="identity", fill="white", width=0.8, alpha=0.7) +
-  geom_bar(data=pullN.l, aes(x=length_class, y=n), stat="identity", colour="black", alpha=0.5) 
-
-# by date and length 
-pullN.dl <- pullN %>% 
-  group_by(date, length_class) %>% 
-  summarize(n=n()) %>%
-  print()
-
-ggplot(pullN.dl, aes(x=date, y=length_class, height=n)) +
-  geom_density_ridges(stat="identity", scale=1) 
-
-
-# --------------------- split for each stock: STELLAKO 
-pullS <- nad.df %>% 
-    mutate_at(vars(c(17)), funs(as.factor)) %>%
-    filter(dna_select_bin == "1" & region1=="12") %>% 
-    print()
-  
-# by date 
-pullS.d <- pullS %>% 
-  group_by(date) %>% 
-  summarize(n=n()) %>%
-  print()
-
-ggplot(pullS.d, aes(x=date, y=n)) +
-  geom_bar(stat="identity")
-
-# by length 
-pullS.l <- pullS %>% 
-  group_by(length_class) %>% 
-  summarize(n=n()) %>%
-  print()
-
-    length <- nad.df %>% 
-      filter(!is.na(length_mm)) %>% 
-      group_by(date,length_class) %>% 
-      summarize(n=n())
-
-    ggplot(length, aes(x=date, y=length_class, height=n)) +
-      geom_density_ridges(stat="identity", scale=1) 
-
-    
+  geom_vline(data=nq.df%>%filter(quantiles%in%c("25%", "50%", "100%")), 
+    aes(xintercept=length, colour=varname, linetype=quantiles, size=quantiles), alpha=0.95) +
+  geom_bar(data=boot.lfl, aes(x=Var1, y=Freq), stat="identity", fill="gray70", width=0.8, alpha=0.7) +
+  geom_bar(data=boot.nadl, aes(x=Var1, y=Freq), stat="identity", fill="#ffb300", alpha=0.6, width=0.6) +
+  scale_linetype_manual(breaks=c("25%", "50%", "100%"), values=c(3,1,3)) +
+  scale_size_manual(breaks=c("25%", "50%", "100%"), values=c(1.2,1,1.2)) +
+  scale_colour_manual(breaks=c("boot.lf.q", "boot.nadl.q"), values=c("gray50", "#e5a100")) +
+  scale_x_continuous(breaks=seq(0,200,by=3)) +
+  labs(y="Boostrapped Freq", x="Length (mm)") +
+  theme_bw() +
+  guides(colour = guide_legend(override.aes=list(size=1.1)))
+# PLOT: Bootstrapped length-frequency compared to bootstrap Stellako DNA sub-sampled lengths by LENGTH
 ggplot() +
-  geom_bar(data=length, aes(x=length_class, y=n/10), stat="identity", fill="white", width=0.8, alpha=0.7) +
-  geom_bar(data=pullS.l, aes(x=length_class, y=n), stat="identity", colour="black", alpha=0.5) 
+  geom_vline(data=sq.df%>%filter(quantiles%in%c("25%", "50%", "100%")), 
+    aes(xintercept=length, colour=varname, linetype=quantiles, size=quantiles), alpha=0.9) +
+  geom_bar(data=boot.lfl, aes(x=Var1, y=Freq), stat="identity", fill="gray70", width=0.8, alpha=0.7) +
+  geom_bar(data=boot.stel, aes(x=Var1, y=Freq), stat="identity", fill="blue", alpha=0.4, width=0.6) +
+  scale_linetype_manual(breaks=c("25%", "50%", "100%"), values=c(3,1,3)) +
+  scale_size_manual(breaks=c("25%", "50%", "100%"), values=c(1.2,1,1.2)) +
+  scale_colour_manual(breaks=c("boot.lf.q", "boot.stel.q"), values=c("gray50", "blue")) +
+  scale_x_continuous(breaks=seq(0,200,by=3)) +
+  labs(y="Boostrapped Freq", x="Length (mm)") +
+  theme_bw() +
+  guides(colour = guide_legend(override.aes=list(size=1.1)))
 
-# by date and length 
-pullS.dl <- pullS %>% 
-  group_by(date, length_class) %>% 
-  summarize(n=n()) %>%
-  print()
 
-ggplot(pullS.dl, aes(x=date, y=length_class, height=n)) +
-  geom_density_ridges(stat="identity", scale=1) 
-ggplot(pullS.dl, aes(x=date, y=length_class)) +
-  geom_density_ridges2()
+# PLOT: Bootstrapped length-frequency compared to bootstrap Nadina DNA sub-sampled lengths by LENGTH CLASS 
+ggplot() +
+  geom_boxplot(data=boot.lfl, aes(x=length_class, y=Freq), fill="gray80", colour="gray60", width=0.8, alpha=0.8) +
+  geom_boxplot(data=boot.nadl, aes(x=length_class, y=Freq), fill="#ffb300", colour="#ffb300", alpha=0.4, width=0.7, size=1) +
+  labs(y="Boostrapped Freq", x="Length class (mm)") +
+  theme_bw()
+# PLOT: Bootstrapped length-frequency compared to bootstrap Stellako DNA sub-sampled lengths by LENGTH CLASS 
+ggplot() +
+  geom_boxplot(data=boot.lfl, aes(x=length_class, y=Freq), fill="gray80", colour="gray60", width=0.8, alpha=0.8) +
+  geom_boxplot(data=boot.stel, aes(x=length_class, y=Freq), fill="blue", colour="blue", alpha=0.4, width=0.7, size=1) +
+  labs(y="Boostrapped Freq", x="Length class (mm)") +
+  theme_bw()
+
+
+# PLOT: Observed length-frequency compared to Nadina by LENGTH CLASS OVER TIME 
+lfpop$length_class <- factor(lfpop$length_class, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130", ordered=T))
+nadina$length_class <- factor(nadina$length_class, levels=c("90-99", "100-109", "110-119", "120-130", ">130"), ordered=T)
+ggplot() +
+  geom_density_ridges(data=lfpop%>%group_by(date, length_class)%>%summarize(n=n())%>%mutate(propn=n/sum(n)), 
+    aes(x=date, y=length_class, height=propn), 
+    stat="identity", scale=1, fill="gray80", alpha=0.7, colour="transparent") +
+  geom_density_ridges(data=nadina%>%filter(length_class!=">130")%>%group_by(date, length_class)%>%summarize(n=n())%>%mutate(propn=n/sum(n)), 
+    aes(x=date, y=length_class, height=propn), 
+    colour="transparent", fill="#ffb300", stat="identity", scale=1, alpha=0.4) +
+  scale_x_date(date_breaks="5 day", date_labels="%b %d") +
+  theme_bw()
+# PLOT: Observed length-frequency compared to Stellako by LENGTH CLASS OVER TIME 
+lfpop$length_class <- factor(lfpop$length_class, levels=c("<80", "80-89", "90-99", "100-109", "110-119", "120-130", ">130", ordered=T))
+stellako$length_class <- factor(stellako$length_class, levels=c("90-99", "100-109", "110-119", "120-130", ">130"), ordered=T)
+ggplot() +
+  geom_density_ridges(data=lfpop%>%group_by(date, length_class)%>%summarize(n=n())%>%mutate(propn=n/sum(n)), 
+    aes(x=date, y=length_class, height=propn), 
+    stat="identity", scale=1, fill="gray80", alpha=0.7, colour="transparent") +
+  geom_density_ridges(data=stellako%>%filter(length_class!=">130")%>%group_by(date, length_class)%>%summarize(n=n())%>%mutate(propn=n/sum(n)), 
+    aes(x=date, y=length_class, height=propn), 
+    colour="transparent", fill="blue", stat="identity", scale=0.98, alpha=0.25) +
+  scale_x_date(date_breaks="5 day", date_labels="%b %d") +
+  theme_bw()
+
+
+#==========================================#
+# Raw points over time 
+ggplot(data=nad.df, aes(x=date, y=length_mm, group=sampling_method, fill=sampling_method, colour=sampling_method)) +
+  geom_point(shape=21, size=3, alpha=0.5) +
+  theme_bw()
+
+
+
 
 
 
