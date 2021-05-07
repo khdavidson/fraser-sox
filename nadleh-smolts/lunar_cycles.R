@@ -14,7 +14,8 @@ library(openxlsx)
 naut9900 <- read.csv("1999-2000 Nautley data.csv")
 nad.19raw <- read.xlsx("nadleh_ANALYTICAL_database_2019.xlsx", sheet=2, detectDates = T)
 inseason2021 <- read.xlsx("nadleh_data_entry_2021.xlsx", sheet = "nightly_catch", detectDates = T)
-moon <- read.csv("moon_phase_nadleh.csv")
+chilko.raw <- read.csv("chilko_smolt_database_template 1956-2019 - daily data.csv")
+moon.raw <- read.csv("moon_phases.csv")
 
 
 ##########################################################################################################################################################################
@@ -52,14 +53,26 @@ nad.19$end_time <- factor(nad.19$end_time,
 
 
 #-------- Moon data clean 
-moon <- moon %>%
+moon <- moon.raw %>%
   mutate(date=ifelse(date=="18-May", "18-May-00", date)) %>% 
   mutate(date=as.Date(date, format="%d-%b-%y")) %>% 
-  mutate(total=2000) %>% 
+  mutate(total=100) %>% 
   mutate(yday=lubridate::yday(date)) %>%
   rename(moon=moon_phase) %>%
   select(date, year, total, yday, moon) %>%
   print()
+
+
+#-------- Chilko data clean 
+chilko <- chilko.raw %>%
+  mutate_at("total_abundance", as.numeric) %>% 
+  mutate_at("age1_daily_abundance", as.numeric) %>% 
+  mutate_at("age2_daily_abundance", as.numeric) %>% 
+  mutate(date = lubridate::dmy(date)) %>% 
+  mutate(yday = lubridate::yday(date)) %>%
+  filter(year > 2000) %>%
+  print()
+  
 
 
 ########################################################################################################################################################################
@@ -100,14 +113,14 @@ inseason2021summary <- inseason2021 %>%
   print()
 
 #-------- Join
-daily2 <- rbind(as.data.frame(daily), as.data.frame(daily19), as.data.frame(inseason2021summary), as.data.frame(moon))
+daily2 <- rbind(as.data.frame(daily), as.data.frame(daily19), as.data.frame(inseason2021summary))
 
 
-#-------- Plot
+#-------- Plot NADLEH
 ggplot() +
   geom_line(data=daily2%>%filter(is.na(moon)), aes(x=as.Date(yday, origin="2000-01-01"), y=total, group=year, colour=year), size=0.9) +
   geom_point(data=daily2%>%filter(is.na(moon)), aes(x=as.Date(yday, origin="2000-01-01"), y=total, group=year, colour=year, fill=year), stroke=1.5, pch=21, size=3, alpha=0.7) + 
-  geom_point(data=daily2%>%filter(!is.na(moon)), aes(x=as.Date(yday, origin="2000-01-01"), y=total, group=year), colour="red", fill="red", stroke=1.5, pch=25, size=3) + 
+  geom_point(data=moon%>%filter(year%in%c(1999,2000,2019,2021)), aes(x=as.Date(yday, origin="2000-01-01"), y=total, group=year), colour="red", fill="red", stroke=1.5, pch=25, size=3) + 
   
   scale_x_date(date_labels="%b %d", date_breaks="5 day") +
   labs(x="", y="Raw catch") +
@@ -121,6 +134,26 @@ ggplot() +
         axis.text = element_text(colour="black", size=13), 
         axis.title = element_text(face="bold", size=15),
         strip.text = element_text(size=13))
+
+
+#-------- Plot CHILKO 
+ggplot() +
+  geom_line(data=chilko, aes(x=as.Date(yday, origin="2000-01-01"), y=total_abundance/1000), colour="gray50", size=1) +
+  geom_point(data=chilko, aes(x=as.Date(yday, origin="2000-01-01"), y=total_abundance/1000), fill="gray30", colour="black", stroke=1.5, pch=21, size=2, alpha=0.6) +
+  geom_point(data=moon%>%filter(year>2000), aes(x=as.Date(yday, origin="2000-01-01"), y=total), colour="red", fill="red", stroke=1.5, pch=25, size=3) +
+  facet_wrap(.~year, scales = "free_y") +
+  theme_bw() +
+  theme(legend.position=c(0.1,0.9),
+        legend.title=element_blank(),
+        legend.text=element_text(size=13),
+        legend.spacing.y = unit(0, "mm"),
+        legend.background = element_rect(colour="black"),
+        axis.text = element_text(colour="black", size=13), 
+        axis.title = element_text(face="bold", size=15),
+        strip.text = element_text(size=13))
+
+
+
 
 
 
