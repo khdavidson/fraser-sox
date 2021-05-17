@@ -8,7 +8,6 @@
 
 # load packages to use
 library(tidyverse)
-#library(xlsx)       # Not working lately
 library(openxlsx)
 
 # set working directory where Excel sonar data entry file is
@@ -80,11 +79,12 @@ env <- env.raw %>%                                                              
 # Function to calculate daily abundance based on all files, every 2nd file and every 3rd file counted
 count.summary.fx <- function(group_name, expansion_factor){                                                    # Tell function argument names to take later
   counts %>%                                                                                                   # call dataframe to manipulate
-    filter(hr_bin=="0-20 min", count_n==1, grepl(group_name, group)) %>%                                       # filter to select only 0-20min files, primary counts, and detect a pattern (using "grepl") based on the argument group_name (which we supply as a function argument manually) within the variable named "group"
-    group_by(date) %>%                                                                                         # group by date
-    summarize(daily_total=sum(sox_us_net), "Number of files counted (every {group_name})" := n()) %>%          # sum up the net upstream sockeye each day in a new column called "daily_total", and then count the number of files each day in a new column called "Number of files counted (every {group_name})", where "{group_name}" will be replaced by a custom name we give as a function argument
-    mutate("Daily net upstream (expanded*{expansion_factor})" := daily_total*expansion_factor) %>%             # create a new column called "Daily net upstream (expanded*{expansion_factor})" where "{group_name}" will be replaced by a custom name we give as a function argument. This will expand the daily sockeye counts by a custom expansion factor we give as a function argument called "expansion_factor"
-    select(-daily_total)                                                                                       # Remove the original unexpanded daily net total to replicate exactly the Excel in-season report
+    filter(hr_bin=="0-20 min", grepl(group_name, group)) %>%                                                   # filter to select only 0-20min files, primary counts, and detect a pattern (using "grepl") based on the argument group_name (which we supply as a function argument manually) within the variable named "group"
+    group_by(date, bank, count_hr) %>%                                                                         # group by date
+    summarize(hour_bank_mean=mean(sox_us_net)) %>%                                                             # sum up the net upstream sockeye each day in a new column called "daily_total", and then count the number of files each day in a new column called "Number of files counted (every {group_name})", where "{group_name}" will be replaced by a custom name we give as a function argument
+    group_by(date) %>% 
+    summarize("Number of files counted (every {group_name})" := n(),
+              "Daily net upstream (expanded*{expansion_factor})" := round(sum(hour_bank_mean)*expansion_factor, 0)) 
 }                                                         
 
 # Create a pipe to use the function to calculate daily passage and expand it, and then join it together in one table
@@ -98,16 +98,15 @@ counts.daily <- count.summary.fx("A", 3) %>%                                    
 #---------- ENVIRO data
 # Extract daily water gauge and temperature data
 env.daily <- env %>%                                                                                           # call the "env" dataframe and create a pipe storing everything in "env.daily"
-  group_by(date) %>%                                                                                           # group by date 
-  summarize("Water temperature" = water_temp, "Water gauge (m)" = gauge_m) %>%                                 #
+  group_by(date) %>%                                                                                           # Retain by date
+  summarize("Water temperature" = water_temp, "Water gauge (m)" = gauge_m) %>%                                 # Pull out only water temp and level and rename columns
   print()
 
 
 #---------- THE WHOLE SHABANG
-inseason.report <- full_join(env.daily, counts.daily, by="date")                                               # Join the expanded count data and the environmental data together by individual "date" to replicate the Excel in-season sonar report 
-
-
-
+inseason.report <- full_join(env.daily, counts.daily, by="date") %>%                                           # Join the expanded count data and the environmental data together by individual "date" to replicate the Excel in-season sonar report 
+  arrange(date) %>%                                                                                            # arrange by date
+  print
 
 
 
