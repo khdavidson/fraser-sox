@@ -77,35 +77,35 @@ env <- env.raw %>%                                                              
 
 #---------- COUNT data
 # Function to calculate daily abundance based on all files, every 2nd file and every 3rd file counted
-count.summary.fx <- function(group_name, expansion_factor){                                                    # Tell function argument names to take later
-  counts %>%                                                                                                   # call dataframe to manipulate
-    filter(hr_bin=="0-20 min", grepl(group_name, group)) %>%                                                   # filter to select only 0-20min files, primary counts, and detect a pattern (using "grepl") based on the argument group_name (which we supply as a function argument manually) within the variable named "group"
-    group_by(date, bank, count_hr) %>%                                                                         # group by date
-    summarize(hour_bank_mean=mean(sox_us_net)) %>%                                                             # sum up the net upstream sockeye each day in a new column called "daily_total", and then count the number of files each day in a new column called "Number of files counted (every {group_name})", where "{group_name}" will be replaced by a custom name we give as a function argument
-    group_by(date) %>% 
-    summarize("Number of files counted (every {group_name})" := n(),
-              "Daily net upstream (expanded*{expansion_factor})" := round(sum(hour_bank_mean)*expansion_factor, 0)) 
+count.summary.fx <- function(group_name, expansion_factor){                                                                # tell function argument names to take later
+  counts %>%                                                                                                               # call dataframe to manipulate
+    filter(hr_bin=="0-20 min", grepl(group_name, group)) %>%                                                               # filter to select only 0-20min files and detect a pattern (using "grepl") based on the argument group_name (which we supply as a function argument manually) within the variable named "group"
+    group_by(date, bank, count_hr) %>%                                                                                     # group by date, bank, and hour
+    summarize(hour_bank_mean=mean(sox_us_net)) %>%                                                                         # calculate the average number of sockeye when there is more than one count of the same file (i.e., when primary and secondary counts occur)
+    group_by(date) %>%                                                                                                     # group by date
+    summarize("Number of files counted (every {group_name})" := n(),                                                       # count the number of files each day in a new column called "Number of files counted (every {group_name})", where "{group_name}" will be replaced by a custom name we give as a function argument
+              "Daily net upstream (expanded*{expansion_factor})" := round(sum(hour_bank_mean)*expansion_factor, 0))        # sum up the net upstream sockeye each day and round to the nearest whole number, and store in a new column called "Daily net upstream (expanded*{expansion_factor})", where "{expansion_factor}" will be replaced by a custom expansion factor value we give as a function argument
 }                                                         
 
 # Create a pipe to use the function to calculate daily passage and expand it, and then join it together in one table
 # This replicates taking every file and multiplying by 3, every 2nd file and multiplying by 6, and every 3rd file and multiplying by 9. 
-counts.daily <- count.summary.fx("A", 3) %>%                                                                   # call the function "count.summary.fx" we created above. Give it the first custom arguments of "A" and "3". "A" detects all entries with an "A" in the "group" variable, while "3" multiples the daily net upstream sockeye movement by a factor of 3. Store the results of this entire pipe in "counts.daily"
-  full_join(count.summary.fx("2", 6), by="date") %>%                                                           # call the function "count.summary.fx" we created above. Give it the first custom arguments of "2" and "6". "2" detects all entries with a "2" in the "group" variable, while "6" multiples the daily net upstream sockeye movement by a factor of 6. Join it ("full_join") to the results of the function call above. 
-  full_join(count.summary.fx("3", 9), by="date") %>%                                                           # call the function "count.summary.fx" we created above. Give it the first custom arguments of "3" and "6". "3" detects all entries with a "3" in the "group" variable, while "9" multiples the daily net upstream sockeye movement by a factor of 9. Join it ("full_join") to the results of the function calls above. 
-  print()                                                                                                      # show the results to make sure it worked 
+counts.daily <- count.summary.fx("A", 3) %>%                                                                               # call the function "count.summary.fx" we created above. Give it the first custom arguments of "A" and "3". "A" detects all entries with an "A" in the "group" variable, while "3" multiples the daily net upstream sockeye movement by a factor of 3. Store the results of this entire pipe in "counts.daily"
+  full_join(count.summary.fx("2", 6), by="date") %>%                                                                       # call the function "count.summary.fx" we created above. Give it the first custom arguments of "2" and "6". "2" detects all entries with a "2" in the "group" variable, while "6" multiples the daily net upstream sockeye movement by a factor of 6. Join it ("full_join") to the results of the function call above. 
+  full_join(count.summary.fx("3", 9), by="date") %>%                                                                       # call the function "count.summary.fx" we created above. Give it the first custom arguments of "3" and "6". "3" detects all entries with a "3" in the "group" variable, while "9" multiples the daily net upstream sockeye movement by a factor of 9. Join it ("full_join") to the results of the function calls above. 
+  print()                                                                                                                  # show the results to make sure it worked 
 
 
 #---------- ENVIRO data
 # Extract daily water gauge and temperature data
-env.daily <- env %>%                                                                                           # call the "env" dataframe and create a pipe storing everything in "env.daily"
-  group_by(date) %>%                                                                                           # Retain by date
-  summarize("Water temperature" = water_temp, "Water gauge (m)" = gauge_m) %>%                                 # Pull out only water temp and level and rename columns
+env.daily <- env %>%                                                                                                       # call the "env" dataframe and create a pipe storing everything in "env.daily"
+  group_by(date) %>%                                                                                                       # retain by date
+  summarize("Water temperature" = water_temp, "Water gauge (m)" = gauge_m) %>%                                             # pull out only water temp and level and rename columns
   print()
 
 
 #---------- THE WHOLE SHABANG
-inseason.report <- full_join(env.daily, counts.daily, by="date") %>%                                           # Join the expanded count data and the environmental data together by individual "date" to replicate the Excel in-season sonar report 
-  arrange(date) %>%                                                                                            # arrange by date
+inseason.report <- full_join(env.daily, counts.daily, by="date") %>%                                                       # join the expanded count data and the environmental data together by individual "date" to replicate the Excel in-season sonar report 
+  arrange(date) %>%                                                                                                        # arrange by date
   print
 
 
