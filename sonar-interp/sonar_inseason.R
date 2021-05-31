@@ -8,14 +8,14 @@
 
 # load packages to use
 library(tidyverse)
-library(openxlsx)
+library(readxl)
 
 # set working directory where Excel sonar data entry file is
 setwd("~/ANALYSIS/data/Sonar")                                                                #**** NEEDS TO BE CUSTOMIZED FOR EACH USER
 
 # read in data 
-counts.raw <- read.xlsx("Chilko Sonar Tool 2019- no infill.xlsm", sheet=7, startRow=5, cols=c(1:12), colNames=T, detectDates=T)
-env.raw <- read.xlsx("Chilko Sonar Tool 2019- no infill.xlsm", sheet=2, startRow=3, cols=c(1:13), colNames=T, detectDates=T)
+counts.raw <- read_excel("Stellako_Sonar_tool_2020.xlsm", sheet="Data entry", skip=4, col_names=T)
+env.raw <- read_excel("Stellako_Sonar_tool_2020.xlsm", sheet="Environmental Data", skip=2, col_names=T)
 
 
 ################################################################################################################################################################
@@ -29,18 +29,18 @@ counts <- counts.raw %>%                                                        
   rename(bank = Bank,
          observer = Observer,
          date = Date,
-         count_hr = Count.Hour,
-         hr_bin = Portion.of.hour,
-         file_length_min = Time.counted_min,
+         count_hr = `Count Hour`,
+         hr_bin = `Portion of hour`,
+         file_length_min = `Time counted_min`,
          sox_us = Sox_us,
          sox_ds = Sox_ds,
          ch_us = CH_us,
          ch_ds = CH_ds,
-         count_n = `Obs.Count.#`,
+         count_n = `Obs Count #`,
          comments = Comments) %>%
   mutate_at("count_hr", as.numeric) %>%                                                       # reformat some integers to be numeric
   #filter(!is.na(count_n)) %>%                                                                # remove rows where count_n is an NA 
-  mutate(sox_us_net = sox_us-sox_ds) %>%                                                      # calculate net upstream
+  mutate(sox_us_net = sox_us-sox_ds) %>%                                                      # calculate net upstream - ** Note if one of these values are NA (blank), it will not work!
   mutate(group = ifelse(count_hr%in%c(2,4,8,10,14,16,20,22), "A2", 
                         ifelse(count_hr%in%c(3,9,15,21), "A3", 
                                ifelse(count_hr%in%c(0,6,12,18), "A23", "A")))) %>%
@@ -50,11 +50,11 @@ counts <- counts.raw %>%                                                        
 
 #---------- ENVIRONMENTAL data
 env <- env.raw %>%                                                                            # rename columns to be more R friendly
-  rename(date = `Date.(dd/mm/yy)`,
+  rename(date = `Date (dd/mm/yy)`,
          observer_1 = Observer1, 
          observer_2 = Observer2,
          time = Time,
-         gauge_m = `Gauge.(m)`,
+         gauge_m = `Gauge (m)`,
          bankfull = `%Bankfull`,
          brightness = Brightness,
          cloud_cover = `%Cloudy`,
@@ -84,7 +84,7 @@ count.summary.fx <- function(group_name, expansion_factor){                     
     summarize(hour_bank_mean=mean(sox_us_net)) %>%                                                                         # calculate the average number of sockeye when there is more than one count of the same file (i.e., when primary and secondary counts occur)
     group_by(date) %>%                                                                                                     # group by date
     summarize("Number of files counted (every {group_name})" := n(),                                                       # count the number of files each day in a new column called "Number of files counted (every {group_name})", where "{group_name}" will be replaced by a custom name we give as a function argument
-              "Daily net upstream (expanded*{expansion_factor})" := round(sum(hour_bank_mean)*expansion_factor, 0))        # sum up the net upstream sockeye each day and round to the nearest whole number, and store in a new column called "Daily net upstream (expanded*{expansion_factor})", where "{expansion_factor}" will be replaced by a custom expansion factor value we give as a function argument
+              "Daily net upstream (expanded*{expansion_factor})" := round(sum(hour_bank_mean)*expansion_factor, 0))        # sum up the net upstream sockeye each day and round to the nearest whole number (but note R rounds .5 to the nearest EVEN number), and store in a new column called "Daily net upstream (expanded*{expansion_factor})", where "{expansion_factor}" will be replaced by a custom expansion factor value we give as a function argument
 }                                                         
 
 # Create a pipe to use the function to calculate daily passage and expand it, and then join it together in one table
