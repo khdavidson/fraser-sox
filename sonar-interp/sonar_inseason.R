@@ -1,7 +1,7 @@
 
-# ALLO! 
-
 # Code to replicate the "Inseason_reporting" tab in Excel sonar tools
+# written May 2021 by KD
+# verified with six unverifield "field quality" sonar files from 2020 season in May 2021 by D. Couture
 
 
 ################################################################################################################################################################
