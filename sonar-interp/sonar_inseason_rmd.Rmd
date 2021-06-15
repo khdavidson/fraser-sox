@@ -1,0 +1,220 @@
+---
+title: ""
+author: "Fraser Interior Area Sockeye Stock Assessment"
+date: "Report generated: `r Sys.Date()`"
+output: 
+  word_document: 
+    reference_docx: "sonar_inseason_styles-01.docx"
+---
+
+```{r echo=F, include=F}
+################################ READ ME FIRST OR ELSE YOU WILL BE SAD ################################ 
+
+# Hello! Welcome to the R script that generates in-season sonar reports! 
+# This script was brought to you by K. Davidson and D. Couture in May 2021.
+
+
+#--------- SOME NOTES ON THE ORGANIZATION OF THIS SCRIPT: 
+# This script was written to be able to generalize across any sonar project Excel data entry file **provided they are the same format as the 2020 files**. However, look for the << >> symbols in this script. These indicate lines of code that you have to customize. Follow the instructions below to customize the code. You shouldn't have to customize anything other than these two items:
+# 1. Working directory
+#    How to: Click Session > Set Working Directory > Chose Directory... > navigate to the folder on your computer where the Excel data file of                interest is stored. In the console window below, you will see an address appear, something like setwd("~/ANALYSIS/data/sonar_data").              I would recomment copy-pasting this into your script at the top, in place of where my working directory is in the R code chunk                   below. That is because you will have to re-set it each time you open the script anew; by pasting it into your script now, it will                save you time in the future!
+# 2. Excel file name for each project
+#    How to: In the code chunk below, you will see the following command:  counts.raw <- read_excel("Stellako_Sonar_tool_2020.xlsm", sheet="Data              entry", skip=4, col_names=T). The piece in the quotation marks, "Stellako_Sonar_tool_2020.xlsm", is what you will need to change for              each new project sonar file. For example, if you want to load the Chilko 2021 file, you will probably have to replace                            "Stellako_Sonar_tool_2020.xlsm" with "Chilko_Sonar_tool_2021.xlsm". All of the remaining pieces of code can stay the same. 
+
+# Any line that starts with a '#' means it is an annotation and it won't run as part of the code or analysis. This is an easy way to write notes, comments, etc. without having them impact your code. It is similar to starting a line of code with a ' symbol in Excel macro VBA code. Each line of code here has attempted to be annotated in plain language to inform the user of the specific data manipulations occurring in each row. 
+
+# In this specific format (called Rmarkdown), it is an extra step in the coding process that can take code and directly produce a document in either MS Word, PDF, or HTML format. Therefore, this script structure looks a bit different than you might expect. See the accompanying word doc 'sonar_inseason_cheatsheet' for more details. 
+
+
+
+#--------- TO RUN THE SCRIPT / GENERATE THE REPORT:
+# To run each block (or chunk) of R code (the grey shaded boxes that start with ```{r}) independently, press the green 'play' button. This can be useful if you want to troubleshoot a specific part of the code, see a specific piece of the work flow, etc. YOU DON'T HAVE TO DO THIS.
+
+# To generate the report, click the 'Knit' button at the top of the window, just above the top line of code showing. 
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Before running this RMarkdown, in a separate R script do: 
+# 1. run    tinytex::install_tinytex()
+# 2. run    library(tinytex)
+# This will install a package to create a PDF output from R. You only have to do this one time per computer, and then never do it again!
+
+
+# load packages to use
+library(tidyverse)     # for everything
+library(readxl)        # for read_excel()
+library(pander)        # for table outputs
+#library(tinytex)
+#tinytex::install_tinytex()   # for knit to pdf
+
+# Set pander table formatting settings
+panderOptions('table.alignment.default', function(df)
+    ifelse(sapply(df, is.numeric), 'right', 'left'))
+panderOptions('table.split.table', Inf)
+panderOptions('big.mark', ",")
+panderOptions('keep.trailing.zeros', TRUE)
+
+# set working directory where Excel sonar data entry file is
+setwd("~/ANALYSIS/data/Sonar")                                                                #**** NEEDS TO BE CUSTOMIZED FOR EACH USER
+
+# read in data 
+counts.raw <- read_excel("Stellako_Sonar_tool_2020.xlsm", sheet="Data entry", skip=4, col_names=T)
+env.raw <- read_excel("Stellako_Sonar_tool_2020.xlsm", sheet="Environmental Data", skip=2, col_names=T)
+project.name <- as.vector(colnames(read_excel("Stellako_Sonar_tool_2020.xlsm", sheet="Data entry", range="E1:E1")))
+project.year <- lubridate::year(counts.raw$Date[1])
+
+
+###############################
+# CLEAN THE DATA FOR USE IN R #
+###############################
+
+#---------- COUNT data 
+counts <- counts.raw %>%                                                                      # rename columns to be more R friendly
+  rename(bank = Bank,
+         observer = Observer,
+         date = Date,
+         count_hr = `Count Hour`,
+         hr_bin = `Portion of hour`,
+         file_length_min = `Time counted_min`,
+         sox_us = Sox_us,
+         sox_ds = Sox_ds,
+         ch_us = CH_us,
+         ch_ds = CH_ds,
+         count_n = `Obs Count #`,
+         comments = Comments) %>%
+  mutate_at("count_hr", as.numeric) %>%                                                       # reformat some integers to be numeric
+  mutate_at("date", as.Date) %>% 
+  #filter(!is.na(count_n)) %>%                                                                # remove rows where count_n is an NA 
+  mutate(sox_us_net = sox_us-sox_ds) %>%                                                      # calculate net upstream - ** Note if one of these values are NA (blank), it will not work!
+  mutate(group = ifelse(count_hr%in%c(2,4,8,10,14,16,20,22), "all, every 2nd", 
+                        ifelse(count_hr%in%c(3,9,15,21), "all, every 3rd", 
+                               ifelse(count_hr%in%c(0,6,12,18), "all, every 2nd, every 3rd", "all")))) %>%
+  arrange(date, hr_bin, bank) %>%                                                             # ordered by date, and then count hour (1-24)
+  print()
+
+
+#---------- ENVIRONMENTAL data
+env <- env.raw %>%                                                                            # rename columns to be more R friendly
+  rename(date = `Date (dd/mm/yy)`,
+         observer_1 = Observer1, 
+         observer_2 = Observer2,
+         time = Time,
+         gauge_m = `Gauge (m)`,
+         bankfull = `%Bankfull`,
+         brightness = Brightness,
+         cloud_cover = `%Cloudy`,
+         precip_type = PrecType,
+         precip_int = PrecInt,
+         fish_vis = FishVis,
+         water_temp = WTemp,
+         water_clarity = WClarity) %>%
+  mutate_at("gauge_m", as.numeric) %>%
+  print()
+```
+
+```{r echo=F, include=F}
+#---------- COUNT data
+# Function to calculate daily abundance based on all files, every 2nd file and every 3rd file counted
+count.summary.fx <- function(group_name, expansion_factor){                  
+  counts %>%                                                                 
+    filter(hr_bin=="0-20 min", grepl(group_name, group)) %>%      
+    group_by(date, bank, count_hr) %>%                                                                                     
+    summarize(hour_bank_mean=mean(sox_us_net)) %>%                                                                         
+    group_by(date) %>%                                                                                                     
+    summarize("Number of files counted ({group_name})" := n(),                                                      
+              "Daily net upstream (expanded x{expansion_factor})" := round(sum(hour_bank_mean)*expansion_factor, 0))   
+}                                                         
+
+# Create a pipe to use the function to calculate daily passage and expand it, and then join it together in one table
+# This replicates taking every file and multiplying by 3, every 2nd file and multiplying by 6, and every 3rd file and multiplying by 9. 
+# Creates a wide-form table to mimic Excel in-season reports.
+counts.daily <- count.summary.fx("all", 3) %>%                                                                               
+  full_join(count.summary.fx("every 2nd", 6), by="date") %>%                                                                       
+  full_join(count.summary.fx("every 3rd", 9), by="date") %>%                                                                       
+  print()
+
+# Convert to long-form data for ease of plotting below (R friendly format)
+counts.daily.long1 <- counts.daily %>%
+  pivot_longer(cols = c(`Number of files counted (all)`,`Number of files counted (every 2nd)`, `Number of files counted (every 3rd)`), names_to="count_method", values_to = "n_files_counted") %>%
+  select(date, count_method, n_files_counted)
+
+counts.daily.long2 <- counts.daily %>%
+  pivot_longer(cols=c(`Daily net upstream (expanded x3)`, `Daily net upstream (expanded x6)`, `Daily net upstream (expanded x9)`), names_to="expansion_method", values_to="net_us_sox") %>%
+  select(expansion_method, net_us_sox)
+
+counts.daily.long <- cbind(counts.daily.long1, counts.daily.long2) 
+
+
+#---------- ENVIRO data
+# Extract daily water gauge and temperature data
+env.daily <- env %>%                                                                                                       
+  group_by(date) %>%                                                                                                       
+  summarize("Water temperature"=water_temp, "Water gauge (m)"=gauge_m) %>%                                              
+  print()
+
+
+#---------- THE WHOLE SHABANG
+inseason.report <- full_join(env.daily, counts.daily, by="date") %>%                                                       
+  arrange(date) %>% 
+  mutate(date = as.character(date, format="%a, %b %d, %Y")) %>%
+  rename(Date=date) %>%
+  print
+
+# Function to make the report table column headers bold in Word output
+names(inseason.report) <- pandoc.strong.return(names(inseason.report))
+```
+
+&nbsp;
+
+&nbsp;
+
+## Sonar In-Season Report for `r project.name` `r project.year` ## 
+
+This is the in-season report generated for the sonar program showing daily net upstream sockeye migration in tabular and visual format. Data are preliminary, unverified, and subject to change.
+
+&nbsp;
+
+*Table 1. Daily net upstream sockeye migration expanded using different methods based on file count sub-sets.*
+```{r echo=F, warning=F, message=F}
+pander(pandoc.table(inseason.report))
+```
+
+&nbsp;
+
+```{r echo=F, warning=F, message=F}
+ggplot(data=counts.daily.long%>%filter(grepl("all", count_method)), aes(x=as.Date(date), y=net_us_sox)) +
+  geom_bar(stat="identity", colour="black", fill="dodger blue") +
+  scale_x_date(date_breaks="7 day", date_labels = "%b %d") +
+  labs(x="Date", y="Net upstream sockeye", title="All files counted", caption = "Figure 1. Daily net upstream sockeye passage based on all files counted.") +
+  theme_bw() +
+  theme(axis.text = element_text(colour="black", size=8),
+        axis.title = element_text(face="bold", size=10),
+        plot.title = element_text(vjust=-10, hjust=0.92, face="bold"),
+        plot.caption = element_text(size=8, face = "italic", hjust=0.5))
+```
+
+&nbsp;
+
+```{r echo=F, warning=F, message=F}
+ggplot(data=counts.daily.long, aes(x=as.Date(date), y=net_us_sox, group=count_method, fill=count_method)) +
+  geom_bar(stat="identity", position="dodge", width=0.7) +
+  scale_x_date(date_breaks="7 day", date_labels = "%b %d") +
+  scale_fill_manual(values=c("dodger blue", "green", "orange"), labels=c("All", "Every 2nd", "Every 3rd")) +
+  labs(x="Date", y="Net upstream sockeye", fill="File count method", caption = "Figure 2. Daily net upstream sockeye passage based on three file counting methods.") +
+  theme_bw() +
+  theme(axis.text = element_text(colour="black", size=8),
+        axis.title = element_text(face="bold", size=10),
+        legend.position = c(0.8,0.8),
+        legend.background = element_rect(colour="black"),
+        legend.text = element_text(size=8),
+        legend.title=element_text(size=10, face="bold"),
+        legend.key.width = unit(3, "mm"),
+        legend.key.height = unit(2, "mm"),
+        plot.caption = element_text(size=8, face = "italic", hjust=0.5))
+```
+
+
+
+
