@@ -5,7 +5,7 @@
 
 library(tidyverse)
 library(ggmap)
-  # register_google(key = "AIzaSyBZtlOvI_D2-aMTG8WpBIRNfNyIk0gHv0A", write = TRUE)
+  # register_google(key = "[your key]", write = TRUE)      find key at https://console.cloud.google.com/apis/credentials/
   # Adding key to C:\Users\davidsonka\Documents/.Renviron
 library(rgdal)
 library(rgeos)
