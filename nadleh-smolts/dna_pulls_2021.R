@@ -10,11 +10,11 @@ library(readxl)
 setwd("~/ANALYSIS/data")
 
 # Biosample data 
-nad.bio.raw <- read_excel("nadleh_data_entry_2021_fieldfinal.xlsx", sheet="biosampling", na="NA")
-stel.bio.raw <- read_excel("stellako_data_entry_2021_fieldfinal.xlsx", sheet="biosampling", na="NA")
+nad.bio.raw <- read_excel("nadleh_data_entry_2021_verifiedSH.xlsx", sheet="biosampling", na="NA")
+stel.bio.raw <- read_excel("stellako_data_entry_2021_verifiedSH.xlsx", sheet="biosampling", na="NA")
 # Catch data
-nad.catch.raw <- read_excel("nadleh_data_entry_2021_fieldfinal.xlsx", sheet="nightly_catch", na="NA")
-stel.catch.raw <- read_excel("stellako_data_entry_2021_fieldfinal.xlsx", sheet="nightly_catch", na="NA")
+nad.catch.raw <- read_excel("nadleh_data_entry_2021_verifiedSH.xlsx", sheet="nightly_catch", na="NA")
+stel.catch.raw <- read_excel("stellako_data_entry_2021_verifiedSH.xlsx", sheet="nightly_catch", na="NA")
 
 ##################################################################################################################################################
 
@@ -34,7 +34,12 @@ catch.dat <- catch.raw %>%
 
 #--------- PULL DNA FISH
 dna.dat <- bio.dat %>%
-  filter(!is.na(whatman_sheet) & !is.na(whatman_cell)) %>%  #!grepl("hinook", comments) not included initially - be sure to include in future. Not re-running with this because it will change the random selection.
+  filter(!is.na(whatman_sheet) & !is.na(whatman_cell), 
+         !grepl("hinook", comments),
+         !grepl("don't run", comments),
+         !grepl("dead", comments),
+         !grepl("issed length", comments),
+         !grepl("no fin clip", comments)) %>%  
   print()
 
 
@@ -58,15 +63,14 @@ nadleh.dna <- dna.dat %>%
   filter(site=="Nadleh") %>% 
   group_by(date_closed) %>% 
   summarize(n=n()) %>%
-  mutate(cutoff = ifelse(date_closed>=as.Date("2021-04-25") & date_closed<=as.Date("2021-04-28"), 10,
-                         ifelse(date_closed>=as.Date("2021-04-30") & date_closed<=as.Date("2021-05-05"), 10,
-                                ifelse(date_closed>=as.Date("2021-05-07") & date_closed<=as.Date("2021-05-16"), 10, NA)))) %>%
+  mutate(n_analyzed = ifelse(date_closed==as.Date("2021-04-25") | date_closed>=as.Date("2021-04-28") & date_closed<=as.Date("2021-05-16"), 10, 
+                             ifelse(date_closed==as.Date("2021-04-26") | date_closed==as.Date("2021-04-27"), 20, NA))) %>%
   print() 
 
-sum(nadleh.dna$cutoff, na.rm=T)
+sum(nadleh.dna$n_analyzed, na.rm=T)
 
-# Analysis plan for Nadleh: send n=10 samples each day for the main peaks. Inflection points will be detected between peaks if major stock ID 
-# shifts occur. The tails are less important right now as they are the stragglers, but may be useful based on Stellako DNA results.
+# Analysis plan for Nadleh: send n=10 samples each day for the main peaks, plus inflection points for continuous. 
+# The tails are less important right now as they are the stragglers, but may be useful based on Stellako DNA results.
 
 
 # Stella
@@ -94,7 +98,7 @@ ggplot() +
            aes(x=date_closed, y=n), stat="identity", position="dodge", colour="orange", fill="orange", alpha=0.7, width=0.8) +
   geom_point(data=daily.catch%>%filter(site=="Nadleh"), aes(x=date_closed, y=total/100), size=2, alpha=0.6) +
   geom_line(data=daily.catch%>%filter(site=="Nadleh"), aes(x=date_closed, y=total/100), size=1, alpha=0.6) +
-  geom_bar(data=nadleh.dna, aes(x=date_closed, y=cutoff), stat="identity", position="dodge", fill="green", alpha=0.5) +
+  geom_bar(data=nadleh.dna, aes(x=date_closed, y=n_analyzed), stat="identity", position="dodge", fill="green", alpha=0.5) +
   scale_y_continuous(breaks=seq(0,55,by=5), name="DNA samples", sec.axis = sec_axis(~.*100, name="Catch", breaks=seq(0,6000,by=1000))) +
   scale_x_date(date_breaks="3 day", date_labels="%B %d") +
   theme_bw()
@@ -122,14 +126,26 @@ ggplot(data=dna.dat%>%filter(site=="Stellako")%>%group_by(site, date_closed)%>%s
 # 2021-04-30 to 2021-05-05 (n=10 per day)
 # 2021-05-07 to 2021-05-16 (n=10 per day)
 set.seed(123)
-nadleh.first.pull <- dna.dat %>% 
+nadleh.rando10 <- dna.dat %>% 
   filter(site=="Nadleh", 
-         date_closed>=as.Date("2021-04-25") & date_closed<=as.Date("2021-04-28") |
-         date_closed>=as.Date("2021-04-30") & date_closed<=as.Date("2021-05-05") |
-         date_closed>=as.Date("2021-05-07") & date_closed<=as.Date("2021-05-16") ) %>% 
+         date_closed==as.Date("2021-04-25") | date_closed>=as.Date("2021-04-28"), date_closed<=as.Date("2021-05-16")) %>% 
   group_by(date_closed) %>%
   slice_sample(n=10) %>%
   print()
+
+set.seed(123)
+nadleh.rando20 <- dna.dat %>% 
+  filter(site=="Nadleh", 
+         date_closed==as.Date("2021-04-26") | date_closed==as.Date("2021-04-27")) %>% 
+  group_by(date_closed) %>%
+  slice_sample(n=20) %>%
+  print()
+
+nadleh.2yo <- dna.dat %>% 
+  filter(grepl("2 year old", comments)) %>% 
+  print()
+
+nadleh.first.pull <- rbind(nadleh.rando10, nadleh.rando20, nadleh.2yo)
 
 
 #------- STELLA DNA PULL
@@ -153,11 +169,11 @@ stella.tails <- dna.dat %>%
   slice_sample(n=10) %>%
   print()
 
-stella.may06 <- dna.dat %>% 
-  filter(site=="Stellako", date_closed==as.Date("2021-05-06")) %>%
+stella.extra <- dna.dat %>% 
+  filter(site=="Stellako", date_closed==as.Date("2021-05-06") | grepl("kokanee", comments)) %>%
   print()
 
-stella.first.pull <- rbind(stella.rando, stella.tails, stella.may06)
+stella.first.pull <- rbind(stella.rando, stella.tails, stella.extra)
 
 
 #------- FINAL DATABASE OF PULL #1
@@ -165,7 +181,27 @@ fullpull.1 <- rbind(stella.first.pull, nadleh.first.pull)
 
 write.csv(fullpull.1, "northern_smolt_dna_pull1_june2021.csv", row.names=F)
 
+# Nadleh
+ggplot() +
+  geom_bar(data=fullpull.1%>%filter(site=="Nadleh")%>%group_by(date_closed)%>%summarize(n=n()), 
+           aes(x=date_closed, y=n), stat="identity", position="dodge", colour="orange", fill="orange", alpha=0.7, width=0.8) +
+  geom_point(data=daily.catch%>%filter(site=="Nadleh"), aes(x=date_closed, y=total/100), size=2, alpha=0.6) +
+  geom_line(data=daily.catch%>%filter(site=="Nadleh"), aes(x=date_closed, y=total/100), size=1, alpha=0.6) +
+  geom_bar(data=nadleh.dna, aes(x=date_closed, y=n_analyzed), stat="identity", position="dodge", fill="green", alpha=0.5) +
+  scale_y_continuous(breaks=seq(0,55,by=5), name="DNA samples", sec.axis = sec_axis(~.*100, name="Catch", breaks=seq(0,6000,by=1000))) +
+  scale_x_date(date_breaks="3 day", date_labels="%B %d") +
+  theme_bw()
 
+# Stella 
+ggplot() +
+  geom_bar(data=fullpull.1%>%filter(site=="Stellako")%>%group_by(date_closed)%>%summarize(n=n()), 
+           aes(x=date_closed, y=n), stat="identity", position="dodge", fill="aquamarine") +
+  geom_point(data=daily.catch%>%filter(site=="Stellako"), aes(x=date_closed, y=total/10), size=2, alpha=0.6) +
+  geom_line(data=daily.catch%>%filter(site=="Stellako"), aes(x=date_closed, y=total/10), size=1, alpha=0.6) +
+  geom_bar(data=stella.dna, aes(x=date_closed, y=cutoff), stat="identity", position="dodge", fill="purple", alpha=0.5) +
+  scale_y_continuous(breaks=seq(0,70,by=5), name="DNA samples", sec.axis = sec_axis(~.*10, name="Catch", breaks=seq(0,700,by=100))) +
+  scale_x_date(date_breaks="3 day", date_labels="%B %d") +
+  theme_bw()
 
 
 ##################################################################################################################################################
@@ -179,7 +215,7 @@ write.csv(fullpull.1, "northern_smolt_dna_pull1_june2021.csv", row.names=F)
 
 #                                                         SCALE SAMPLE PRIORITIZATION FOR PSC
 
-# The PSC has indicated they will analyze all samples sent, but to expediate the process they have asked us to provide priorities if desired. 
+# The PSC has indicated they will analyze all samples sent, but to expedite the process they have asked us to provide priorities if desired. 
 
 #--------- PULL ALL SCALE FISH
 scale.pull <- bio.dat %>%
