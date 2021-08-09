@@ -5,25 +5,25 @@
 
 # libraries and wd
 library(tidyverse)
-library(XLConnect)
-library(xlsx)
-library(openxlsx)
+library(readxl)
 library(withr)
 library(scales)
+library(strucchange)
 
-setwd("~/Documents/ANALYSIS/Data")
+setwd("~/ANALYSIS/Data")
 
 
 # read data used for all sections below
-dat <- read.xlsx("nautley_ANALYTICAL_database_2019.xlsx", sheet=3, detectDates=T)          # might be very slow! sometimes 'sheet' may have to be changed to 'sheetIndex' depending on the order packages are loaded
+dat <- read_excel("nadleh_ANALYTICAL_database_2019.xlsx", sheet=3)          # might be very slow! sometimes 'sheet' may have to be changed to 'sheetIndex' depending on the order packages are loaded
 
 # quick re-code so that figures display real names not numbers. Based on metadata table in sheet1 of the Excel file 
 dat <- dat %>% 
   mutate(NEWregion1 = ifelse(NEWregion1==4, "Nadina", ifelse(NEWregion1 ==12, "Stellako", NEWregion1))) %>%
+  mutate_at("weight_g", as.numeric) %>% 
   mutate(cf = (weight_g/length_mm^3)*100000) %>%
   print()
 
-# note from BB June 2020: the RST was moved once, 
+# note from B. Butler June 2020: the RST was moved once, 
 
 ####################################################################################################################################################
 
@@ -356,7 +356,7 @@ summary(aov(cf_aft_m9$cf ~ cf_aft_m9$NEWregion1))
 # BREAPOINT EXPLORATION: 
 # breakpoints
 cf.ts <- ts(stock_lw_r1$cf)   # make as a time series for all individuals (pooled stocks)
-fs.cf <- Fstats(cf.ts~1) # Get sequence of f-statistics for all possible break points within the middle 70% of cf.ts
+fs.cf <- Fstats(cf.ts~1)      # Get sequence of f-statistics for all possible break points within the middle 70% of cf.ts
 summary(fs.cf)
 plot(fs.cf)
 lines(breakpoints(fs.cf))
