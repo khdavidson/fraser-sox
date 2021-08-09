@@ -1,4 +1,7 @@
+
 # nadina carcass recoveries over time by area 
+
+####################################################################################################################################################
 
 library(tidyverse)
 library(lubridate)
@@ -9,18 +12,20 @@ setwd("~/Documents/ANALYSIS/Data")
 # read
 data <- read.csv("nadina_recoveries_spatiotemporal.csv")
 
-# clean
+####################################################################################################################################################
+
+#                                                                   CLEAN
 data <- data %>% 
   gather("sex", "count", 7:8) %>% 
   mutate_at(vars(c(8)), funs(as.numeric)) %>%
   mutate(date = lubridate::dmy(date)) %>%
   print()
 
+####################################################################################################################################################
 
-###########
-# BY AREA #
-###########
+#                                                                  RECOVERIES
 
+#------ BY AREA
 area <- data %>% 
   filter(!is.na(count)) %>%
   group_by(area2, sex) %>% 
@@ -43,10 +48,7 @@ ggplot() +
   ylim(0,1)
 
 
-###########
-# BY YEAR #
-###########
-
+#------ BY YEAR
 year <- data %>% 
   filter(!is.na(count)) %>% 
   group_by(year, sex) %>% 
@@ -61,10 +63,7 @@ ggplot() +
   ylim(0,1)
 
   
-####################
-# BY YEAR AND AREA #
-####################
-
+#------ BY YEAR + AREA
 yearea <- data %>% 
   group_by(year, area2, sex) %>% 
   filter(!is.na(count), !is.na(area2)) %>% 
@@ -82,10 +81,7 @@ ggplot(yearea, aes(x=year, y=propn, group=area2, colour=area2)) +
   facet_grid(~sex) 
 
 
-##################
-# OT WITHIN YEAR #
-##################
-
+#------ OVER TIME WITHIN YEAR
 data$jdate <- format(data$date, "%j")
 
 summary <- data %>% 
@@ -118,10 +114,7 @@ s.data <- s.data %>%
   print()
 
 
-##################
-# OT WITHIN YEAR #
-##################
-
+#------ OVER TIME WITHIN YEAR
 s.data$jdate <- format(s.data$date, "%j")
 
 s.summary <- s.data %>% 
@@ -139,20 +132,39 @@ ggplot(s.summary, aes(x=as.Date(yday, origin = as.Date("2003-01-01")), y=total_c
 
 
 
+####################################################################################################################################################
+
+####################################################################################################################################################
+
+####################################################################################################################################################
+
+# Nadina 2020 roving assessment 
+
+library(tidyverse)
+library(readxl)
+
+setwd("~/ANALYSIS/data")
+
+nadina.raw <- read_excel("nadina_2020.xlsx")
+
+####################################################################################################################################################
+
+nadina.rov <- nadina.raw %>% 
+  filter(type=="Ground", grepl("Nadina", stream_id)) %>% 
+  mutate(total_carcs = males+females+jack+unsex) %>%
+  mutate_at("date", as.Date) %>%
+  print()
 
 
 
-
-
-
-
-
-
-
-
-
-
-
+#------ LIVE+CARCS OVER TIME BY AREA 
+ggplot() +
+  geom_bar(data=nadina.rov, aes(x=as.Date(date), y=live_obs1+live_obs2), stat="identity", fill="green", colour="green", alpha=0.6) +
+  geom_bar(data=nadina.rov, aes(x=as.Date(date), y=total_carcs*5), stat="identity", fill="gray40", colour="gray40", alpha=0.6) +
+  scale_y_continuous(sec.axis=sec_axis(~./5, name="Carcasses")) +
+  scale_x_date(date_breaks="3 day", date_labels="%b %d") +
+  labs(x="", y="Live count") +
+  facet_wrap(~area)
 
   
   
