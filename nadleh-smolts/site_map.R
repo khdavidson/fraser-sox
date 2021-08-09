@@ -9,6 +9,7 @@ library(ggmap)
   # Adding key to C:\Users\davidsonka\Documents/.Renviron
 library(rgdal)
 library(rgeos)
+library(raster)
 library(sf)
 
 
@@ -18,6 +19,9 @@ rivers.poly.ogr <- readOGR(dsn = "~/Data/Spatial/Basemaps/BCGW_rivers/FWA_RIVERS
 water.poly2.ogr <- readOGR(dsn = "~/Data/Spatial/Basemaps/BC_RIV_LAKE_WET/BC_RIV_LAKE_WET_POLYS_500M/WATER_2M_polygon.shp", verbose=T)
 water.poly6.ogr <- readOGR(dsn = "~/Data/Spatial/Basemaps/BCGW_waterpoly/BC_WATER_POLYS_5KM/WATER_6M_polygon.shp", verbose=T)
 water.line.ogr <- readOGR(dsn="~/Data/Spatial/Basemaps/BC_WATER_LINES/BC_WATER_LINES_500M/WAT_LIN_2M_line.shp", verbose=T)
+
+crims.poly.ogr <- readOGR(dsn="~/Data/Spatial/Basemaps/CRIMS/CRIMS_MEC_ECOUNIT_DEPTH_POLY/MEC_ECMT_D_polygon.shp", verbose=T)
+wdb.major.rivers.ogr <- readOGR(dsn="~/Data/Spatial/Basemaps/other_shps/WDBII_shp/c/WDBII_river_c_L03.shp", verbose=T)
 
 fraser.river.kml <- readOGR("~/Data/Spatial/Fraser_River.kml")
 stellako.river.kml <- readOGR("~/Data/Spatial/Stellako_River.kml")
@@ -33,6 +37,9 @@ rivers.poly.df <- broom::tidy(rivers.poly.ogr)
 water.poly2.df <- broom::tidy(water.poly2.ogr)
 water.poly6.df <- broom::tidy(water.poly6.ogr)
 water.line.df <- broom::tidy(water.line.ogr)
+
+crims.poly.df <- broom::tidy(crims.poly.ogr)
+wdb.major.rivers.line.df <- broom::tidy(wdb.major.rivers.ogr)
 
 fraser.df <- broom::tidy(fraser.river.kml)
 stellako.df <- broom::tidy(stellako.river.kml)
@@ -86,6 +93,19 @@ ggmap(get_googlemap(center=c(lon=-124.60, lat=54.08), maptype = "satellite", zoo
         axis.ticks = element_blank())
 
 
+crs(crims.poly.ogr)
+crs(wdb.major.rivers.ogr)
+crims.poly.reproj <- spTransform(crims.poly.ogr, crs(wdb.major.rivers.ogr))
+extent(crims.poly.reproj)
 
+extent(wdb.major.rivers.ogr)
+wdb.major.rivers.crop <- crop(wdb.major.rivers.ogr, extent(-138.74, -122.75, 46.52, 55.93))
+
+crims.poly.reproj.df <- broom::tidy(crims.poly.reproj)
+
+
+ggplot()+
+  geom_polygon(data=crims.poly.reproj.df, aes(x=long, y=lat, group=group)) +
+  geom_path(data=wdb.major.rivers.crop, aes(x=long, y=lat, group=group))
 
 
