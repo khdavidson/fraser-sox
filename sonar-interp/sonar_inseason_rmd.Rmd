@@ -8,10 +8,10 @@ output:
 ---
 
 ```{r echo=F, include=F}
-################################ READ ME FIRST OR ELSE YOU WILL BE SAD ################################ 
+################################                     READ ME FIRST OR ELSE YOU WILL BE SAD                      ################################
 
 # Hello! Welcome to the R script that generates in-season sonar reports! 
-# This script was brought to you by K. Davidson and D. Couture in May 2021.
+# This script was made by K. Davidson with help from D. Couture in May 2021.
 
 
 #--------- SOME NOTES ON THE ORGANIZATION OF THIS SCRIPT: 
@@ -34,20 +34,16 @@ output:
 ```
 
 ```{r setup, include=FALSE}
+###############################################################################################################################################
+                                                         
+#                                                                 SET UP  
+
 knitr::opts_chunk$set(echo = TRUE)
-
-# Before running this RMarkdown, in a separate R script do: 
-# 1. run    tinytex::install_tinytex()
-# 2. run    library(tinytex)
-# This will install a package to create a PDF output from R. You only have to do this one time per computer, and then never do it again!
-
 
 # load packages to use
 library(tidyverse)     # for everything
 library(readxl)        # for read_excel()
 library(pander)        # for table outputs
-#library(tinytex)
-#tinytex::install_tinytex()   # for knit to pdf
 
 # Set pander table formatting settings
 panderOptions('table.alignment.default', function(df)
@@ -57,20 +53,20 @@ panderOptions('big.mark', ",")
 panderOptions('keep.trailing.zeros', TRUE)
 
 # set working directory where Excel sonar data entry file is
-setwd("~/ANALYSIS/data/Sonar")                                                                #**** NEEDS TO BE CUSTOMIZED FOR EACH USER
+setwd("~/ANALYSIS/data/Sonar")                                            # << NEEDS TO BE CUSTOMIZED FOR EACH USER >>
 
 # read in data 
-counts.raw <- read_excel("Stellako_Sonar_tool_2020.xlsm", sheet="Data entry", skip=4, col_names=T)
-env.raw <- read_excel("Stellako_Sonar_tool_2020.xlsm", sheet="Environmental Data", skip=2, col_names=T)
-project.name <- as.vector(colnames(read_excel("Stellako_Sonar_tool_2020.xlsm", sheet="Data entry", range="E1:E1")))
+counts.raw <- read_excel("Stellako_Sonar_tool_2020.xlsm", sheet="Data entry", skip=4, col_names=T)                #<<CHANGE FOR EACH PROJECT >>
+env.raw <- read_excel("Stellako_Sonar_tool_2020.xlsm", sheet="Environmental Data", skip=2, col_names=T)           #<<CHANGE FOR EACH PROJECT >>
+project.name <- as.vector(colnames(read_excel("Stellako_Sonar_tool_2020.xlsm", sheet="Data entry", range="E1:E1"))) #<<CHANGE FOR PROJECT >>
 project.year <- lubridate::year(counts.raw$Date[1])
 
 
-###############################
-# CLEAN THE DATA FOR USE IN R #
-###############################
+###############################################################################################################################################
+                                                         
+#                                                             CLEAN THE DATA FOR USE IN R 
 
-#---------- COUNT data 
+# COUNT data 
 counts <- counts.raw %>%                                                                      # rename columns to be more R friendly
   rename(bank = Bank,
          observer = Observer,
@@ -95,7 +91,7 @@ counts <- counts.raw %>%                                                        
   print()
 
 
-#---------- ENVIRONMENTAL data
+# ENVIRONMENTAL data
 env <- env.raw %>%                                                                            # rename columns to be more R friendly
   rename(date = `Date (dd/mm/yy)`,
          observer_1 = Observer1, 
@@ -115,6 +111,10 @@ env <- env.raw %>%                                                              
 ```
 
 ```{r echo=F, include=F}
+###############################################################################################################################################
+
+#                                                       ABUNDANCE CALCULATIONS, EXPANSIONS & SUMMARY
+
 #---------- COUNT data
 # Function to calculate daily abundance based on all files, every 2nd file and every 3rd file counted
 count.summary.fx <- function(group_name, expansion_factor){                  
@@ -154,6 +154,10 @@ env.daily <- env %>%
   summarize("Water temperature"=water_temp, "Water gauge (m)"=gauge_m) %>%                                              
   print()
 
+
+###############################################################################################################################################
+
+#                                                              CREATE IN-SEASON SUMMARY TABLE
 
 #---------- THE WHOLE SHABANG
 inseason.report <- full_join(env.daily, counts.daily, by="date") %>%                                                       
@@ -215,6 +219,23 @@ ggplot(data=counts.daily.long, aes(x=as.Date(date), y=net_us_sox, group=count_me
         plot.caption = element_text(size=8, face = "italic", hjust=0.5))
 ```
 
+```{r echo=F, include=F}
+###############################################################################################################################################
+
+#                                                           EXPORT TO EXCEL 
+
+# Create a blank Excel workbook
+wb <- createWorkbook()
+
+# Populate the blank workbook with a tab (i.e., worksheet) for the inseason update
+addWorksheet(wb, "inseason_update")
+
+# Write the summary data generated above to the blank worksheet
+writeData(wb, "daily_report", inseason.report, startRow=1, startCol=1)
+
+# Export it to an .xlsx file for viewing/further use 
+saveWorkbook(wb, file = "Stellako_sonar_inseason_report_2020.xlsx", overwrite = TRUE)          # << CHANGE FILE NAME FOR EACH PROJECT >>
+```
 
 
 
