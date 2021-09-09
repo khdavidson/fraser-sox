@@ -2,6 +2,7 @@
 # 29-Jan-2020
 # All DNA, scales, length and weight data to be run by DFO are now here.
 # More data may come from E-Watch: DNA and physiology 
+# note from B. Butler June 2020: the RST was moved once 
 
 # libraries and wd
 library(tidyverse)
@@ -15,6 +16,14 @@ setwd("~/ANALYSIS/Data")
 
 # read data used for all sections below
 dat <- read_excel("nadleh_ANALYTICAL_database_2019.xlsx", sheet=3)          # might be very slow! sometimes 'sheet' may have to be changed to 'sheetIndex' depending on the order packages are loaded
+dna.b1.raw <- read_excel("nadleh_ANALYTICAL_database_2019.xlsx", sheet="individual_smolts")                  # just batch 1 DNA analysis data
+dna.b2.raw <- read_excel("Nautley_Batch2(19)_2020-01-27.xlsx", sheet="Individual Region IDs", skip=3)        # just batch 2 DNA analysis data
+dna.combo.raw <- read_excel("NautleyCombined(19)_2020-01-27.xlsx", sheet="Individual Region IDs", skip=3)    # combined batch 1 and 2 DNA analysis data
+
+
+####################################################################################################################################################
+
+#                                                                CLEAN
 
 # quick re-code so that figures display real names not numbers. Based on metadata table in sheet1 of the Excel file 
 dat <- dat %>% 
@@ -23,13 +32,54 @@ dat <- dat %>%
   mutate(cf = (weight_g/length_mm^3)*100000) %>%
   print()
 
-# note from B. Butler June 2020: the RST was moved once, 
+# clean just DNA batch 1 analysis data
+dna.b1 <- dna.b1.raw %>% 
+  filter(dna_select_bin==1) %>%
+  select(lab_identifier, jdate, psc_dna_no, region1, prob1, region2, prob2) %>%
+  mutate_at(vars("region1", "prob1", "region2", "prob2"), as.numeric) %>%
+  print()
+
+# clean just DNA batch 2 analysis data
+dna.b2 <- dna.b2.raw %>% 
+  rename(lab_identifier = Fish,
+         B2comment = Comment,
+         B2region1 = `Region 1`,
+         B2prob1 = `Prob 1`,
+         B2region2 = `Region 2`,
+         B2prob2 = `Prob 2`) %>%
+  filter(lab_identifier != "19.000299999999999") %>% 
+  select(lab_identifier:B2prob2) %>%
+  mutate_at(vars("B2region1", "B2region2"), as.numeric) %>%
+  print()
+
+# clean the combined batch 1 and 2 DNA analysis data 
+dna.combo <- dna.combo.raw %>% 
+  rename(lab_identifier = Fish,
+         comment = Comment,
+         comboregion1 = `Region 1`,
+         comboprob1 = `Prob 1`,
+         comboregion2 = `Region 2`,
+         comboprob2 = `Prob 2`,
+         region3 = `Region 3`,
+         prob3 = `Prob 3`,
+         region4 = `Region 4`,
+         prob4 = `Prob 4`,
+         region5 = `Region 5`,
+         prob5 = `Prob 5`, 
+         region6 = `...13`,
+         prob6 = `...14`) %>%
+  filter(lab_identifier != "19.000299999999999") %>% 
+  select(lab_identifier:prob6) %>%
+  mutate_at(vars("comboregion1", "comboregion2"), as.numeric) %>%
+  print()
+
+
 
 ####################################################################################################################################################
 
-                                                            ##################
-                                                            # SAMPLE SUMMARY #  
-                                                            ##################
+                                                            
+#                                                             SAMPLE SUMMARY   
+                                                            
 
 # How many fish were sampled for a full 'suite' of samples (length, weight, DNA, scales)?
 # removing entires where: 
@@ -43,12 +93,50 @@ dat %>%
   print()
 
 
+####################################################################################################################################################
+
+#                                                           STOCK SWITCHING VERIFICATION 
+
+# Before continuing with DNA analysis, need to know the extent to which smolts switch their GSI depending on whether they are run as 
+# separate or combined batch analyses (the results are informed by whatever genetic mixture is in the sample, so adding/removing fish 
+# can affect the stock ID and assigned %)
+
+
+#---------- Batch 1 solo vs. Batch 1+2 combo
+# Join 
+b1.vs.combo <- left_join(dna.b1, dna.combo, by="lab_identifier")
+
+# Quick math to see if stock IDs are same
+b1.vs.combo <- b1.vs.combo %>% 
+  mutate(GSID_DIFF = region1 - comboregion1) %>%
+  filter(!is.na(GSID_DIFF), GSID_DIFF!=0) %>%
+  print()
+
+# May 3 PSC DNA sample #380 ("123 380") changed from Stellako to Nadina
+# May 9 PSC DNA sample #622 ("129 622") changed from Nadina to Stellako 
+
+
+
+#---------- Batch 2 solo vs. Batch 1+2 combo
+# Join 
+b2.vs.combo <- left_join(dna.b2, dna.combo, by="lab_identifier")
+
+# Quick math to see if stock IDs are same
+b2.vs.combo <- b2.vs.combo %>% 
+  mutate(GSID_DIFF = B2region1 - comboregion1) %>%
+  filter(!is.na(GSID_DIFF), GSID_DIFF!=0) %>%
+  print()
+
+# May 11 PSC DNA sample #690 ("131 690") changed from Tachie to Stellako
+
+
+
 
 ####################################################################################################################################################
 
-                                                              ################
-                                                              # DNA ANALYSIS #
-                                                              ################
+                                                              
+#                                                               DNA ANALYSIS 
+                                                              
 
 ############
 # BAD GSID #
