@@ -6,6 +6,7 @@
 
 library(tidyverse)
 library(readxl)
+library(egg)
 
 setwd("C:/DFO-MPO/#DFO-MPO_INSEASON_FILES")
 
@@ -77,10 +78,12 @@ sr <- estu.counts %>%
   filter(survey_type=="Ground", !is.na(stream_shore), 
          !stream_shore%in%c("Middle River","Baptiste Creek","Hudson Bay Creek","Blanchet North Creek","Hooker Creek","Leo Creek", "Macdougall Creek", "Sinta Creek", "Tliti Creek")) %>%
   group_by(stream_shore, date) %>% 
-  summarize(males=sum(carc_male, na.rm=T), females=sum(carc_fem, na.rm=T)) %>%
+  summarize(males=sum(carc_male, na.rm=T), females=sum(carc_fem, na.rm=T), 
+            live_count1=sum(live_count_obs1, na.rm=T), live_count2=sum(live_count_obs2, na.rm=T)) %>%
   mutate(male_sr = round(males/(males+females),2), female_sr = round(females/(males+females),2)) %>%
   mutate(male_sr = ifelse(male_sr=="NaN", NA, male_sr),
          female_sr = ifelse(female_sr=="NaN", NA, female_sr)) %>%
+  mutate(live_count = round((live_count1+live_count2)/2, 0)) %>%
   print()
 
 # Plot of sex ratio
@@ -97,16 +100,84 @@ ggplot() +
   #scale_y_continuous(limits=c(0,1), breaks=seq(0,1,by=0.25)) +
   facet_wrap(.~stream_shore, scales="free_y")
 
+# Plot of avg live count 
+ggplot() +
+  geom_bar(data=sr, aes(x=date, y=live_count), stat="identity") +
+  #scale_y_continuous(limits=c(0,1), breaks=seq(0,1,by=0.25)) +
+  facet_wrap(.~stream_shore, scales="free_y")
+
+
+################################################################################################################################################
+
+
+# Takla north days
+tksr<-ggplot() +
+  geom_point(data=sr%>%filter(male_sr>0, 
+                              stream_shore%in%c("Frypan Creek", "Lovell Creek", "Maclaing Creek", "Bivouac Creek", "Sakeniche River",
+                                                "Sandpoint Creek", "Blanchet Creek", "25 Mile Creek", "15 Mile Creek", "Shale Creek")), 
+             aes(x=date, y=male_sr), shape=21, size=3, fill="blue") +
+  geom_point(data=sr%>%filter(female_sr>0, 
+                              stream_shore%in%c("Frypan Creek", "Lovell Creek", "Maclaing Creek", "Bivouac Creek", "Sakeniche River",
+                                                "Sandpoint Creek", "Blanchet Creek", "25 Mile Creek", "15 Mile Creek", "Shale Creek")), 
+             aes(x=date, y=female_sr), shape=21, size=3, fill="magenta") +
+  #scale_y_continuous(limits=c(0,1), breaks=seq(0,1,by=0.25)) +
+  facet_wrap(.~stream_shore, scales="free_y")
+
+tknum<-ggplot() +
+  geom_point(data=sr%>%filter(males>0, 
+                              stream_shore%in%c("Frypan Creek", "Lovell Creek", "Maclaing Creek", "Bivouac Creek", "Sakeniche River",
+                                                "Sandpoint Creek", "Blanchet Creek", "25 Mile Creek", "15 Mile Creek", "Shale Creek")), 
+             aes(x=date, y=males), shape=21, size=3, fill="blue") +
+  geom_point(data=sr%>%filter(females>0, 
+                              stream_shore%in%c("Frypan Creek", "Lovell Creek", "Maclaing Creek", "Bivouac Creek", "Sakeniche River",
+                                                "Sandpoint Creek", "Blanchet Creek", "25 Mile Creek", "15 Mile Creek", "Shale Creek")), 
+             aes(x=date, y=females), shape=21, size=3, fill="magenta") +
+  #scale_y_continuous(limits=c(0,1), breaks=seq(0,1,by=0.25)) +
+  facet_wrap(.~stream_shore, scales="free_y")
+
+ggarrange(tksr, tknum, ncol=1, nrow=2)
 
 
 
+# Takla west days
+tkwsr<-ggplot() +
+  geom_point(data=sr%>%filter(male_sr>0, stream_shore%in%c("Point Creek", "Crow Creek", "Dust Creek", "Narrows Creek")), 
+             aes(x=date, y=male_sr), shape=21, size=3, fill="blue") +
+  geom_point(data=sr%>%filter(female_sr>0, stream_shore%in%c("Point Creek", "Crow Creek", "Dust Creek", "Narrows Creek")), 
+             aes(x=date, y=female_sr), shape=21, size=3, fill="magenta") +
+  #scale_y_continuous(limits=c(0,1), breaks=seq(0,1,by=0.25)) +
+  facet_wrap(.~stream_shore, scales="free_y")
+
+tkwnum<-ggplot() +
+  geom_point(data=sr%>%filter(males>0, stream_shore%in%c("Point Creek", "Crow Creek", "Dust Creek", "Narrows Creek")), 
+             aes(x=date, y=males), shape=21, size=3, fill="blue") +
+  geom_point(data=sr%>%filter(females>0, stream_shore%in%c("Point Creek", "Crow Creek", "Dust Creek", "Narrows Creek")), 
+             aes(x=date, y=females), shape=21, size=3, fill="magenta") +
+  #scale_y_continuous(limits=c(0,1), breaks=seq(0,1,by=0.25)) +
+  facet_wrap(.~stream_shore, scales="free_y")
+
+ggarrange(tkwsr, tkwnum, ncol=1, nrow=2)
 
 
 
+# MR days 
+mrsr<-ggplot() +
+  geom_point(data=sr%>%filter(male_sr>0, stream_shore%in%c("Forfar Creek", "O' Ne-Ell Creek", "Van Decar Creek", "Gluske Creek")), 
+             aes(x=date, y=male_sr), shape=21, size=3, fill="blue") +
+  geom_point(data=sr%>%filter(female_sr>0, stream_shore%in%c("Forfar Creek", "O' Ne-Ell Creek", "Van Decar Creek", "Gluske Creek")), 
+             aes(x=date, y=female_sr), shape=21, size=3, fill="magenta") +
+  #scale_y_continuous(limits=c(0,1), breaks=seq(0,1,by=0.25)) +
+  facet_wrap(.~stream_shore, scales="free_y")
 
+mrnum<-ggplot() +
+  geom_point(data=sr%>%filter(males>0, stream_shore%in%c("Forfar Creek", "O' Ne-Ell Creek", "Van Decar Creek", "Gluske Creek")), 
+             aes(x=date, y=males), shape=21, size=3, fill="blue") +
+  geom_point(data=sr%>%filter(females>0, stream_shore%in%c("Forfar Creek", "O' Ne-Ell Creek", "Van Decar Creek", "Gluske Creek")), 
+             aes(x=date, y=females), shape=21, size=3, fill="magenta") +
+  #scale_y_continuous(limits=c(0,1), breaks=seq(0,1,by=0.25)) +
+  facet_wrap(.~stream_shore, scales="free_y")
 
-
-
+ggarrange(mrsr, mrnum, ncol=1, nrow=2)
 
 
 
