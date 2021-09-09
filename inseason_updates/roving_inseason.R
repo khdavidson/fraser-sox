@@ -6,9 +6,9 @@
 # See the accompanying help file for detailed instructions. 
 
 # Load libraries to use
-library(tidyverse)
-library(readxl)
-library(openxlsx)
+library(tidyverse)     # for everything
+library(readxl)        # for read_excel()
+library(openxlsx)      # for createWorkbook()
 
 # Set working directory
 setwd("~/ANALYSIS/data")      # << UPDATE THIS WITH YOUR WORKING DIRECTORY ON YOUR COMPUTER >>
