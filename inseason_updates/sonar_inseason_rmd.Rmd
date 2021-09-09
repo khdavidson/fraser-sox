@@ -16,10 +16,12 @@ output:
 
 #--------- SOME NOTES ON THE ORGANIZATION OF THIS SCRIPT: 
 # This script was written to be able to generalize across any sonar project Excel data entry file **provided they are the same format as the 2020 files**. However, look for the << >> symbols in this script. These indicate lines of code that you have to customize. Follow the instructions below to customize the code. You shouldn't have to customize anything other than these two items:
+
 # 1. Working directory
-#    How to: Click Session > Set Working Directory > Chose Directory... > navigate to the folder on your computer where the Excel data file of                interest is stored. In the console window below, you will see an address appear, something like setwd("~/ANALYSIS/data/sonar_data").              I would recomment copy-pasting this into your script at the top, in place of where my working directory is in the R code chunk                   below. That is because you will have to re-set it each time you open the script anew; by pasting it into your script now, it will                save you time in the future!
+# How to: Click Session > Set Working Directory > Chose Directory... > navigate to the folder on your computer where the Excel data file of interest is stored. In the console window below, you will see an address appear, something like setwd("~/ANALYSIS/data/sonar_data"). I would recomment copy-pasting this into your script at the top, in place of where my working directory is in the R code chunk                   below. That is because you will have to re-set it each time you open the script anew; by pasting it into your script now, it will save you time in the future!
+
 # 2. Excel file name for each project
-#    How to: In the code chunk below, you will see the following command:  counts.raw <- read_excel("Stellako_Sonar_tool_2020.xlsm", sheet="Data              entry", skip=4, col_names=T). The piece in the quotation marks, "Stellako_Sonar_tool_2020.xlsm", is what you will need to change for              each new project sonar file. For example, if you want to load the Chilko 2021 file, you will probably have to replace                            "Stellako_Sonar_tool_2020.xlsm" with "Chilko_Sonar_tool_2021.xlsm". All of the remaining pieces of code can stay the same. 
+# How to: In the code chunk below, you will see the following command:  counts.raw <- read_excel("Stellako_Sonar_tool_2020.xlsm", sheet="Data entry", skip=4, col_names=T). The piece in the quotation marks, "Stellako_Sonar_tool_2020.xlsm", is what you will need to change for each new project sonar file. For example, if you want to load the Chilko 2021 file, you will probably have to replace "Stellako_Sonar_tool_2020.xlsm" with "Chilko_Sonar_tool_2021.xlsm". All of the remaining pieces of code can stay the same. 
 
 # Any line that starts with a '#' means it is an annotation and it won't run as part of the code or analysis. This is an easy way to write notes, comments, etc. without having them impact your code. It is similar to starting a line of code with a ' symbol in Excel macro VBA code. Each line of code here has attempted to be annotated in plain language to inform the user of the specific data manipulations occurring in each row. 
 
@@ -34,7 +36,7 @@ output:
 ```
 
 ```{r setup, include=FALSE}
-###############################################################################################################################################
+##########################################################################################################################################
                                                          
 #                                                                 SET UP  
 
@@ -43,6 +45,7 @@ knitr::opts_chunk$set(echo = TRUE)
 # load packages to use
 library(tidyverse)     # for everything
 library(readxl)        # for read_excel()
+library(openxlsx)      # for createWorkbook
 library(pander)        # for table outputs
 
 # Set pander table formatting settings
@@ -62,7 +65,7 @@ project.name <- as.vector(colnames(read_excel("Stellako_Sonar_tool_2020.xlsm", s
 project.year <- lubridate::year(counts.raw$Date[1])
 
 
-###############################################################################################################################################
+##########################################################################################################################################
                                                          
 #                                                             CLEAN THE DATA FOR USE IN R 
 
@@ -111,7 +114,7 @@ env <- env.raw %>%                                                              
 ```
 
 ```{r echo=F, include=F}
-###############################################################################################################################################
+##########################################################################################################################################
 
 #                                                       ABUNDANCE CALCULATIONS, EXPANSIONS & SUMMARY
 
@@ -155,7 +158,7 @@ env.daily <- env %>%
   print()
 
 
-###############################################################################################################################################
+##########################################################################################################################################
 
 #                                                              CREATE IN-SEASON SUMMARY TABLE
 
@@ -166,8 +169,8 @@ inseason.report <- full_join(env.daily, counts.daily, by="date") %>%
   rename(Date=date) %>%
   print
 
-# Function to make the report table column headers bold in Word output
-names(inseason.report) <- pandoc.strong.return(names(inseason.report))
+# Function to make the report table column headers bold in Word output (if you want)
+#names(inseason.report) <- pandoc.strong.return(names(inseason.report))
 ```
 
 &nbsp;
@@ -220,7 +223,7 @@ ggplot(data=counts.daily.long, aes(x=as.Date(date), y=net_us_sox, group=count_me
 ```
 
 ```{r echo=F, include=F}
-###############################################################################################################################################
+##########################################################################################################################################
 
 #                                                           EXPORT TO EXCEL 
 
@@ -228,10 +231,10 @@ ggplot(data=counts.daily.long, aes(x=as.Date(date), y=net_us_sox, group=count_me
 wb <- createWorkbook()
 
 # Populate the blank workbook with a tab (i.e., worksheet) for the inseason update
-addWorksheet(wb, "inseason_update")
+addWorksheet(wb, sheet="inseason_update")
 
 # Write the summary data generated above to the blank worksheet
-writeData(wb, "daily_report", inseason.report, startRow=1, startCol=1)
+writeData(wb, sheet="inseason_update", x=inseason.report, startRow=1, startCol=1)
 
 # Export it to an .xlsx file for viewing/further use 
 saveWorkbook(wb, file = "Stellako_sonar_inseason_report_2020.xlsx", overwrite = TRUE)          # << CHANGE FILE NAME FOR EACH PROJECT >>
