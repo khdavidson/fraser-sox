@@ -1,0 +1,246 @@
+---
+title: "Roving in-season for operational bios"
+output: html_document
+date: "Last update `r Sys.Date()`"
+---
+
+```{r setup, include=F}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(readxl)
+library(egg)
+
+setwd("C:/DFO-MPO/#DFO-MPO_INSEASON_FILES")
+
+lstu.counts.raw <- read_excel("Late Stuart Roving_Daily_Report_2021 (2).xlsm", sheet="Count_entry")
+quesnel.counts.raw <- read_excel("Quesnel Roving_Daily_Report_2021 - KD update.xlsm", sheet="Count_entry")
+
+
+#########################################################################################################################################
+
+#                                                           CLEANING
+
+counts <- lstu.counts.raw %>% 
+  rename(year=Year,
+         stream_name=Stream_ID,
+         area=Area,
+         stream_shore=`Stream/Shore`,
+         run_timing=`Run Timing`,
+         watershed_group=`Watershed Group`,
+         alias=`This column automatically provides historical/alias name if applicable`,
+         area_description=`This column automatically provides a description of the counting area to confirm your choice of \"Area\"  in the previous column`,
+         survey_no=`Survey #`,
+         date=`Date  (i.e. 20-Oct-14)`,
+         survey_type=`Survey Type`,
+         calibration_code=`Calibration  code  leave \"blank\" =no calibration                  1= escapement and calibration                     2= calibration only`,
+         live_count_obs1=`Live Count Observer 1`,
+         live_count_obs2=`Live Count Observer 2`,
+         oe=`Observer Efficiency`,
+         holding=`% Holding`,
+         spawning=`% Spawning`,
+         spawned_out=`% Spawned out`,
+         behaviour_check=`This column checks if sum of columns( P,Q,R ) = 100%`,
+         carc_male=`Carcass Male`,
+         carc_fem=`Carcass Female`,
+         carc_male_nr=`Male Carcass NR`,
+         carc_male_0=`Male Carcass 0%`,
+         carc_male_100=`Male Carcass 100%`,
+         carc_fem_nr=`Female Carcass NR`,
+         carc_fem_0=`Female Carcass 0%`,
+         carc_fem_50=`Female Carcass 50%`,
+         carc_fem_100=`Female Carcass 100%`,
+         carc_jack=`Carcass Jack`,
+         carc_ground_unsex=`Ground Carcass Unsexed`,
+         carc_aerial_unsex_obs1=`Aerial Carcass Unsexed Observer 1`,
+         carc_aerial_unsex_obs2=`Aerial Carcass Unsexed Observer 2`,
+         carc_total_unsex=`Total Carcass Unsexed (formula cell, leave blank)`,
+         carc_female_check1=`This column checks if sum of columns( Y, Z, AA, AB ) = Carcass Female`,
+         carc_female_check2=`This column checks if sum of columns( U,V,W,X ) = Carcass Female`,
+         live_tags=`# Live Tags`,
+         carc_tags=`# Carcass tags`,
+         psc_male=`# PSC Sample Males`,
+         psc_female=`# PSC Sample  Females`,
+         psc_jack=`# PSC Sample  Jacks`,
+         dna_samples=`# DNA Samples`,
+         live_chinook=`Live Count Chinook`,
+         live_coho=`Live Count Coho`,
+         live_kokanee=`Live Count Kokanee`,
+         carc_coho=`Carcass Count Coho`,
+         carc_chinook=`Carcass Count Chinook`,
+         comments=`Comments (specific to one Area within a Stream/Shore) (OK for Comments to exceed width of this column)`) %>%
+  mutate(carc_male = ifelse(is.na(carc_male),0,carc_male),
+         carc_fem = ifelse(is.na(carc_fem),0,carc_fem),
+         carc_jack = ifelse(is.na(carc_jack),0,carc_jack)) %>%
+  select(year:comments) %>%
+  mutate_at("oe", as.numeric) %>%
+  print()
+```
+
+<br>
+
+**`r counts$watershed_group[1]` Sex ratios (per stream over time)**
+
+```{r, echo=F, include=F, message=F}
+# sex ratio over time by stream 
+sr <- counts %>% 
+  filter(survey_type=="Ground", !is.na(stream_shore)) %>% 
+  group_by(stream_shore, date) %>% 
+  summarize(males=sum(carc_male, na.rm=T), females=sum(carc_fem, na.rm=T)) %>%
+  mutate(male_sr = round(males/(males+females),2), female_sr = round(females/(males+females),2),
+         female_sr = ifelse(female_sr=="NaN", NA, female_sr)) %>%
+  group_by(stream_shore) %>%
+  mutate(cuml_males=cumsum(males), cuml_females=cumsum(females),
+         cuml_male_sr=round(cuml_males/(cuml_males+cuml_females),2), cuml_female_sr=round(cuml_females/(cuml_males+cuml_females),2)) %>%
+  print()
+```
+
+```{r echo=F, warning=F, message=F}
+# Plot of sex ratio over time 
+ggplot() +
+  geom_hline(yintercept = 0.5, colour="red") +
+  geom_line(data=sr, aes(x=date, y=cuml_male_sr), colour="blue", size=0.7, alpha=0.5) +
+  geom_line(data=sr, aes(x=date, y=cuml_female_sr), colour="hot pink", size=0.7, alpha=0.5) +
+  geom_point(data=sr%>%filter(male_sr>0), aes(x=date, y=male_sr), shape=21, size=2, stroke=1, fill="blue", colour="blue", alpha=0.7) +
+  geom_point(data=sr%>%filter(female_sr>0), aes(x=date, y=female_sr), shape=21, size=2, stroke=1, fill="hot pink", colour="hot pink", alpha=0.7) +
+  scale_y_continuous(limits=c(0,1), breaks=seq(0,1,by=0.25)) +
+  labs(x="", y="Sex ratio", 
+       caption="Fig. Sex ratios by survey (points) and running cumulative sex ratio (line) for each creek over time.") +
+  facet_wrap(.~stream_shore) +
+  theme_bw()+
+  theme(plot.caption = element_text(hjust=0, face="italic"))
+```
+
+<br>
+
+<br>
+
+<br>
+
+**`r counts$watershed_group[1]` Carcass recoveries (per stream over time)**
+
+```{r echo=F, warning=F, message=F}
+# Plot of # carcasses 
+ggplot() +
+  geom_point(data=sr%>%filter(male_sr>0), aes(x=date, y=males), shape=21, size=3, stroke=1, fill="blue", colour="blue", alpha=0.7) +
+  geom_point(data=sr%>%filter(female_sr>0), aes(x=date, y=females), shape=21, size=3, stroke=1, fill="hot pink", colour="hot pink", alpha=0.7) +
+  #scale_y_continuous(limits=c(0,1), breaks=seq(0,1,by=0.25)) +
+  labs(x="", y="Carcasses", 
+       caption="Fig. Carcases recovered by survey for each creek over time.") +
+  facet_wrap(.~stream_shore, scales="free_y") +
+  theme_bw()+
+  theme(plot.caption = element_text(hjust=0, face="italic"))
+```
+
+<br>
+
+<br>
+
+<br>
+
+**`r counts$watershed_group[1]` Live counts (per stream over time)**
+
+```{r include=F}
+in_river_live <- counts %>% 
+  filter(!is.na(stream_shore), area!="Mouth") %>%
+  group_by(date, stream_shore, area) %>% 
+  summarize(live_avg = ifelse(!is.na(live_count_obs2), (live_count_obs1+live_count_obs2)/2, live_count_obs1), 
+            holding=unique(holding), spawning=unique(spawning), spawn_out=unique(spawned_out)) %>%
+  mutate_at("spawn_out", as.numeric) %>%
+  mutate(live_avg = ifelse(live_avg=="NaN", 0, live_avg),
+         holding = ifelse(is.na(holding), 0, holding),
+         spawning = ifelse(is.na(spawning), 0, spawning),
+         spawn_out = ifelse(is.na(spawn_out), 0, spawn_out),
+         holding_n = live_avg*holding,
+         spawning_n = live_avg*spawning,
+         spawn_out_n = live_avg*spawn_out) %>%
+  group_by(date, stream_shore) %>%
+  summarize(live_avg=sum(live_avg), holding_n=sum(holding_n), spawning_n=sum(spawning_n), spawn_out_n=sum(spawn_out_n)) %>%
+  pivot_longer(cols=c(live_avg:spawn_out_n), names_to = "count", values_to = "n") %>%
+  print()
+in_river_live$count <- factor(in_river_live$count, levels=c("live_avg", "holding_n", "spawning_n", "spawn_out_n"), ordered=T)
+```
+
+
+```{r echo=F, warning=F, message=F}
+# Plot of avg live count 
+ggplot() +
+  geom_bar(data=in_river_live%>%filter(!grepl("Lake", stream_shore), count=="live_avg"), aes(x=date, y=n), stat="identity", fill="forest green", colour="forest green", size=0.5, alpha=0.7) +
+  labs(x="", y="Live count (unexpanded)", 
+       caption="Fig. Live count by survey for each creek over time.") +
+  facet_wrap(.~stream_shore, scales="free_y", ncol=3) +
+  theme_bw() +
+  theme(plot.caption = element_text(hjust=0, face="italic"))
+```
+
+```{r include=F}
+lake.live.fx <- function(data_file) {ggplot() +
+  geom_bar(data=data_file%>%filter(grepl("Lake",stream_shore), count=="live_avg"), 
+           aes(x=date, y=n), stat="identity", fill="forest green", colour="forest green", size=0.5, alpha=0.7) +
+  labs(x="", y="Live count (unexpanded)", 
+       caption="Fig. Live count by survey for each creek over time.") +
+  facet_wrap(.~stream_shore, scales="free_y", ncol=3) +
+  theme_bw() +
+  theme(plot.caption = element_text(hjust=0, face="italic"))}
+```
+
+```{r warning=F, message=F, echo=F}
+# Plot of avg live count
+if("TRUE" %in% levels(factor(grepl("Lake", in_river_live$stream_shore)))){
+  ggplot() +
+    geom_bar(data=in_river_live%>%filter(grepl("Lake",stream_shore), count=="live_avg"), 
+             aes(x=date, y=n), stat="identity", fill="forest green", colour="forest green", size=0.5, alpha=0.7) +
+    labs(x="", y="Live count (unexpanded)", 
+         caption="Fig. Live count by survey for each creek over time.") +
+    facet_wrap(.~stream_shore, scales="free_y", ncol=3) +
+    theme_bw() +
+    theme(plot.caption = element_text(hjust=0, face="italic"))
+} 
+```
+
+<br>
+
+<br>
+
+**`r counts$watershed_group[1]` Behavioural live counts (per stream over time)**
+
+```{r echo=F, warning=F, message=F}
+ggplot(data=in_river_live%>%filter(count!="live_avg", !grepl("Lake", stream_shore)), 
+       aes(x=date, y=n, fill=count, colour=count, group=count)) +
+  geom_bar(alpha=0.7, position="dodge", stat="identity") +
+  scale_colour_manual(values=c("forest green", "red", "gray50")) +
+    scale_fill_manual(values=c("forest green", "red", "gray50")) +
+  labs(x="", y="Number of sockeye", caption="Fig. Number of sockeye holding (green), spawning (red) and spawned out (gray) for each creek over time.", fill="", colour="") +
+  facet_wrap(.~stream_shore, scales="free_y", ncol=3) +
+  theme_bw() +
+  theme(plot.caption= element_text(hjust=0, face="italic"))
+```
+
+```{r warning=F, message=F, echo=F}
+if("TRUE" %in% levels(factor(grepl("Lake", in_river_live$stream_shore)))){
+  ggplot(data=in_river_live%>%filter(count!="live_avg", grepl("Lake", stream_shore)), 
+         aes(x=date, y=n, fill=count, colour=count, group=count)) +
+    geom_bar(alpha=0.7, position="dodge", stat="identity") +
+    scale_colour_manual(values=c("forest green", "red", "gray50")) +
+      scale_fill_manual(values=c("forest green", "red", "gray50")) +
+    labs(x="", y="Number of sockeye", 
+         caption="Fig. Number of sockeye holding (green), spawning (red) and spawned out (gray) for each creek over time.", 
+         fill="", colour="") +
+    facet_wrap(.~stream_shore, scales="free_y", ncol=3) +
+    theme_bw() +
+    theme(plot.caption= element_text(hjust=0, face="italic")) 
+} 
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
