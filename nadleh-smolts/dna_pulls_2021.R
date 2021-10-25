@@ -319,7 +319,8 @@ scale.priorities.s <- rbind(rando100_105, rando110_115s, all150s)
 #-------- FULL PRIORITY LIST
 scale.priorities <- rbind(scale.priorities.n, scale.priorities.s)
 
-write.csv(scale.priorities, "northern_smolt_scale_PRIORITIES_june2021.csv", row.names=F)
+# DO NOT OVERWRITE THIS FILE AS IT IS NOW BEING USED IN nautley_database.R : 
+# write.csv(scale.priorities, "northern_smolt_scale_PRIORITIES_june2021.csv", row.names=F)
 
 
 
