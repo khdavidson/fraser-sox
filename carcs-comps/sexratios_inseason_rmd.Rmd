@@ -13,15 +13,15 @@ library(egg)
 
 setwd("C:/DFO-MPO/#DFO-MPO_INSEASON_FILES")
 
-lstu.counts.raw <- read_excel("Late Stuart Roving_Daily_Report_2021 (2).xlsm", sheet="Count_entry")
-quesnel.counts.raw <- read_excel("Quesnel Roving_Daily_Report_2021 - KD update.xlsm", sheet="Count_entry")
+stella.counts.raw <- read_excel("Stellako Roving_Daily_Report_2021.xlsm", sheet="Count_entry")
+chilko.counts.raw <- read_excel("Chilko Roving_Daily_Report_2021.xlsm", sheet="Count_entry")
 
 
 #########################################################################################################################################
 
 #                                                           CLEANING
 
-counts <- lstu.counts.raw %>% 
+counts <- chilko.counts.raw %>% 
   rename(year=Year,
          stream_name=Stream_ID,
          area=Area,
@@ -74,6 +74,7 @@ counts <- lstu.counts.raw %>%
          carc_jack = ifelse(is.na(carc_jack),0,carc_jack)) %>%
   select(year:comments) %>%
   mutate_at("oe", as.numeric) %>%
+  #filter(stream_shore=="Stellako River") %>%
   print()
 ```
 
@@ -88,7 +89,7 @@ sr <- counts %>%
   group_by(stream_shore, date) %>% 
   summarize(males=sum(carc_male, na.rm=T), females=sum(carc_fem, na.rm=T)) %>%
   mutate(male_sr = round(males/(males+females),2), female_sr = round(females/(males+females),2),
-         female_sr = ifelse(female_sr=="NaN", NA, female_sr)) %>%
+         female_sr = ifelse(female_sr=="NaN", NA, female_sr), male_sr = ifelse(male_sr=="NaN", NA, male_sr)) %>%
   group_by(stream_shore) %>%
   mutate(cuml_males=cumsum(males), cuml_females=cumsum(females),
          cuml_male_sr=round(cuml_males/(cuml_males+cuml_females),2), cuml_female_sr=round(cuml_females/(cuml_males+cuml_females),2)) %>%
@@ -145,15 +146,15 @@ in_river_live <- counts %>%
   filter(!is.na(stream_shore), area!="Mouth") %>%
   group_by(date, stream_shore, area) %>% 
   summarize(live_avg = ifelse(!is.na(live_count_obs2), (live_count_obs1+live_count_obs2)/2, live_count_obs1), 
-            holding=unique(holding), spawning=unique(spawning), spawn_out=unique(spawned_out)) %>%
-  mutate_at("spawn_out", as.numeric) %>%
+            holding_perc=unique(holding), spawning_perc=unique(spawning), spawn_out_perc=unique(spawned_out)) %>%
+  mutate_at("spawn_out_perc", as.numeric) %>%
   mutate(live_avg = ifelse(live_avg=="NaN", 0, live_avg),
-         holding = ifelse(is.na(holding), 0, holding),
-         spawning = ifelse(is.na(spawning), 0, spawning),
-         spawn_out = ifelse(is.na(spawn_out), 0, spawn_out),
-         holding_n = live_avg*holding,
-         spawning_n = live_avg*spawning,
-         spawn_out_n = live_avg*spawn_out) %>%
+         holding_perc = ifelse(is.na(holding_perc), 0, holding_perc),
+         spawning_perc = ifelse(is.na(spawning_perc), 0, spawning_perc),
+         spawn_out_perc = ifelse(is.na(spawn_out_perc), 0, spawn_out_perc),
+         holding_n = live_avg*holding_perc,
+         spawning_n = live_avg*spawning_perc,
+         spawn_out_n = live_avg*spawn_out_perc) %>%
   group_by(date, stream_shore) %>%
   summarize(live_avg=sum(live_avg), holding_n=sum(holding_n), spawning_n=sum(spawning_n), spawn_out_n=sum(spawn_out_n)) %>%
   pivot_longer(cols=c(live_avg:spawn_out_n), names_to = "count", values_to = "n") %>%
@@ -165,23 +166,13 @@ in_river_live$count <- factor(in_river_live$count, levels=c("live_avg", "holding
 ```{r echo=F, warning=F, message=F}
 # Plot of avg live count 
 ggplot() +
-  geom_bar(data=in_river_live%>%filter(!grepl("Lake", stream_shore), count=="live_avg"), aes(x=date, y=n), stat="identity", fill="forest green", colour="forest green", size=0.5, alpha=0.7) +
-  labs(x="", y="Live count (unexpanded)", 
-       caption="Fig. Live count by survey for each creek over time.") +
-  facet_wrap(.~stream_shore, scales="free_y", ncol=3) +
-  theme_bw() +
-  theme(plot.caption = element_text(hjust=0, face="italic"))
-```
-
-```{r include=F}
-lake.live.fx <- function(data_file) {ggplot() +
-  geom_bar(data=data_file%>%filter(grepl("Lake",stream_shore), count=="live_avg"), 
+  geom_bar(data=in_river_live%>%filter(count=="live_avg", !grepl("Lake", stream_shore)), 
            aes(x=date, y=n), stat="identity", fill="forest green", colour="forest green", size=0.5, alpha=0.7) +
   labs(x="", y="Live count (unexpanded)", 
        caption="Fig. Live count by survey for each creek over time.") +
   facet_wrap(.~stream_shore, scales="free_y", ncol=3) +
   theme_bw() +
-  theme(plot.caption = element_text(hjust=0, face="italic"))}
+  theme(plot.caption = element_text(hjust=0, face="italic"))
 ```
 
 ```{r warning=F, message=F, echo=F}
