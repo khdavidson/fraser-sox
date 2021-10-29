@@ -43,88 +43,17 @@ library(withr)
 library(padr)
 
 setwd("~/ANALYSIS/Data")
-
-##########################################################################################################################################
-
-
-#                                             BUT FIRST: VERIFYING CATCH AND BIOSAMPLE DATA FROM 2019
-
-# *******      THIS SECTION DOES NOT NEED TO BE RUN AS IT HAS BEEN RESOLVED - HERE FOR REFERENCE ONLY.
-
-# The 2019 data were verified for entry, but the total # of smolts biosampled each night was not verified against the nightly catch total.
-# That will be done here first to ensure the nightly catch totals are correct. 
-
-# Later verification found issues with dates spanning nightly fishing, so these were changed in 
-# "nadleh_ANALYTICAL_database_2019.xlsx". Note that the file "nautley_database_2019_dailycatch.csv" should not be used - 
-# this was from a previous verification iteration. 
-
-
-#------------- Read & clean data 
-# catch.19.raw <- read.csv("nautley_database_2019_dailycatch.csv")   OLD WITH SHITTY DATES 
-ind.smolts.19.raw <- read.csv("nautley_database_2019_inddata.csv")      
-catch.19.ver.raw <- read_excel("nadleh_ANALYTICAL_database_2019.xlsx", sheet="hourly_catch")
-
-ind.smolts.19 <- ind.smolts.19.raw %>%
-  unite("comment", 15:16, sep=", ") %>%
-  mutate(date = lubridate::dmy(date),
-         weight_g = ifelse(weight_g=="N/A" & weight_g=="No weight" & weight_g=="No Weight" & weight_g =="Scale error",
-                           NA, as.numeric(weight_g)),
-         ewatch_fid = ifelse(grepl('E-Watch', comment), paste0(comment), "NA"),
-         ewatch_fid = ifelse(ewatch_fid!="NA", gsub("[^0-9.]", "",  ewatch_fid), NA),
-         ewatch_fid = ifelse(psc_sample_no > 115 & is.na(ewatch_fid), psc_sample_no, ewatch_fid),
-         data_source = ifelse(data_source=="", "Nautley Combined data(Current)Kristy.csv", data_source),
-         data_source = ifelse(data_source != "Nautley Combined data(Current)Kristy.csv" & 
-                                data_source != "2019 Nautley - length frequency entry", 
-                              "2019 Nautley - length frequency entry", data_source),
-         whatman_sheet = ifelse(whatman_sheet=="N/A" & whatman_sheet=="", NA, as.character(whatman_sheet)),
-         psc_sample_id = ifelse(!is.na(psc_book_no), paste(psc_book_no, psc_sample_no, sep="-"), psc_sample_no),
-         ufid = paste("2019", seq(1:nrow(ind.smolts.19.raw)), sep="-"),
-         dna_select_bin = ifelse(!is.na(region1) & !is.na(dna_comment), 1, 0),
-         scales_select_bin = ifelse(is.na(age), 0, 1),
-         ewatch_sample_bin = ifelse(is.na(ewatch_sample_bin), 0, ewatch_sample_bin),
-         jdate = lubridate::yday(date),
-         lab_identifier = gsub("\\(18\\)", "\\(19\\)", lab_identifier),  # changed lab ID to NautleyR(19) from NautleyR(18) so that IDs match up between DNA submissions. 
-         comment = ifelse(comment==", ", NA, comment),
-         comment = gsub('^\\, |\\, $', '', comment)) %>%    
-  mutate_at(vars(length_mm, weight_g), as.numeric) %>%
-  mutate_at(vars(psc_dna_no), as.character) %>%
-  rename(date_opened = date) %>%
-  select(-c(sample_key, length_code, es_file_catch_date, length, weight, scale_lab_date, length_check)) %>%       
-  print()
-
-
-#----------- Join to assess differences
-verify.catch <- full_join(
-  catch.19.ver.raw %>% 
-      group_by(date_opened) %>%
-      summarize(total_sox_catch = sum(sox_smolts), comments=paste0(comments, collapse = ";")),
-    
-    ind.smolts.19 %>%
-      group_by(date_opened) %>%
-      summarize(total_sox_sample = n()),
-    by="date_opened") %>% 
-  mutate(diff=total_sox_catch-total_sox_sample) %>%
-  print()
-
-write.csv(verify.catch, "verify_catch_intermediate.csv", row.names = F)
-
-# Minimal discrepancies were found. As it was a finicky process, the file "nadleh_ANALYTICAL_database_2019.xlsx" was manually changed to
-# reflect these edits. While this is a crappy process and not very transparent, annotations were made as much as possible. 
-
-
-
-
-###########################################################################################################################################
+options(scipen = 9999999999)
 
 ##########################################################################################################################################
 
 
 # 2019 NADLEH data (individual workbooks/data sources)
 catch.19.raw <- read_excel("nadleh_ANALYTICAL_database_2019.xlsx", sheet="hourly_catch")
-ind.smolts.19.raw <- read_excel("Nautley Combined data(Current) - verified JG.xlsx", sheet="Individual smolt data")
-dnab1.19.raw <- read_excel("Nautley Combined data(Current) - verified JG.xlsx", sheet="Individual smolt data")  # as close as it gets now to original batch 1 DNA file
-dnacombo.19.raw <- read_excel("NautleyCombined(19)_2020-01-27.xlsx", sheet="Individual Region IDs", skip=3)
-dnab2.19.raw <- read_excel("Nautley_Batch2(19)_2020-01-27.xlsx", sheet="Individual Region IDs", skip=3)
+ind.smolts.19.raw <- read_excel("nadleh_ANALYTICAL_database_2019.xlsx", sheet="individual_smolts")   # Note this isn't the absolute original file, but changes and edits during verification etc were applied here, so this is the most accurate version
+#MGLb1.19.raw <- read_excel("Nautley Combined data(Current) - verified JG.xlsx", sheet="Individual smolt data")  # as close as it gets now to original batch 1 DNA file
+MGLcombo.19.raw <- read_excel("NautleyCombined(19)_2020-01-27.xlsx", sheet="Individual Region IDs", skip=3)
+MGLb2.19.raw <- read_excel("Nautley_Batch2(19)_2020-01-27.xlsx", sheet="Individual Region IDs", skip=3)
 lf.19.raw <- read_excel("nadleh_ANALYTICAL_database_2019.xlsx", sheet="individual_smolts")
 
 # 2021 NADLEH data (workbook with sheets and individual GSI files)
@@ -132,14 +61,14 @@ Nenviro.21.raw <- read_excel("nadleh_data_clean_2021.xlsx", sheet="environmental
 Ncatch.21.raw <- read_excel("nadleh_data_clean_2021.xlsx", sheet="nightly_catch")
 Nlf.21.raw <- read_excel("nadleh_data_clean_2021.xlsx", sheet="length_frequency")
 Nbio.21.raw <- read_excel("nadleh_data_clean_2021.xlsx", sheet="biosampling")
-Ndna.21.raw <- read_excel("kokaneee_sockeyeNadlehSm(21)_2021-10-12.xlsx", sheet="Individual Region IDs", skip=3)
+NMGL.21.raw <- read_excel("kokaneee_sockeyeNadlehSm(21)_2021-10-12.xlsx", sheet="Individual Region IDs", skip=3)
 
 # 2021 STELLAKO data (workbook with sheets and individual GSI files)
 Senviro.21.raw <- read_excel("stellako_data_clean_2021.xlsx", sheet="environmentals")
 Scatch.21.raw <- read_excel("stellako_data_clean_2021.xlsx", sheet="nightly_catch")
 Slf.21.raw <- read_excel("stellako_data_clean_2021.xlsx", sheet="length_frequency")
 Sbio.21.raw <- read_excel("stellako_data_clean_2021.xlsx", sheet="biosampling")                        
-Sdna.21.raw <- read_excel("kokaneee_sockeyeStellakoSm(21)_2021-10-12.xlsx", sheet="Individual Region IDs", skip=3)
+SMGL.21.raw <- read_excel("kokaneee_sockeyeStellakoSm(21)_2021-10-12.xlsx", sheet="Individual Region IDs", skip=3)
 
 
 ##########################################################################################################################################
@@ -156,17 +85,15 @@ catch.19 <- catch.19.raw %>%
          time_trap_closed=end_time,
          n_unmarked_sampled = sox_smolts_sampled,
          n_unmarked_dead = sox_morts,
+         n_unmarked_lf = n_length_frequency,
          n_chinook_fry = ch_fry,
          n_chinook_smolts = ch_smolts) %>%
   mutate(time_trap_open = with_options(c(scipen = 999), str_pad(catch.19.raw$start_time, 5, pad = "0")),
          time_trap_closed = with_options(c(scipen = 999), str_pad(catch.19.raw$end_time, 5, pad = "0")),
          trap_type = ifelse(trap_type=="small RST", "6' RST", trap_type),
-         year="2019",
-         total_unmarked = sox_smolts_caught + n_unmarked_dead,
-         site="Nadleh",
-         crew="BB,AR,AK,JN",
-         location="not recorded in 2019") %>% 
-  rename() %>%
+         year="2019", site="Nadleh", crew="BB,AR,AK,JN", location="not recorded in 2019",
+         sox_smolts_caught = n_unmarked_sampled + n_unmarked_lf + n_unmarked_spilled + n_unmarked_dead) %>% 
+  rename(total_unmarked = sox_smolts_caught) %>%
   select(-c(start_datetime, end_datetime)) %>%
   print()
 
@@ -176,6 +103,7 @@ Ncatch.21 <- Ncatch.21.raw %>%
   mutate_at(vars(n_marked_released:n_chinook_smolts), as.numeric) %>%
   mutate(trap_type = "8' RST",
          year="2021") %>%
+  rename(n_unmarked_lf = n_length_frequency) %>%
   print()
 
 
@@ -184,6 +112,7 @@ Scatch.21 <- Scatch.21.raw %>%
   mutate_at(vars(n_marked_released:n_chinook_smolts), as.numeric) %>%
   mutate(trap_type = "6' RST",
          year="2021") %>%
+  rename(n_unmarked_lf = n_length_frequency) %>%
   print()
 
 
@@ -192,15 +121,12 @@ catch.join <- full_join(catch.19, Ncatch.21) %>%
   bind_rows(., Scatch.21) %>%
   select(year, site, trap_type, location, date_opened, date_closed, time_trap_open, time_trap_closed, crew, 
          markers, mark_type, n_marked_released, n_marked_dead, n_recaps_upper_clip, n_recaps_lower_clip, total_recaps,
-         sox_smolts_caught, n_unmarked_sampled, n_length_frequency, n_unmarked_spilled, n_unmarked_dead, total_unmarked, 
+         n_unmarked_sampled, n_unmarked_lf, n_unmarked_spilled, n_unmarked_dead, total_unmarked, 
          n_chinook_fry, n_chinook_smolts, other_bycatch, comments) %>%
   mutate_at(vars(date_opened, date_closed), as.Date) %>%
+  mutate(total_unmarked = ifelse(year=="2021", n_unmarked_sampled + n_unmarked_lf + n_unmarked_spilled + n_unmarked_dead, total_unmarked)) %>%
   mutate(across(where(is.character), ~na_if(., "NA"))) %>%
-  mutate(total_unmarked = ifelse(year=="2019", sox_smolts_caught+n_unmarked_dead, 
-                                        ifelse(year=="2021", n_unmarked_sampled+n_length_frequency+n_unmarked_spilled+n_unmarked_dead, 
-                                               NA))) %>%
-  rename(n_unmarked_lf = n_length_frequency) %>%
-  select(-sox_smolts_caught) 
+  print()
 
 # omitted 'date', 'date_true', columns from 2019 and 2021 spreadsheets (respectively) and open_datetime, close_datetime 
 
@@ -276,18 +202,15 @@ enviro.join <- full_join(Nenviro.21, enviro.19) %>%
 # Rename and add to 2019 to match 2021 - Note that sampling dates were entered as the day the trap was opened 
 lf.19 <- lf.19.raw %>% 
   mutate_at(vars(c(weight_g:prob6)), as.numeric) %>% 
-  filter(!is.na(length_mm) & is.na(weight_g) & is.na(psc_book_no) & whatman_sheet=="NA") %>%
-  select(date, length_mm, comment) %>% 
-  rename(date_opened = date,
-         comments = comment) %>%  
+  filter(data_source == "2019 Nautley - length frequency entry") %>%
+  select(date_opened, date_closed, length_mm, comment) %>% 
+  rename(comments = comment) %>%  
   mutate_at("date_opened", as.Date) %>%
   mutate(year = "2019",
          site = "Nadleh",
-         date_closed = date_opened+1,
          crew = "BB,AR,AK,JN",
          trap_type = "6' RST",
          data_type = "Routine",
-         count=1, 
          comments = ifelse(comments=="NA", NA, comments)) %>% 
   print()
 
@@ -326,7 +249,7 @@ lf.join <- full_join(lf.19, Nlf.21) %>%
 
 #--------- 2019 CLEAN/ORGANIZE
 
-#--- DNA ANALYSIS RESULTS FROM MGL 
+#--- MGL FILES: GSI RESULTS 
 # Batch 1 solo:                                              **** PLACEHOLDER UNTIL FIND ORIGINAL FILE **** 
 dnab1.19 <- dnab1.19.raw %>%
   # Selected all of the samples that were analyzed including those that were analyzed but didn't amplify
@@ -348,7 +271,7 @@ dnab1.19 <- dnab1.19.raw %>%
   print()
 
 # Combo DNA: batch 1 and 2
-dnacombo.19 <- dnacombo.19.raw %>% 
+MGLcombo.19 <- MGLcombo.19.raw %>% 
   # remove the leading entry from the model run (not a real fish):
   filter(Fish != "19.000299999999999") %>% 
   # rename columns:
@@ -369,7 +292,7 @@ dnacombo.19 <- dnacombo.19.raw %>%
          b12_reg7=`...15`,
          b12_prob7=`...16`) %>%
   # extract the day of year and unique identifier from the lab_id field for join to our data later: 
-  mutate(whatman_cell=substring(MGL_identifier, 30, 33),
+  mutate(whatman_cell = substring(MGL_identifier, 30, 33),
          dna_data_source = "NautleyCombined(19)_2020-01-27.xlsx") %>%
   # change variable format: 
   mutate_at(vars(c(b12_prob1, b12_reg2)), as.numeric) %>%
@@ -377,7 +300,7 @@ dnacombo.19 <- dnacombo.19.raw %>%
 
 
 # Batch 2 solo
-dnab2.19 <- dnab2.19.raw %>% 
+MGLb2.19 <- MGLb2.19.raw %>% 
   # remove the leading entry from the model run (not a real fish):
   filter(Fish != "19.000299999999999") %>% 
   # rename columns:
@@ -406,94 +329,72 @@ dnab2.19 <- dnab2.19.raw %>%
 
 
 # Join MGL runs                                        #      ****** EVENTUALLY NEED TO ADD B1 AS WELL *******
-dna.19 <- left_join(dnacombo.19, dnab2.19, by=c("MGL_identifier", "whatman_cell", "MGL_comments")) %>%
-  unite("dna_data_sources", dna_data_source.x, dna_data_source.y, sep=",", remove = T) 
+dna.19 <- left_join(MGLcombo.19, MGLb2.19, by=c("MGL_identifier", "whatman_cell", "MGL_comments")) %>%
+  unite("dna_data_sources", dna_data_source.x, dna_data_source.y, sep=",", remove = T) %>%
+  mutate(doy = as.numeric(substring(MGL_identifier, 25, 27)))
 
 
 
 #--- FIELD BIOSAMPLING DATA
 ind.smolts.19 <- ind.smolts.19.raw %>%
   # rename columns. Note the original "whatman_sheet" included both sheet and cell number in 1 column.
-  rename(date_opened=`Capture             date (dd/mmm/yy)`,
-         date_group=`Grouping date`,
-         length_mm=`Smolt length (mm)`,
-         weight_g=`Smolt Weight (g)`,
-         psc_book_no=`PSC book #`,
-         psc_sample_no=`PSC book sample #`,
-         whatman_uid=`Whatman  sheet #      (e.g.,1-35639)`,
-         dna_select_bin=`DNA and scales (1st round select)`,
-         scales_select_bin=`Scale samples only (1st round select)`,
-         data_source=`Data Source`,
-         MGL_comments=`DNA Lab Comment`,
-         MGL_identifier=`Sample Identifier`,
-         b1_reg1=Region1,
-         b1_prob1=Prob1,
-         b1_reg2=Region2,
-         b1_prob2=Prob2,
-         age=Age,
-         PSC_lab_comments=`Dejan's comment`) %>%
-  # select columns of interest (omit all MGL associated comments)
-  select(date_opened:length_mm, weight_g:whatman_uid, dna_select_bin:MGL_comments, MGL_identifier:b1_prob2, age, PSC_lab_comments) %>%
-  mutate(Comment1 = ifelse(is.na(Comment1), "", Comment1),
-         Comment2 = ifelse(is.na(Comment2), "", Comment2)) %>%
-  # combine 2 comment columns columns into 1 with a comma separating:
-  unite("comment", Comment1:Comment2, sep=", ", remove=T) %>%
+  rename(whatman_uid=whatman_sheet,
+         psc_uid = sample_id,
+         PSC_lab_comments=dejan_comment,
+         comments=comment,
+         ewatch_uid=ewatch_fid,
+         doy = jdate,
+         MGL_identifier=lab_identifier,
+         MGL_comments=dna_comment,
+         b1_reg1=region1,
+         b1_prob1=prob1,
+         b1_reg2=region2,
+         b1_prob2=prob2) %>%
+  # remove columns not needed 
+  select(-c(NEWregion1, NEWprob1, NEWregion2, NEWprob2, region3:prob6, ewatch_sample_bin, psc_dna_no, area)) %>%
   # create new columns for unique IDs, data sources, selections, etc. for join to 2021 data later: 
-  mutate(date_opened = as.Date(date_opened),
-         weight_g = ifelse(weight_g%in%c("N/A", "No weight", "No Weight", "Scale error"), NA, as.numeric(weight_g)),
-         ewatch_uid = ifelse(grepl('E-Watch', comment), paste0(comment), "NA"),
-         ewatch_uid = ifelse(ewatch_uid!="NA", gsub("[^0-9.]", "",  ewatch_uid), NA),
-         ewatch_uid = ifelse(psc_sample_no > 115 & is.na(ewatch_uid), psc_sample_no, ewatch_uid),
-         data_source = ifelse(data_source=="", "Nautley Combined data(Current)Kristy.csv", data_source),
-         data_source = ifelse(data_source != "Nautley Combined data(Current)Kristy.csv" & 
-                                data_source != "2019 Nautley - length frequency entry", 
-                              "2019 Nautley - length frequency entry", data_source),
-         whatman_uid = ifelse(whatman_uid%in%c("N/A", ""), NA, as.character(whatman_uid)),
-         whatman_uid = ifelse(grepl("19\\.0", as.character(whatman_uid)), 
+  mutate(whatman_uid = ifelse(grepl("19\\.0", as.character(whatman_uid)), 
                                as.character(str_pad(round(as.numeric(whatman_uid),6), width=9, side="right", pad="0")), 
                               as.character(whatman_uid)),
          whatman_cell = ifelse(grepl("19\\.", whatman_uid), substring(whatman_uid, 6, 9),
                           ifelse(grepl("-", whatman_uid), sub(".*-", "", whatman_uid), whatman_uid)), 
          whatman_cell = str_remove(whatman_cell, "^0+"),
-         psc_uid = ifelse(!is.na(psc_book_no), paste(psc_book_no, psc_sample_no, sep="-"), psc_sample_no),
-         scales_select_bin = ifelse(is.na(age), 0, 1),
-         comment = ifelse(comment==", ", NA, comment),
-         comment = gsub('^\\, |\\, $', '', comment),
-         MGL_identifier = gsub("NautleyR(18)", "NautleyR(19)", MGL_identifier, fixed=T)) %>%  
+         scales_select_bin = ifelse(is.na(age), 0, 1)) %>% 
+         #MGL_identifier = gsub("NautleyR(18)", "NautleyR(19)", MGL_identifier, fixed=T)) %>%  
+  mutate(across(where(is.character), ~na_if(., "NA"))) %>%
   print()
 
 
 #--- Join 2019 GSI results + field biosampling data
-bio.19 <- full_join(ind.smolts.19, dna.19, by=c("MGL_identifier", "MGL_comments", "whatman_cell")) %>% 
+bio.19 <- full_join(ind.smolts.19, dna.19, by=c("whatman_cell", "doy", "MGL_identifier", "MGL_comments")) %>% 
+  mutate_at(vars(weight_g, b1_reg1:b1_prob2), as.numeric) %>%
+  mutate_at(vars(date_opened, date_closed), as.Date) %>%
+  # rename columns
+  rename(smolt_data_source = data_source,
+         DOY_closed=doy,
+         PSC_uid=psc_uid) %>% 
   # create new columns to indicate which fish were run for genetics and in which batch (batch 1 or batch 2)
-  mutate(trap_type = "Mostly 6' RST, some fyke net (unk)",
-         dna_select_bin = ifelse(grepl("NautSMOLTS\\_B2", MGL_identifier), 2, dna_select_bin)) %>%
-  unite("psc_uid", psc_book_no, psc_sample_no, sep="-", remove=T) %>%
-  # re-organize columns: 
-  select(date_opened, date_group, trap_type, psc_uid, whatman_uid, whatman_cell, ewatch_uid,
-         length_mm, weight_g, age, b1_reg1, b1_prob1, b1_reg2, b1_prob2, b12_reg1:b12_prob7, b2_reg1:b2_prob7,
-         scales_select_bin, dna_select_bin, MGL_identifier,  
-         comment, MGL_comments, PSC_lab_comments, data_source, dna_data_sources) %>%
+  mutate(dna_select_bin = as.numeric(ifelse(grepl("NautSMOLTS\\_B2", MGL_identifier), 2, dna_select_bin)),
+         across(b1_reg1:b1_prob2, ~ ifelse(grepl("missing Loci", MGL_comments),NA,.))) %>%
   # remove length-frequency fish to put on the LF page: 
-  filter(!is.na(weight_g) | !is.na(whatman_uid) | !is.na(psc_uid)) %>% 
-  # rename columns: 
-  rename(PSC_uid = psc_uid,
-         comments = comment,
-         smolt_data_source = data_source) %>% 
+  filter(smolt_data_source != "2019 Nautley - length frequency entry") %>% 
   # add new useful columns for the join later: 
   mutate(year="2019",
          site="Nadleh",
-         trap_type="6' RST",
-         samplers="BB,AR,AK/JN",
-         date_closed = date_opened+1) %>%
+         samplers="BB,AR,AK/JN") %>%
+  # re-organize columns for verification (omit unnecessary columns) 
+  select(-c(ufid, psc_book_no, psc_sample_no)) %>%
+  select(year, site, date_opened, date_closed, date_group, DOY_closed, trap_type, PSC_uid, whatman_uid, whatman_cell, ewatch_uid, samplers,
+         length_mm, length_class, weight_g, age, 
+         b1_reg1:b1_prob2, b12_reg1:b12_prob7, b2_reg1:b2_prob7,
+         scales_select_bin, dna_select_bin, MGL_identifier,
+         comments, MGL_comments, PSC_lab_comments, smolt_data_source, dna_data_sources) %>%
   print()
-
-
 
 
 #--------- 2021 NADLEH CLEAN/ORGANIZE
 #--- NADLEH DNA ANALYSIS RESULTS FROM MGL 
-Ndna.21 <- Ndna.21.raw %>% 
+NMGL.21 <- NMGL.21.raw %>% 
   # rename columns 
   rename(MGL_identifier = Fish,
          MGL_comments = Comment,
@@ -532,16 +433,17 @@ Nbio.21 <- Nbio.21.raw %>%
 
 
 #--- Join Nadleh 2021 GSI results + field biosampling data
-Nbio.21 <- left_join(Nbio.21, Ndna.21, by=c("whatman_cell")) %>% 
+Nbio.21 <- left_join(Nbio.21, NMGL.21, by=c("whatman_cell")) %>% 
   # create new column indicating whether samples were run for DNA and which batch (batch 1 or 2)
-  mutate(dna_select_bin = if_else(grepl("NadlehSm", MGL_identifier), 1, 0)) %>%
+  mutate(dna_select_bin = if_else(grepl("NadlehSm", MGL_identifier), 1, 0),
+         DOY_closed = lubridate::yday(date_closed)) %>%
   print()
 
 
 
 #--------- 2021 STELLAKO CLEAN/ORGANIZE
 #--- STELLA DNA ANALYSIS RESULTS FROM MGL 
-Sdna.21 <- Sdna.21.raw %>% 
+SMGL.21 <- SMGL.21.raw %>% 
   # rename columns 
   rename(MGL_identifier = Fish,
          MGL_comments = Comment,
@@ -578,9 +480,10 @@ Sbio.21 <- Sbio.21.raw %>%
 
 
 #--- Join 2021 Stellako GSI results + field biosampling data
-Sbio.21 <- left_join(Sbio.21, Sdna.21, by=c("whatman_cell")) %>% 
+Sbio.21 <- left_join(Sbio.21, SMGL.21, by=c("whatman_cell")) %>% 
   # create new column indicating whether samples were run for DNA and which batch (batch 1 or 2)
-  mutate(dna_select_bin = if_else(grepl("StellakoSm", MGL_identifier), 1, 0)) %>%
+  mutate(dna_select_bin = if_else(grepl("StellakoSm", MGL_identifier), 1, 0),
+         DOY_closed = lubridate::yday(date_closed)) %>%
   print()
 
 
@@ -588,14 +491,15 @@ Sbio.21 <- left_join(Sbio.21, Sdna.21, by=c("whatman_cell")) %>%
 #--------- JOIN 2019 + 2021
 # Create vector of IDs for samples slated for priority scale analysis from the PSC for quick creation of a 2021 scales_select_bin variable.
 # Note this was made in dna_pulls_2021.R file. 
-PSC_scale_priorities_2021 <- read.csv("northern_smolt_scale_PRIORITIES_june2021.csv")
-PSC_priority_IDs <- PSC_scale_priorities_2021$PSC_uid
+PSC_scale_priorities_2021 <- read.csv("northern_smolt_scale_PRIORITIES_june2021.csv")$PSC_uid
 
 bio.join <- full_join(Nbio.21, bio.19) %>%
   bind_rows(., Sbio.21) %>%
-  mutate(species = ifelse(grepl("hinook", comments), "Chinook", "Sockeye")) %>% 
+  # change variable format  
   mutate_at(vars(date_opened, date_closed), as.Date) %>%
-  mutate(PSC_uid = ifelse(PSC_uid=="NA-NA", NA, PSC_uid),
+  # create or edit variables for clenliness 
+  mutate(species = ifelse(grepl("hinook", comments), "Chinook", "Sockeye"),
+         PSC_uid = ifelse(PSC_uid=="NA-NA", NA, PSC_uid),
          whatman_uid = ifelse(whatman_uid=="NA-NA", NA, whatman_uid),
          length_class = ifelse(length_mm<80, "<80", 
                                ifelse(length_mm>=80 & length_mm <= 89, "80-89",
@@ -604,24 +508,19 @@ bio.join <- full_join(Nbio.21, bio.19) %>%
                                                     ifelse(length_mm>=110 & length_mm <= 119, "110-119",
                                                            ifelse(length_mm>=120 & length_mm <= 130, "120-130", ">130"))))))) %>%
   # Identify samples slated for priority analysis at PSC scale lab (they will analyze all samples eventually)
-  mutate(scales_select_bin = ifelse(year=="2021" & PSC_uid%in%PSC_priority_IDs, "1", 
-                              ifelse(year=="2021" & !PSC_uid%in%PSC_priority_IDs, "2", scales_select_bin))) %>%
-  select(year, site, species, trap_type, samplers, date_opened, date_closed, date_group, time_trap_closed, 
+  mutate(scales_select_bin = ifelse(year=="2021" & PSC_uid%in%PSC_scale_priorities_2021, "1", 
+                              ifelse(year=="2021" & !PSC_uid%in%PSC_scale_priorities_2021, "2", scales_select_bin))) %>%
+  # re-organize columns/omit redundancies
+  select(-c(whatman_sheet, PSC_book, PSC_cell)) %>%
+  select(year, site, species, trap_type, date_opened, date_closed, date_group, time_trap_closed, samplers, 
          ufid, PSC_uid, whatman_uid, whatman_cell, ewatch_uid,
          length_mm, length_class, weight_g, age, b1_reg1:b1_prob6, b12_reg1:b12_prob7, b2_reg1:b2_prob7, 
          dna_select_bin, scales_select_bin, MGL_identifier, 
          comments, PSC_lab_comments, MGL_comments, smolt_data_source, dna_data_sources) %>%
+  # Turn all character NAs to 'true' NAs 
   mutate(across(where(is.character), ~na_if(., "NA"))) %>%
   print()
 
-write.csv(bio.join, "bio_join_test.csv", row.names = F) 
-
-
-
-
-
-# omit jdate (can be calculated later if needed), omitted PSC_book and PSC_cell and whatman_sheet and whatman_cell as they are redundant 
-# (breakdown can be captured in the metadata), area (PSC/MGL relic), 
 
 
 
@@ -653,7 +552,7 @@ enviro.metadata <- tibble(column = names(enviro.join)) %>%
                                  column=="comments"~"Misc comments about conditions, sampling, observations, etc. each night",
                                  column=="year"~"Year of project",
                                  column=="trap_type"~"Rotary screw trap (RST), either 6' or 8' in diameter, or a fyke net")) %>%
-  add_row(column="ENVIRONMENTAL METADATA", .before=1) %>%
+  add_row(column="ENVIRONMENTAL METADATA", units=" ", description=" ", .before=1) %>%
   add_row() %>%
   add_row() %>%
   print()
@@ -668,10 +567,10 @@ catch.metadata <- data.frame(column = names(catch.join)) %>%
                                  column=="site"~"Nautley River (Nadleh Koh) or Stellako River (Stella)",
                                  column=="trap_type"~"Rotary screw trap (RST), either 6' or 8' in diameter, or a fyke net.",
                                  column=="location"~"Brief location describing where the trap is in the river (e.g., 'river right, off-center of thalweg')",
-                                 column=="date_opened"~"Date trap (RST or fyke net) was opened for each fishing interval. Usually spans one night, although some dates in 2019 will span days and/or day+night",
-                                 column=="date_closed"~"Date trap (RST or fyke net) was closed for each fishing interval. Usually spans one night, although some dates in 2019 will span days and/or day+night",
-                                 column=="time_trap_open"~"Time trap (RST or fyke net) was open for each fishing interval in 24-hr format where midnight is 00:00",
-                                 column=="time_trap_closed"~"Time trap (RST or fyke net) was closed for each fishing interval in 24-hr format where midnight is 00:00",
+                                 column=="date_opened"~"Date trap (RST or fyke net) was opened for each fishing interval/group, where nights with hourly checks are recorded as one open date and one close date (i.e., open date does not necessarily line up to open time). Usually spans one night, although some dates in 2019 will span days and/or day+night",
+                                 column=="date_closed"~"Date trap (RST or fyke net) was closed for each fishing interval/group, where nights with hourly checks are recorded as one open date and one close date (i.e., close date does not necessarily line up to close time). Usually spans one night, although some dates in 2019 will span days and/or day+night",
+                                 column=="time_trap_open"~"Time trap (RST or fyke net) was open for each fishing interval, usually about 1-hr intervals between trap checks but may be more. In 24-hr format where midnight is 00:00",
+                                 column=="time_trap_closed"~"Time trap (RST or fyke net) was closed for each fishing interval, usually about 1-hr intervals between trap checks but may be more. In 24-hr format where midnight is 00:00",
                                  column=="crew"~"Nightly crew initials", 
                                  column=="markers"~"Crew members applying marks for mark-recapture trials, when appropriate",
                                  column=="mark_type"~"Mark type applied to sockeye smolts during mark-recapture trials (if appropriate). Typically it is upper caudal clip ('upper') at Stellako and lower caudal clip ('lower') at Nautley",
@@ -681,8 +580,8 @@ catch.metadata <- data.frame(column = names(catch.join)) %>%
                                  column=="n_unmarked_sampled"~"Number of sockeye smolts from the unmarked population that were biosampled for weight, age and/or DNA (these fish were always unmarked smolts and never recaptures from mark-recapture trials)",
                                  column=="n_unmarked_lf"~"Number of unmarked sockeye smolts measured for length-frequency only (recorded on LF sheet). Recaps were measured for length-frequency (and recorded on LF sheet), but not included in unmarked LF totals.",
                                  column=="n_unmarked_spilled"~"Number of sockeye smolts spilled, either from the trap during transfer, during busy nights, etc. These fish were not sampled or measured in any way, only enumerated",
-                                 column=="n_unmarked_dead"~"Number of sockeye smolts that died during any part of the fishing/handling process (this is primarily smolts found dead in the RST livebox or mesh)",
-                                 column=="total_unmarked"~"Total number of unmarked sockeye encountered. Generated using Excel formula upon entry.",
+                                 column=="n_unmarked_dead"~"Number of sockeye smolts that died during any part of the fishing/handling process (this is primarily smolts found dead in the RST livebox or mesh, and not fish that died during the mark application/release process)",
+                                 column=="total_unmarked"~"Total number of unmarked sockeye encountered: sum of n_unmarked_sampled+n_unmarked_lf+n_unmarked_spilled+n_unmarked_dead.",
                                  column=="n_recaps_upper_clip"~"Number of sockeye smolts recaptured with the upper caudal fin clipped. Assumed that the number entered here are released alive. Comments indicate if any recaptured smolts die during the recapture process.",
                                  column=="n_recaps_lower_clip"~"Number of sockeye smolts recaptured with the lower caudal fin clipped. Assumed that the number entered here are released alive. Comments indicate if any recaptured smolts die during the recapture process.",
                                  column=="total_recaps"~"Total number of marked sockeye smolts recaptured. Generated using Excel formula upon entry.",
@@ -690,7 +589,7 @@ catch.metadata <- data.frame(column = names(catch.join)) %>%
                                  column=="n_chinook_smolts"~"Number of Chinook smolts encountered. Some were also sampled (entered on the biosample page), but not all",
                                  column=="other_bycatch"~"Number and species of other bycatch encountered",
                                  column=="comments"~"Relevant nightly comments")) %>%
-  add_row(column="NIGHTLY CATCH METADATA", .before=1) %>%
+  add_row(column="NIGHTLY CATCH METADATA", units=" ", description=" ", .before=1) %>%
   add_row() %>%
   add_row() %>%
   print()
@@ -702,14 +601,14 @@ lf.metadata <- tibble(column = names(lf.join)) %>%
                            grepl("date", column)~"yyyy-mm-dd", column=="length_mm"~"millimeters"),
          description = case_when(column=="year"~"Year of project", 
                                  column=="site"~"Nautley River (Nadleh Koh) or Stellako River (Stella)",
-                                 column=="date_opened"~"Date trap (RST or fyke net) was opened for each fishing interval. Usually spans one night, although some dates in 2019 will span days and/or day+night",
-                                 column=="date_closed"~"Date trap (RST or fyke net) was closed for each fishing interval. Usually spans one night, although some dates in 2019 will span days and/or day+night",
+                                 column=="date_opened"~"Date trap (RST or fyke net) was opened for each fishing interval/group, where nights with hourly checks are recorded as one open date and one close date (i.e., open date does not necessarily line up to open time). Usually spans one night, although some dates in 2019 will span days and/or day+night",
+                                 column=="date_closed"~"Date trap (RST or fyke net) was closed for each fishing interval/group, where nights with hourly checks are recorded as one open date and one close date (i.e., open date does not necessarily line up to open time). Usually spans one night, although some dates in 2019 will span days and/or day+night",
                                  column=="crew"~"Nightly crew initials",
                                  column=="comments"~"Misc comments about conditions, sampling, observations, etc. each night",
                                  column=="trap_type"~"Rotary screw trap (RST), either 6' or 8' in diameter, or a fyke net",
-                                 column=="data_type"~"Type of length-frequency data colleced, whether it was part of normal sampling ('Routine'), from the marked population ('Application'), or from a recapture ('Recapture', and which site the smolt was marked at)",
+                                 column=="data_type"~"Type of length-frequency data colleced, whether it was part of normal length-frequency data collection ('Routine'), from the marked population ('Application'), or from a recapture ('Recapture', and which site the smolt was marked at)",
                                  column=="length_mm"~"Smolt fork length to nearest mm")) %>%
-  add_row(column="LENGTH-FREQUENCY METADATA", .before=1) %>%
+  add_row(column="LENGTH-FREQUENCY METADATA", units=" ", description=" ", .before=1) %>%
   add_row() %>%
   add_row() %>%
   print()
@@ -725,13 +624,13 @@ bio.metadata <- tibble(column = names(bio.join)) %>%
                            column=="weight_g"~"grams", column=="age"~"year of life", column=="whatman_cell"~"-",  column=="ewatch_uid"~"-"),
          description = case_when(column=="year"~"Year of project", 
                                  column=="site"~"Nautley River (Nadleh Koh) or Stellako River (Stella)",
-                                 column=="species"~"Species of fish, usually Sockeye or Chinook",
+                                 column=="species"~"Species of smolt, Sockeye or Chinook",
                                  column=="trap_type"~"Rotary screw trap (RST), either 6' or 8' in diameter, or a fyke net",
                                  column=="samplers"~"Initials of nightly sampling crew",
-                                 column=="date_opened"~"Date trap (RST or fyke net) was opened for each fishing interval. Usually spans one night, although some dates in 2019 will span days and/or day+night",
-                                 column=="date_closed"~"Date trap (RST or fyke net) was closed for each fishing interval. Usually spans one night, although some dates in 2019 will span days and/or day+night",
+                                 column=="date_opened"~"Date trap (RST or fyke net) was opened for each fishing interval/group, where nights with hourly checks are recorded as one open date and one close date (i.e., open date does not necessarily line up to open time). Usually spans one night, although some dates in 2019 will span days and/or day+night",
+                                 column=="date_closed"~"Date trap (RST or fyke net) was closed for each fishing interval/group, where nights with hourly checks are recorded as one open date and one close date (i.e., open date does not necessarily line up to open time). Usually spans one night, although some dates in 2019 will span days and/or day+night",
                                  column=="date_group"~"Date grouping from 2019 data. Not sure what this was for - perhaps GSI or smooth plotting. Retained in case important for replication of results at some point",
-                                 column=="time_trap_closed"~"Time trap (RST or fyke net) was closed for each fishing interval in 24-hr format where midnight is 00:00. References the time when smolts were netted out of the trap and brought to shore to begin sampling.",
+                                 column=="time_trap_closed"~"Time trap (RST or fyke net) was checked/closed for each fishing interval in 24-hr format where midnight is 00:00. References the time when smolts were netted out of the trap and brought to shore to begin sampling.",
                                  column=="ufid"~"Unique fish ID for use across space/time (PSC/Whatman IDs not guaranteed to be unique over time)",
                                  column=="PSC_uid"~"Pacific Salmon Commission (PSC) ID for scale samples. Unique ID per year BUT NOT GUARANTEED TO BE UNIQUE OVER CONSEQUTIVE PROGRAM YEARS. Concatenation of PSC book number-cell number",
                                  column=="whatman_uid"~"Whatman ID for DNA samples. Unique ID per year BUT NOT GUARANTEED TO BE UNIQUE OVER CONSEQUTIVE PROGRAM YEARS. Concatenation of Whatman sheet number-cell number",
@@ -748,15 +647,15 @@ bio.metadata <- tibble(column = names(bio.join)) %>%
                                  grepl("b2_reg", column)~"Batch 2 genetic stock ID (GSI) regional assignments, where region 1 is the most probable and subsequent regions are the least probable. Samples were run in 2 batches, the 1st batch was priority and 2nd batch was follow-up. GSI results can change depending on the mixture of samples included in the analysis, so samples were run as just batch 1, batch 1+2 combined, and just batch 2, to assess the extent of stock-switching (i.e., reliability of stock ID).",
                                  grepl("b2_prob", column)~"Batch 2 genetic stock ID (GSI) probability associated with regional assignments, where prob1 is the most probable and subsequent probabilities decrease. Samples were run in 2 batches, the 1st batch was priority and 2nd batch was follow-up. GSI results can change depending on the mixture of samples included in the analysis, so samples were run as just batch 1, batch 1+2 combined, and just batch 2, to assess the extent of stock-switching (i.e., reliability of stock ID).",
                                  column=="dna_select_bin"~"Categorical code for samples selected for DNA analysis, where 0=not sent, 1=first batch, 2=second batch",
-                                 column=="scales_select_bin"~"Categorical code for samples selected for scale analysis, where 0=not sent, 1=first batch, 2=second batch",
-                                 column=="MGL_identifier"~"Molecular Genetics Lab (MGL) unique identifier. Needed for reference to GSI files from MGL. Composed of: BatchID  trap_type  day_of_year  whatman_cell",
-                                 column=="MGL_comments"~"Comments from the MGL from DNA analysis",
-                                 column=="PSC_lab_comments"~"Comments from the PSC lab from scale analysis",
+                                 column=="scales_select_bin"~"Categorical code for samples selected for scale analysis, where 0=not sent, 1=first batch/priority, 2=second batch (if applicable)",
+                                 column=="MGL_identifier"~"Molecular Genetics Lab (MGL) unique identifier. Needed for reference to GSI files from MGL. Composed of: BatchID(year)  trap_type  day_of_year  whatman_cell",
+                                 column=="MGL_comments"~"Comments from the MGL from GSI analysis process",
+                                 column=="PSC_lab_comments"~"Comments from the PSC lab from scale analysis (Dejan Brkic in 2019)",
                                  column=="comments"~"Misc comments about conditions, sampling, observations, etc. each night",
-                                 column=="smolt_data_source"~"Record from 2019 data compilation as many files existed over time",
-                                 column=="dna_data_sources"~"Record of file names for GSI data returned from MGL"
+                                 column=="smolt_data_source"~"Record for 2019 data compilation as many files existed over time",
+                                 column=="dna_data_sources"~"Record of GSI analysis file name(s) returned from MGL"
                                  )) %>%
-  add_row(column="BIOSAMPLING METADATA", .before=1) %>%
+  add_row(column="BIOSAMPLING METADATA", units=" ", description=" ", .before=1) %>%
   print()
 
 
@@ -781,7 +680,6 @@ MGL_region_codes <- tibble(region_code=seq(1:19)) %>%
 
 #                                                       EXPORT TO EXCEL
 
-
 northern_wb <- createWorkbook()
 
 addWorksheet(northern_wb, "metadata")
@@ -792,8 +690,24 @@ addWorksheet(northern_wb, "biosampling")
 addWorksheet(northern_wb, "MGL_GSI_codes")
 
 writeData(northern_wb, sheet="metadata", x=metadata)
+conditionalFormatting(northern_wb, "metadata", cols=1:3, 
+                      rows=2, style=createStyle(bgFill="#00e5ff"), type="contains", rule=" ")
+conditionalFormatting(northern_wb, "metadata", cols=1:3, 
+                      rows=21, style=createStyle(bgFill="#00e5ff"), type="contains", rule=" ")
+conditionalFormatting(northern_wb, "metadata", cols=1:3, 
+                      rows=49, style=createStyle(bgFill="#00e5ff"), type="contains", rule=" ")
+conditionalFormatting(northern_wb, "metadata", cols=1:3, 
+                      rows=61, style=createStyle(bgFill="#00e5ff"), type="contains", rule=" ")
+conditionalFormatting(northern_wb, "metadata", cols=1:ncol(metadata), 
+                      rows=37, style=createStyle(bgFill="gray80"), type="contains", rule="o")
+conditionalFormatting(northern_wb, "metadata", cols = 1:ncol(metadata), 
+                      rows=42, style=createStyle(bgFill="gray80"), type="contains", rule="o")
 writeData(northern_wb, sheet="environmental", x=enviro.join)
 writeData(northern_wb, sheet="nightly_catch", x=catch.join)
+conditionalFormatting(northern_wb, "nightly_catch", cols=16, 
+                      rows=0:nrow(catch.join)+1, style=createStyle(bgFill="gray80"), type="expression", rule=">=0")
+conditionalFormatting(northern_wb, "nightly_catch", cols=21, 
+                      rows=0:nrow(catch.join)+1, style=createStyle(bgFill="gray80"), type="expression", rule=">=0")
 writeData(northern_wb, sheet="length_frequency", x=lf.join)
 writeData(northern_wb, sheet="biosampling", x=bio.join)
 writeData(northern_wb, sheet="MGL_GSI_codes", x=MGL_region_codes)
