@@ -186,11 +186,6 @@ enviro.join <- full_join(Nenviro.21, enviro.19) %>%
 
 
 
-# Checked and validated against past data and appears to be in line and accurate! 
-
-
-
-
 
 ##########################################################################################################################################
 
@@ -682,6 +677,7 @@ MGL_region_codes <- tibble(region_code=seq(1:19)) %>%
 
 northern_wb <- createWorkbook()
 
+# create empty sheets
 addWorksheet(northern_wb, "metadata")
 addWorksheet(northern_wb, "environmental")
 addWorksheet(northern_wb, "nightly_catch")
@@ -689,6 +685,7 @@ addWorksheet(northern_wb, "length_frequency")
 addWorksheet(northern_wb, "biosampling")
 addWorksheet(northern_wb, "MGL_GSI_codes")
 
+# write data to sheets (some with formatting)
 writeData(northern_wb, sheet="metadata", x=metadata)
 conditionalFormatting(northern_wb, "metadata", cols=1:3, 
                       rows=2, style=createStyle(bgFill="#00e5ff"), type="contains", rule=" ")
@@ -702,16 +699,22 @@ conditionalFormatting(northern_wb, "metadata", cols=1:ncol(metadata),
                       rows=37, style=createStyle(bgFill="gray80"), type="contains", rule="o")
 conditionalFormatting(northern_wb, "metadata", cols = 1:ncol(metadata), 
                       rows=42, style=createStyle(bgFill="gray80"), type="contains", rule="o")
+
 writeData(northern_wb, sheet="environmental", x=enviro.join)
+
 writeData(northern_wb, sheet="nightly_catch", x=catch.join)
 conditionalFormatting(northern_wb, "nightly_catch", cols=16, 
                       rows=0:nrow(catch.join)+1, style=createStyle(bgFill="gray80"), type="expression", rule=">=0")
 conditionalFormatting(northern_wb, "nightly_catch", cols=21, 
                       rows=0:nrow(catch.join)+1, style=createStyle(bgFill="gray80"), type="expression", rule=">=0")
+
 writeData(northern_wb, sheet="length_frequency", x=lf.join)
+
 writeData(northern_wb, sheet="biosampling", x=bio.join)
+
 writeData(northern_wb, sheet="MGL_GSI_codes", x=MGL_region_codes)
 
+# SAVE IT ALLLLLL!
 saveWorkbook(northern_wb, "Northern_smolt_database_2019-2021.xlsx", overwrite = T)
 
 
