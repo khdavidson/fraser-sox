@@ -18,12 +18,13 @@ options(scipen = 9999999)
 catch.data.raw <- read_excel("Northern_smolt_database_2019-2021.xlsx", sheet="nightly_catch")
 enviro.data.raw <- read_excel("Northern_smolt_database_2019-2021.xlsx", sheet="environmental")
 lf.data.raw <- read_excel("Northern_smolt_database_2019-2021.xlsx", sheet="length_frequency")
-bio.data.raw <- read_excel("Northern_smolt_database_2019-2021.xlsx", sheet="biosampling")
+bio.data.raw <- read_excel("Northern_smolt_database_2019-2021.xlsx", sheet="biosampling", guess_max = 10000)
 stella.disch.raw <- read.csv("STELLA_DISC_2021_08JB002_QR_Nov-1-2021_09_27_39PM.csv")
 nad19.disch.raw <- read.csv("NAUT_DISCH_2019_08JB003_QR_Dec-19-2019_12_44_31AM.csv")
 nad21.disch.raw <- read.csv("NAUT_DISCH_2021_08JB003_QR_Nov-1-2021_09_25_53PM.csv")
 nadhist.disch.raw <- read.csv("NAUT_DISCH_1999-2000_Daily__Nov-3-2021_08_38_13PM.csv")
 nad.hist.raw <- read.csv("1999-2000 Nautley data.csv")
+moon.raw <- read.csv("moon_phases.csv")
 
 
 ############################################################################################################################################
@@ -103,9 +104,9 @@ lf.data <- lf.data.raw %>%
 
 bio.data <- bio.data.raw %>% 
   mutate_at(vars(date_opened, date_closed), as.Date) %>%
-  mutate_at(vars(time_trap_closed, date_group), as.character) %>%
-  mutate_at(vars(b12_reg1:b2_prob7, age), as.numeric) %>% 
   mutate_at(vars(contains('_reg')), funs(ifelse(.=="4","Nadina", ifelse(.=="12","Stellako",.)))) %>%
+  mutate(cf_k = (weight_g/(length_mm/10)^3)*100,
+         DOY_closed = lubridate::yday(date_closed)) %>%
   print()  
 
 
@@ -165,6 +166,12 @@ discharge.hist <- nadhist.disch.raw %>%
          DOY%in%c(100:151)) %>%
   print()
 
+
+#--------- MOON MOON
+moon <- moon.raw %>%
+  mutate(date = lubridate::dmy(date)) %>%
+  print()
+  
 
 
 ##############################################################################################################################################
@@ -345,7 +352,13 @@ catch.hist <- nad.hist %>%
 
 
 #--------- PLOT: CPUE MIGRATION CORRECTED
-nhist<-ggplot() +
+plot_grid(
+ggplot() +
+  geom_point(data=moon%>%filter(year%in%c("1999")), 
+             aes(x=as.Date(lubridate::yday(date), origin="1998-12-31"),y=2000),colour="gray70", fill="gray70",shape=24,size=4,alpha=0.6) +
+  geom_point(data=moon%>%filter(year%in%c("2000")), 
+             aes(x=as.Date(lubridate::yday(date), origin="1998-12-31"),y=2000),colour="black", fill="black",shape=24,size=4,alpha=0.6) +
+  
   annotate(geom="text", label="A", x=as.Date(101, origin="1998-12-31"), y=2300, fontface=2, size=7, hjust = 0) +
   annotate(geom="text", label="Nautley 1999, 2000", x=as.Date(101, origin="1998-12-31"), fontface=3, y=1900, size=5, hjust = 0) +
   geom_line(data=discharge.hist, 
@@ -366,11 +379,13 @@ nhist<-ggplot() +
         panel.grid  = element_blank(),
         panel.border = element_rect(size=1.2)) +
   guides(colour="none") +
-  guides(fill="none")
+  guides(fill="none"),
 
 
 # NADLEH 2019
-n19<-ggplot() +
+ggplot() +
+  geom_point(data=moon%>%filter(year=="2019"), 
+             aes(x=as.Date(lubridate::yday(date), origin="2018-12-31"),y=7000),shape=24,col="red",fill="red",size=4) +
   geom_rect(data=ice_flows%>%filter(year=="2019"), 
             aes(xmin=as.Date(xstartDOY, origin="2018-12-31"), xmax=as.Date(xendDOY, origin="2018-12-31"), ymin=-Inf, ymax=Inf), 
             fill="gray60", alpha=0.5) +
@@ -396,12 +411,14 @@ n19<-ggplot() +
         axis.text = element_text(colour="black", size=15),
         axis.title = element_text(face="bold", size=18),
         panel.grid  = element_blank(),
-        panel.border = element_rect(size=1.2)) 
+        panel.border = element_rect(size=1.2)),
 
 
 
 # NADLEH 2021
-n21<-ggplot() +
+ggplot() +
+  geom_point(data=moon%>%filter(year=="2021"), 
+             aes(x=as.Date(lubridate::yday(date), origin="2020-12-31"),y=5000),shape=24,col="red",fill="red",size=4) +
   geom_rect(data=ice_flows%>%filter(year=="2021",site=="Nadleh"), 
             aes(xmin=as.Date(xstartDOY, origin="2020-12-31"), xmax=as.Date(xendDOY, origin="2020-12-31"), ymin=-Inf, ymax=Inf), 
             fill="gray60", alpha=0.5) +
@@ -425,11 +442,13 @@ n21<-ggplot() +
         axis.text = element_text(colour="black", size=15),
         axis.title = element_text(face="bold", size=18),
         panel.grid  = element_blank(),
-        panel.border = element_rect(size=1.2))  
+        panel.border = element_rect(size=1.2)) , 
 
 
 # STELLAKO 2021
-s21<-ggplot() +
+ggplot() +
+  geom_point(data=moon%>%filter(year=="2021"), 
+             aes(x=as.Date(lubridate::yday(date), origin="2020-12-31"),y=300),shape=24,col="red",fill="red",size=4) +
   annotate(geom="text", label="D", x=as.Date(101, origin="2020-12-31"), y=360, fontface=2, size=7, hjust = 0) +
   annotate(geom="text", label="Stellako 2021", x=as.Date(101, origin="2020-12-31"), y=290, fontface=3, size=5, hjust = 0) +  
   geom_ribbon(data=discharge.19_21%>%filter(year=="2021",site=="Stellako"), 
@@ -448,10 +467,9 @@ s21<-ggplot() +
         axis.text = element_text(colour="black", size=15),
         axis.title = element_text(face="bold", size=18),
         panel.grid  = element_blank(),
-        panel.border = element_rect(size=1.2))  
+        panel.border = element_rect(size=1.2)),  
 
-
-plot_grid(nhist, n19, n21, s21, ncol=1, align="v", rel_heights = c(1,1.35,1,1.3))
+ncol=1, align="v", rel_heights = c(1,1.35,1,1.3))
 
 
 
@@ -537,12 +555,129 @@ ggplot(hourly_all%>%arrange(year), aes(x=time_trap_closed, y=mean_perc, group=ye
 #                                                 BIOLOGICAL DATA (no GSI)
 
 
-#--------- LENGTH
+#--------- TEMPORAL (nightly) TRENDS IN RAW DATA 
+# Length, weight, CF
+plot_grid(ggplot() +
+  geom_point(data=bio.data%>%filter(year=="2021"), 
+             aes(x=as.Date(date_closed), y=length_mm, group=site,fill=site,colour=site), shape=21, alpha=0.5, size=3) +
+  geom_smooth(data=bio.data%>%filter(year=="2021"), 
+              aes(x=as.Date(date_closed), y=length_mm, group=site,fill=site,colour=site),method="lm") +
+  stat_cor(data=bio.data%>%filter(year=="2021"), 
+           aes(x=as.Date(date_closed), y=length_mm, group=site, colour=site, label=..rr.label..), size=3, r.digits=2, p.digits=3, 
+           label.y=c(200,200), label.x=c(as.Date("2021-04-15"),as.Date("2021-04-20")), show.legend = F) +
+  stat_cor(data=bio.data%>%filter(year=="2021"), 
+           aes(x=as.Date(date_closed), y=length_mm, group=site, colour=site, label=..p.label..), size=3, r.digits=2, p.digits=3, 
+           label.y=c(150,150), label.x=c(as.Date("2021-04-15"),as.Date("2021-04-20")), show.legend = F) +
+  labs(x="") +
+  theme_bw() +
+  theme(legend.position = "none"),
+
+ggplot() +
+  geom_point(data=bio.data%>%filter(year=="2021"), 
+             aes(x=as.Date(date_closed), y=weight_g, group=site,fill=site,colour=site), shape=21, alpha=0.5, size=3) +
+  geom_smooth(data=bio.data%>%filter(year=="2021"), 
+              aes(x=as.Date(date_closed), y=weight_g, group=site,fill=site,colour=site),method="lm") +
+  stat_cor(data=bio.data%>%filter(year=="2021"), 
+           aes(x=as.Date(date_closed), y=length_mm, group=site, colour=site, label=..rr.label..), size=3, r.digits=2, p.digits=3,
+           label.y=c(60,60), label.x=c(as.Date("2021-04-15"),as.Date("2021-04-20")), show.legend = F) +
+  stat_cor(data=bio.data%>%filter(year=="2021"), 
+           aes(x=as.Date(date_closed), y=length_mm, group=site, colour=site, label=..p.label..), size=3, r.digits=2, p.digits=3,
+           label.y=c(40,40), label.x=c(as.Date("2021-04-15"),as.Date("2021-04-20")), show.legend = F) +
+  labs(x="") +
+  theme_bw() +
+  theme(legend.position = c(0.2,0.8)),
+
+ggplot() +
+  geom_point(data=bio.data%>%filter(year=="2021"), 
+             aes(x=as.Date(date_closed), y=cf_k, group=site,fill=site,colour=site), shape=21, alpha=0.5, size=3) +
+  geom_smooth(data=bio.data%>%filter(year=="2021"), 
+              aes(x=as.Date(date_closed), y=cf_k, group=site,fill=site,colour=site),method="lm") +
+  stat_cor(data=bio.data%>%filter(year=="2021"), 
+           aes(x=as.Date(date_closed), y=length_mm, group=site, colour=site, label=..rr.label..), size=3, r.digits=2, p.digits=3,
+           label.y=c(1.75,1.75), label.x=c(as.Date("2021-04-15"),as.Date("2021-04-20")), show.legend = F) +
+  stat_cor(data=bio.data%>%filter(year=="2021"), 
+           aes(x=as.Date(date_closed), y=length_mm, group=site, colour=site, label=..p.label..), size=3, r.digits=2, 
+           label.y=c(1.25,1.25), label.x=c(as.Date("2021-04-15"),as.Date("2021-04-20")), show.legend = F) +
+  labs(x="") +
+  theme_bw() +
+  theme(legend.position = "none"),
+
+ncol=1, align="v")
+
+
+#--------- TEMPORAL (hourly) TRENDS IN RAW DATA 
+bio.data$time_trap_closed <- factor(bio.data$time_trap_closed, 
+                                      levels=c("21:00", "21:30", "21:40", "22:00", "23:00", "00:00", 
+                                               "01:00", "02:00", "03:00", "04:00"), ordered=T)
+
+# Length, weight, CF
+plot_grid(ggplot() +
+            geom_violin(data=bio.data%>%filter(year=="2021", !is.na(time_trap_closed), time_trap_closed!="21:30-23:00"), 
+                        aes(x=time_trap_closed, y=length_mm, fill=site,colour=site, group=interaction(site, time_trap_closed)), alpha=0.5) +
+            geom_point(data=bio.data%>%filter(year=="2021", !is.na(time_trap_closed), time_trap_closed!="21:30-23:00"), 
+                       aes(x=time_trap_closed, y=length_mm, group=site,fill=site,colour=site), shape=21, alpha=0.5, size=3) +
+            geom_smooth(data=bio.data%>%filter(year=="2021", !is.na(time_trap_closed), time_trap_closed!="21:30-23:00"), 
+                        aes(x=time_trap_closed, y=length_mm, group=site,fill=site,colour=site),method="lm") +
+            stat_cor(data=bio.data%>%filter(year=="2021", !is.na(time_trap_closed), time_trap_closed!="21:30-23:00"), 
+                     aes(x=time_trap_closed, y=length_mm, group=site, colour=site, label=..rr.label..), size=3, r.digits=2, p.digits=3, 
+                     label.y=c(200,200), label.x=c(1, 2), show.legend = F) +
+            stat_cor(data=bio.data%>%filter(year=="2021", !is.na(time_trap_closed), time_trap_closed!="21:30-23:00"), 
+                     aes(x=time_trap_closed, y=length_mm, group=site, colour=site, label=..p.label..), size=3, r.digits=2, p.digits=3, 
+                     label.y=c(150,150), label.x=c(1, 2), show.legend = F) +
+            labs(x="") +
+            theme_bw() +
+            theme(legend.position = "none"),
+          
+          ggplot() +
+            geom_violin(data=bio.data%>%filter(year=="2021", !is.na(time_trap_closed), time_trap_closed!="21:30-23:00"), 
+                        aes(x=time_trap_closed, y=weight_g, fill=site,colour=site, group=interaction(site, time_trap_closed)), alpha=0.5) +
+            geom_point(data=bio.data%>%filter(year=="2021", !is.na(time_trap_closed), time_trap_closed!="21:30-23:00"), 
+                       aes(x=time_trap_closed, y=weight_g, group=site,fill=site,colour=site), shape=21, alpha=0.5, size=3) +
+            geom_smooth(data=bio.data%>%filter(year=="2021", !is.na(time_trap_closed), time_trap_closed!="21:30-23:00"), 
+                        aes(x=time_trap_closed, y=weight_g, group=site,fill=site,colour=site),method="lm") +
+            stat_cor(data=bio.data%>%filter(year=="2021", !is.na(time_trap_closed), time_trap_closed!="21:30-23:00"), 
+                     aes(x=time_trap_closed, y=length_mm, group=site, colour=site, label=..rr.label..), size=3, r.digits=2, p.digits=3,
+                     label.y=c(60,60), label.x=c(1,2), show.legend = F) +
+            stat_cor(data=bio.data%>%filter(year=="2021", !is.na(time_trap_closed), time_trap_closed!="21:30-23:00"), 
+                     aes(x=time_trap_closed, y=length_mm, group=site, colour=site, label=..p.label..), size=3, r.digits=2, p.digits=3,
+                     label.y=c(40,40), label.x=c(1,2), show.legend = F) +
+            labs(x="") +
+            theme_bw() +
+            theme(legend.position = c(0.4,0.8)),
+          
+          ggplot() +
+            geom_violin(data=bio.data%>%filter(year=="2021", !is.na(time_trap_closed), time_trap_closed!="21:30-23:00"), 
+                        aes(x=time_trap_closed, y=cf_k, fill=site,colour=site, group=interaction(site, time_trap_closed)), alpha=0.5) +
+            geom_point(data=bio.data%>%filter(year=="2021", !is.na(time_trap_closed), time_trap_closed!="21:30-23:00"), 
+                       aes(x=time_trap_closed, y=cf_k, group=site,fill=site,colour=site), shape=21, alpha=0.5, size=3) +
+            geom_smooth(data=bio.data%>%filter(year=="2021", !is.na(time_trap_closed), time_trap_closed!="21:30-23:00"), 
+                        aes(x=time_trap_closed, y=cf_k, group=site,fill=site,colour=site),method="lm") +
+            stat_cor(data=bio.data%>%filter(year=="2021", !is.na(time_trap_closed), time_trap_closed!="21:30-23:00"), 
+                     aes(x=time_trap_closed, y=length_mm, group=site, colour=site, label=..rr.label..), size=3, r.digits=2, p.digits=3,
+                     label.y=c(1.75,1.75), label.x=c(1,2), show.legend = F) +
+            stat_cor(data=bio.data%>%filter(year=="2021", !is.na(time_trap_closed), time_trap_closed!="21:30-23:00"), 
+                     aes(x=time_trap_closed, y=length_mm, group=site, colour=site, label=..p.label..), size=3, r.digits=2, 
+                     label.y=c(1.25,1.25), label.x=c(1,2), show.legend = F) +
+            labs(x="") +
+            theme_bw() +
+            theme(legend.position = "none"),
+          
+          ncol=1, align="v")
+
+
+#--------- Length-freq compared to biodata 
+#all.l <- bio.data %>% 
+#  select(site, year, date_opened, date_closed, length_mm) %>%
+#  filter(!is.na(length_mm)) %>%
+#  mutate(source="biodata") %>% 
+#  left_join(., lf.data) %>% 
+#  print()
+
 ggplot() +
   geom_bar(data=lf.data%>%filter(year=="2021", site=="Nadleh")%>%group_by(length_mm)%>%summarize(n=n()), 
            aes(x=length_mm, y=n), stat="identity", fill="gray80", colour="gray80", alpha=0.7) +
   geom_histogram(data=bio.data%>%filter(year=="2021", site=="Nadleh",!is.na(length_mm))%>%group_by(length_mm)%>%summarize(n=n()),
-           aes(x=length_mm, y=n), stat="identity", fill="blue", colour="blue", alpha=0.7) +
+                 aes(x=length_mm, y=n), stat="identity", fill="blue", colour="blue", alpha=0.7) +
   scale_x_continuous(breaks=seq(0,200,by=10)) +
   theme_bw()
 
@@ -554,33 +689,78 @@ ggplot() +
   scale_x_continuous(breaks=seq(0,200,by=10)) +
   theme_bw()
 
-ggplot() +
-  geom_point(data=bio.data%>%filter(year=="2021"), 
-             aes(x=as.Date(date_closed), y=length_mm, group=site,fill=site,colour=site), shape=21, alpha=0.7) +
-  #scale_x_continuous(breaks=seq(0,200,by=10)) +
-  theme_bw()
+
+
+##############################################################################################################################################
+
+
+#                                                               GSI
+
+#--------- GSI check
+ggplot(data=bio.data%>%filter(year=="2021",site=="Nadleh"), aes(x=b1_reg1,y=b1_prob1)) +
+  geom_point()
+
+# Number with GSI certainty >= 80% 
+bio.data %>%
+  filter(year=="2021", dna_select_bin==1) %>%
+  group_by(site, b1_prob1>=0.8) %>%
+  summarize(n=n())
+
+bio.data %>%
+  filter(year=="2021",site=="Nadleh",b1_prob1<0.8) %>%
+  select(ufid,b1_reg1:b1_prob2) %>%
+  mutate(diff_GSI = abs(b1_prob1-b1_prob2)) %>%
+  filter(diff_GSI>=0.5)
+
+
+#--------- GSI Summary
+bio.data %>% 
+  filter(year=="2021",b1_prob1>=0.8) %>%
+  group_by(site, b1_reg1) %>%
+  summarize(n=n()) %>%
+  mutate(propn = n/sum(n))
+
+GSI <- bio.data %>% 
+  filter(year=="2021", b1_prob1>=0.8) %>% 
+  group_by(date_closed, DOY_closed, b1_reg1) %>% 
+  summarize(n=n())%>%
+  group_by(date_closed) %>% 
+  mutate(propn=n/sum(n), year="2021", DOY_closed_offset=DOY_closed) %>%
+  rename(region=b1_reg1) %>% 
+  ungroup() %>%
+  bind_rows(., bio.data %>% 
+              filter(year=="2019", b12_prob1>=0.8) %>% 
+              group_by(date_closed, DOY_closed, b12_reg1) %>% 
+              summarize(n=n())%>%
+              group_by(date_closed) %>% 
+              mutate(propn=n/sum(n), year="2019", DOY_closed_offset=DOY_closed+7)%>%
+              rename(region=b12_reg1) %>% 
+              ungroup()) 
+
+
+
+
+
+
+
+ggplot(data=GSI, 
+       aes(x=as.Date(DOY_closed, origin="2018-12-31"), y=propn, group=interaction(year,region), 
+           colour=region, fill=region)) +
+  geom_hline(yintercept=0.5, col="red", linetype="dashed") +
+  geom_smooth(method="loess", alpha=0.3, size=1) +
+  geom_point(alpha=0.5, shape=21, size=3) +
+  labs(x="", y="Daily proportion") + 
+  scale_x_date(date_breaks = "3 day", date_labels="%b %d") +
+  scale_y_continuous()+
+  #scale_size_manual(values=c(1.5, 3)) +
+  #scale_shape_manual(values = c(24, 21)) +
+  #scale_colour_manual(values=c("yellow", "red", "light blue", "blue")) +
+  #scale_fill_manual(values=c("yellow", "red", "light blue", "blue")) +
+  theme_bw() + 
+  theme(axis.text = element_text(colour="black"),
+        axis.title = element_text(face="bold"))  +
+  facet_wrap(.~year, ncol=1, scales="free_y")
   
-
-#--------- WEIGHT
-ggplot() +
-  geom_point(data=bio.data%>%filter(year=="2021"), aes(x=as.Date(date_closed), y=weight_g, group=site,fill=site,colour=site), alpha=0.7) +
-  #scale_x_continuous(breaks=seq(0,200,by=10)) +
-  theme_bw()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
