@@ -354,7 +354,8 @@ ind.smolts.19 <- ind.smolts.19.raw %>%
          whatman_cell = ifelse(grepl("19\\.", whatman_uid), substring(whatman_uid, 6, 9),
                           ifelse(grepl("-", whatman_uid), sub(".*-", "", whatman_uid), whatman_uid)), 
          whatman_cell = str_remove(whatman_cell, "^0+"),
-         scales_select_bin = ifelse(is.na(age), 0, 1)) %>% 
+         scales_select_bin = ifelse(is.na(age), 0, 1),
+         ewatch_uid = ifelse(grepl("sacrificed for Dave Patterson", comments), "E-Watch unk ID", ewatch_uid)) %>% 
          #MGL_identifier = gsub("NautleyR(18)", "NautleyR(19)", MGL_identifier, fixed=T)) %>%  
   mutate(across(where(is.character), ~na_if(., "NA"))) %>%
   print()
