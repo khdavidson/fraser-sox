@@ -11,6 +11,7 @@ library(readxl)
 library(lubridate)
 library(cowplot)    # for plot_grid (superior to egg::ggarrange!)
 library(padr)
+library(withr)
 
 setwd("~/ANALYSIS/data")
 options(scipen = 9999999)
@@ -105,7 +106,7 @@ lf.data <- lf.data.raw %>%
 bio.data <- bio.data.raw %>% 
   mutate_at(vars(date_opened, date_closed), as.Date) %>%
   mutate_at(vars(contains('_reg')), funs(ifelse(.=="4","Nadina", ifelse(.=="12","Stellako",.)))) %>%
-  mutate(cf_k = (weight_g/(length_mm/10)^3)*100,
+  mutate(cf_k = (weight_g/(length_mm)^3)*100000,
          DOY_closed = lubridate::yday(date_closed)) %>%
   print()  
 
@@ -177,7 +178,6 @@ moon <- moon.raw %>%
 ##############################################################################################################################################
 
 
-
 #                                                                CATCH SUMMARIES
 
 # Total number of unique sockeye caught, sampled, LFed, died (and death rate)
@@ -188,6 +188,12 @@ catch.data %>%
             total_dead=sum(n_unmarked_dead, na.rm=T), total_sampled=sum(n_unmarked_sampled, na.rm=T), total_LF = sum(n_unmarked_lf, na.rm=T),
             start_date=min(date_opened), end_date=max(date_closed)) %>%
   mutate(mort_rate = (total_dead/total_caught)*100)
+
+# Number EWatch samples    ** 2019 data wrong for ewatch ** 
+bio.data %>% 
+  filter(!is.na(ewatch_uid)) %>% 
+  group_by(year, site) %>% 
+  summarize(n_ewatch = n()) 
 
 # Chinook by-catch 
 catch.data %>% 
@@ -206,66 +212,139 @@ lf.data %>%
   group_by(year, site) %>% 
   summarize(n=n())
 
-# % Daytime fish as total
+
+#----------- DIURNAL PATTERS
+# TOTAL daytime catch as % of night catch OVERALL
 catch.data %>%
   filter(year=="2021", !grepl("Release location", location)) %>% 
   mutate(diurnal_group = ifelse(grepl("day shift", comments), "day shift", "night shift")) %>%
   group_by(year,site,diurnal_group) %>%
   summarize(total_fish = sum(total_unmarked)) %>% 
   mutate(perc_total = (total_fish[1]/total_fish[2])) %>%
-  .[[1,5]] -> day_propn_2021
+  .[[1,5]] -> nadleh_day_propn_2021
+
+catch.data %>%
+  filter(year=="2021", !grepl("Release location", location)) %>% 
+  mutate(diurnal_group = ifelse(grepl("day shift", comments), "day shift", "night shift")) %>%
+  group_by(year,site,diurnal_group) %>%
+  summarize(total_fish = sum(total_unmarked)) %>% 
+  mutate(perc_total = (total_fish[1]/total_fish[2])) %>%
+  .[[3,5]] -> stella_day_propn_2021
 
 
-# % Daytime fish as moving window proportion
+#--- Nadleh:
+# MOVING WINDOW daytime catch as % of night catch
 day.shifts <- catch.data %>% 
-  filter(year=="2021", grepl("day shift", comments)) %>% 
-  group_by(site, date_opened) %>%
+  filter(site=="Nadleh", year=="2021", grepl("day shift", comments)) %>% 
+  group_by(date_opened) %>%
   summarize(total_caught = sum(total_unmarked)) %>% 
-  arrange(site, date_opened) %>% 
-  group_by(site) %>%
+  arrange(date_opened) %>% 
+  #group_by(site) %>%
   mutate(day_shift_no = rep(seq_len(n()), length.out = n()),
          day_night = "day") %>%
   rename(date=date_opened) %>%
   print()
 
-night.window1 <- catch.data %>%    #***** bug
-  filter(year=="2021", !grepl("day shift", comments), !grepl("Release location",location)) %>%
-  group_by(site) %>%
+night.window1 <- catch.data %>%    
+  filter(site=="Nadleh", year=="2021", !grepl("day shift", comments), !grepl("Release location",location)) %>%
+  #group_by(site) %>%
   filter(date_closed %in% c(day.shifts$date)) %>%
-  group_by(site, date_closed) %>% 
+  group_by(date_closed) %>% 
   summarize(total_caught = sum(total_unmarked)) %>%
-  arrange(site, date_closed) %>% 
-  group_by(site) %>%
+  arrange(date_closed) %>% 
+  #group_by(site) %>%
   mutate(day_shift_no = rep(seq_len(n()), length.out = n()),
-         day_night = "night") %>%
+         day_night = "night1") %>%
   rename(date=date_closed) %>%
   print()
 
-night.window2 <- catch.data %>%  #***** bug
-  filter(year=="2021", !grepl("day shift", comments), !grepl("Release location",location), 
+night.window2 <- catch.data %>%  
+  filter(site=="Nadleh", year=="2021", !grepl("day shift", comments), !grepl("Release location",location), 
          date_closed %in% c(day.shifts$date+1)) %>%
-  group_by(site, date_closed) %>% 
+  group_by(date_closed) %>% 
   summarize(total_caught = sum(total_unmarked)) %>%
-  arrange(site, date_closed) %>% 
-  group_by(site) %>%
+  arrange(date_closed) %>% 
+  #group_by(site) %>%
   mutate(day_shift_no = rep(seq_len(n()), length.out = n()),
-         day_night = "night") %>%
+         day_night = "night2") %>%
   rename(date=date_closed) %>%
   print()
 
 day.night.window <- rbind(day.shifts, night.window1, night.window2) %>%
-  group_by(site, day_shift_no, day_night) %>%
-  summarize(total_caught = sum(total_caught)) %>% 
+  group_by(day_shift_no) %>%
+  mutate(shift_reference_date = min(date)) %>%
+  select(-c(date)) %>%
   pivot_wider(names_from="day_night", values_from="total_caught") %>%
-  mutate(propn = round(day/(day+night),3), perc=propn*100) %>%
-  arrange(site, day_shift_no) %>% 
-  cbind(., day_date = day.shifts$date) %T>%
+  mutate(propn1 = round((day/night1),3), propn2 = round((day/night2),3), 
+         perc1=propn1*100, perc2=propn2*100, avg_perc = mean(c(perc1, perc2))) %>%
+  arrange(day_shift_no) %T>%
   write.csv('nad_rept_tab1.csv', row.names = F) %>%
   print()
 
 daily.propns.ranges <- day.night.window %>% 
   ungroup() %>%
-  summarize(mean=mean(propn), sd=sd(propn), min=min(propn), max=max(propn)) %>% 
+  summarize(meanPERC=mean(c(perc1, perc2)), sdPERC=sd(c(perc1,perc2)), 
+            minPERC=min(c(perc1,perc2)), maxPERC=max(c(perc1,perc2)),
+            
+            meanPROPN=mean(c(propn1, propn2)), sdPROPN=sd(c(propn1, propn2)), 
+            minPROPN=min(c(propn1, propn2)), maxPROPN=max(c(propn1, propn2)),) %>% 
+  print()
+
+
+#--- Stellako:
+# MOVING WINDOW daytime catch as % of night catch
+day.shiftsS <- catch.data %>% 
+  filter(site=="Stellako", year=="2021", grepl("day shift", comments)) %>% 
+  group_by(date_opened) %>%
+  summarize(total_caught = sum(total_unmarked)) %>% 
+  arrange(date_opened) %>% 
+  #group_by(site) %>%
+  mutate(day_shift_no = rep(seq_len(n()), length.out = n()),
+         day_night = "day") %>%
+  rename(date=date_opened) %>%
+  print()
+
+night.window1S <- catch.data %>%    
+  filter(site=="Stellako", year=="2021", !grepl("day shift", comments), !grepl("Release location",location)) %>%
+  #group_by(site) %>%
+  filter(date_closed %in% c(day.shiftsS$date)) %>%
+  group_by(date_closed) %>% 
+  summarize(total_caught = sum(total_unmarked)) %>%
+  arrange(date_closed) %>% 
+  #group_by(site) %>%
+  mutate(day_shift_no = rep(seq_len(n()), length.out = n()),
+         day_night = "night1") %>%
+  rename(date=date_closed) %>%
+  print()
+
+night.window2S <- catch.data %>%  
+  filter(site=="Stellako", year=="2021", !grepl("day shift", comments), !grepl("Release location",location), 
+         date_closed %in% c(day.shiftsS$date+1)) %>%
+  group_by(date_closed) %>% 
+  summarize(total_caught = sum(total_unmarked)) %>%
+  arrange(date_closed) %>% 
+  #group_by(site) %>%
+  mutate(day_shift_no = rep(seq_len(n()), length.out = n()),
+         day_night = "night2") %>%
+  rename(date=date_closed) %>%
+  print()
+
+day.night.windowS <- rbind(day.shiftsS, night.window1S, night.window2S) %>%
+  group_by(day_shift_no) %>%
+  mutate(shift_reference_date = min(date)) %>%
+  select(-c(date)) %>%
+  pivot_wider(names_from="day_night", values_from="total_caught") %>%
+  mutate(propn1 = round((day/night1),3), propn2 = round((day/night2),3), 
+         perc1=propn1*100, perc2=propn2*100, avg_perc = mean(c(perc1, perc2))) %>%
+  arrange(day_shift_no) %T>%
+  write.csv('stel_rept_tab1.csv', row.names = F) %>%
+  print()
+
+daily.propns.rangesS <- day.night.windowS %>% 
+  filter(avg_perc != "NaN", avg_perc < 100) %>%   #toggle with/without "avg_perc < 100" to see without the 115% data point
+  ungroup() %>%
+  summarize(mean_perc=mean(c(perc1, perc2),na.rm=T), sd=sd(c(perc1,perc2),na.rm=T), 
+            min=min(c(perc1,perc2),na.rm=T), max=max(c(perc1,perc2),na.rm=T)) %>% 
   print()
 
 
@@ -306,15 +385,15 @@ catch.data <- catch.data %>%
          
          CPUE_and_propndayMEAN = 
            ifelse(date_opened>=as.Date("2019-04-12") & date_opened<=as.Date("2019-04-25") & fished_time_interval_true>9.5,
-                  total_unmarked-(total_unmarked*daily.propns.ranges$mean),
+                  total_unmarked-(total_unmarked*daily.propns.ranges$meanPROPN),
                   round(total_unmarked/fished_time_interval_applied,0)),
          CPUE_and_propndayUPPER = 
            ifelse(date_opened>=as.Date("2019-04-12") & date_opened<=as.Date("2019-04-25") & fished_time_interval_true>9.5,
-                  total_unmarked-(total_unmarked*daily.propns.ranges$min),
+                  total_unmarked-(total_unmarked*daily.propns.ranges$minPROPN),
                   round(total_unmarked/fished_time_interval_applied,0)),
          CPUE_and_propndayLOWER = 
            ifelse(date_opened>=as.Date("2019-04-12") & date_opened<=as.Date("2019-04-25") & fished_time_interval_true>9.5,
-                  total_unmarked-(total_unmarked*daily.propns.ranges$max),
+                  total_unmarked-(total_unmarked*daily.propns.ranges$maxPROPN),
                   round(total_unmarked/fished_time_interval_applied,0))) %>%
   print()
 
@@ -354,10 +433,12 @@ catch.hist <- nad.hist %>%
 #--------- PLOT: CPUE MIGRATION CORRECTED
 plot_grid(
 ggplot() +
-  geom_point(data=moon%>%filter(year%in%c("1999")), 
-             aes(x=as.Date(lubridate::yday(date), origin="1998-12-31"),y=2000),colour="gray70", fill="gray70",shape=24,size=4,alpha=0.6) +
-  geom_point(data=moon%>%filter(year%in%c("2000")), 
-             aes(x=as.Date(lubridate::yday(date), origin="1998-12-31"),y=2000),colour="black", fill="black",shape=24,size=4,alpha=0.6) +
+  geom_point(data=moon%>%filter(year%in%c("1999"), date!=as.Date("1999-05-30")), 
+             aes(x=as.Date(lubridate::yday(date), origin="1998-12-31"),y=2000),colour="gray70", fill="gray70",
+             shape=24,size=4,alpha=0.6) +
+  geom_point(data=moon%>%filter(year%in%c("2000"), date!=as.Date("2000-04-18")), 
+             aes(x=as.Date(lubridate::yday(date), origin="1998-12-31"),y=2000),colour="black", fill="black",
+             shape=24,size=4,alpha=0.7) +
   
   annotate(geom="text", label="A", x=as.Date(101, origin="1998-12-31"), y=2300, fontface=2, size=7, hjust = 0) +
   annotate(geom="text", label="Nautley 1999, 2000", x=as.Date(101, origin="1998-12-31"), fontface=3, y=1900, size=5, hjust = 0) +
@@ -381,10 +462,9 @@ ggplot() +
   guides(colour="none") +
   guides(fill="none"),
 
-
 # NADLEH 2019
 ggplot() +
-  geom_point(data=moon%>%filter(year=="2019"), 
+  geom_point(data=moon%>%filter(year=="2019", date!=as.Date("2019-05-18")), 
              aes(x=as.Date(lubridate::yday(date), origin="2018-12-31"),y=7000),shape=24,col="red",fill="red",size=4) +
   geom_rect(data=ice_flows%>%filter(year=="2019"), 
             aes(xmin=as.Date(xstartDOY, origin="2018-12-31"), xmax=as.Date(xendDOY, origin="2018-12-31"), ymin=-Inf, ymax=Inf), 
@@ -398,7 +478,7 @@ ggplot() +
   geom_bar(data=catch.nightly%>%filter(year=="2019"), aes(x=as.Date(DOY_closed, origin="2018-12-31"), y=hourly_CPUE_propnMEAN), 
            stat="identity", colour="forest green", fill="forest green", alpha=0.75, size=0.2, width=0.8) +
   geom_errorbar(data=catch.nightly%>%filter(year=="2019", date_closed%in%c(as.Date("2019-04-13"):as.Date("2019-04-25"))), 
-                aes(x=as.Date(DOY_closed, origin="2018-12-31"), ymin=hourly_CPUE_propnLOWER, ymax=hourly_CPUE_propnMEAN), width=0.3, size=0.5) +   
+                aes(x=as.Date(DOY_closed, origin="2018-12-31"), ymin=hourly_CPUE_propnLOWER, ymax=hourly_CPUE_propnUPPER), width=0.3, size=0.5) +   
   geom_point(data=catch.nightly%>%filter(year=="2019", date_closed%in%c(as.Date("2019-04-13"):as.Date("2019-04-25"))),
                aes(x=as.Date(DOY_closed, origin="2018-12-31"), y=hourly_CPUE_propnMEAN), 
                color="black", fill="black", shape=21, size=2) +
@@ -412,8 +492,6 @@ ggplot() +
         axis.title = element_text(face="bold", size=18),
         panel.grid  = element_blank(),
         panel.border = element_rect(size=1.2)),
-
-
 
 # NADLEH 2021
 ggplot() +
@@ -444,7 +522,6 @@ ggplot() +
         panel.grid  = element_blank(),
         panel.border = element_rect(size=1.2)) , 
 
-
 # STELLAKO 2021
 ggplot() +
   geom_point(data=moon%>%filter(year=="2021"), 
@@ -469,12 +546,13 @@ ggplot() +
         panel.grid  = element_blank(),
         panel.border = element_rect(size=1.2)),  
 
-ncol=1, align="v", rel_heights = c(1,1.35,1,1.3))
+ncol=1, align="v", rel_heights = c(1,1.35,1,1.3)
+)
 
 
 
 #============================================================================
-#                              NIGHTLY HOURLY %
+#                               HOURLY %
 #============================================================================
 
 #--------- Calculate hourly proportions
@@ -482,7 +560,7 @@ ncol=1, align="v", rel_heights = c(1,1.35,1,1.3))
 hourly_passage <- catch.data %>%
   filter(!grepl("day shift", comments), !grepl("Release location", location), date_closed>=as.Date("2019-04-27"), 
          !date_closed%in%c(as.Date("2019-05-27"), as.Date("2019-05-28"))) %>% 
-  group_by(site,year, date_closed, time_trap_closed) %>% 
+  group_by(site, year, date_closed, time_trap_closed) %>% 
   summarize(hourly_caught = sum(CPUE_hourly, na.rm=T)) %>%
   mutate(perc = hourly_caught/sum(hourly_caught, na.rm=T)) %>%
   group_by(site, year, time_trap_closed) %>%
@@ -522,8 +600,8 @@ ggplot(hourly_all%>%arrange(year), aes(x=time_trap_closed, y=mean_perc, group=ye
   geom_line(aes(colour=year, alpha=year, linetype=year), size=1) +
   geom_point(aes(colour=year, fill=year, alpha=year, size=year), stroke=1.1) +
   scale_shape_manual(values=c(24, 22, 21, 21)) +
-  scale_fill_manual(values=c("gray50", "gray50", "black", "blue")) +
-  scale_colour_manual(values=c("gray50", "gray50", "black", "blue")) +
+  scale_fill_manual(values=c("gray50", "gray50", "black", "#00E500")) +
+  scale_colour_manual(values=c("gray50", "gray50", "black", "#00E500")) +
   scale_alpha_manual(values=c(0.5,0.5,0.6,0.8)) +
   scale_size_manual(values=c(2.7,2.7,3.5,3.5)) +
   scale_linetype_manual(values=c("dotted", "dotted", "solid", "solid")) +
@@ -541,7 +619,7 @@ ggplot(hourly_all%>%arrange(year), aes(x=time_trap_closed, y=mean_perc, group=ye
         legend.position = c(0.92,0.87),
         legend.background = element_rect(colour="black"))+
   facet_wrap(~site, nrow=2) +
-  coord_capped_cart(bottom='both') +
+  #coord_capped_cart(bottom='both') +
   geom_text(data=data.frame(lab=c("A", "B"), site=c("Nautley","Stellako"), x=c(1, 1), y=c(0.6,0.6)) , 
             aes(label=lab, x=x, y=y), inherit.aes=F, size=7, fontface=2, hjust=0) +
   geom_text(data=data.frame(lab=c("A", "B"), site=c("Nautley","Stellako"), x=c(1, 1), y=c(0.55,0.55)) , 
@@ -720,7 +798,9 @@ bio.data %>%
   summarize(n=n()) %>%
   mutate(propn = n/sum(n))
 
-GSI <- bio.data %>% 
+
+#--------- GSI nightly 
+GSI.nightly <- bio.data %>% 
   filter(year=="2021", b1_prob1>=0.8) %>% 
   group_by(date_closed, DOY_closed, b1_reg1) %>% 
   summarize(n=n())%>%
@@ -738,33 +818,206 @@ GSI <- bio.data %>%
               ungroup()) 
 
 
-
-
-
-
-
-ggplot(data=GSI, 
-       aes(x=as.Date(DOY_closed, origin="2018-12-31"), y=propn, group=interaction(year,region), 
+ggplot(data=GSI.nightly, 
+       aes(x=as.Date(DOY_closed, origin="2018-12-31"), y=propn, group=region, 
            colour=region, fill=region)) +
+  geom_segment(data=data.frame(year=c("2019", "2021"), 
+                               x1=c(as.Date("2019-04-20"), as.Date("2021-04-26")), 
+                               xend1=c(as.Date("2019-04-21"), as.Date("2021-04-27")), 
+                               x2=c(as.Date("2019-05-03"), as.Date("2021-05-08")), 
+                               xend2=c(as.Date("2019-05-10"), as.Date("2021-05-13"))), 
+               aes(x=as.Date(lubridate::yday(x1), origin="2018-12-31"), 
+                   xend=as.Date(lubridate::yday(xend1), origin="2018-12-31"), 
+                   y=-0.2, yend=-0.2), inherit.aes = F, size=3, alpha=0.7, colour="gray50") + 
+  geom_segment(data=data.frame(year=c("2019", "2021"), 
+                               x1=c(as.Date("2019-04-20"), as.Date("2021-04-26")), 
+                               xend1=c(as.Date("2019-04-21"), as.Date("2021-04-27")), 
+                               x2=c(as.Date("2019-05-03"), as.Date("2021-05-08")), 
+                               xend2=c(as.Date("2019-05-10"), as.Date("2021-05-13"))), 
+               aes(x=as.Date(lubridate::yday(x2), origin="2018-12-31"), 
+                   xend=as.Date(lubridate::yday(xend2), origin="2018-12-31"), 
+                   y=-0.2, yend=-0.2), inherit.aes = F, size=3, alpha=0.7, colour="gray50") + 
   geom_hline(yintercept=0.5, col="red", linetype="dashed") +
-  geom_smooth(method="loess", alpha=0.3, size=1) +
-  geom_point(alpha=0.5, shape=21, size=3) +
+  geom_smooth(method="loess", alpha=0.3, size=1, span=0.5) +
+  geom_point(alpha=0.6, shape=21, size=3, stroke=1.3) +
   labs(x="", y="Daily proportion") + 
-  scale_x_date(date_breaks = "3 day", date_labels="%b %d") +
-  scale_y_continuous()+
-  #scale_size_manual(values=c(1.5, 3)) +
-  #scale_shape_manual(values = c(24, 21)) +
-  #scale_colour_manual(values=c("yellow", "red", "light blue", "blue")) +
-  #scale_fill_manual(values=c("yellow", "red", "light blue", "blue")) +
+  scale_x_date(date_breaks = "2 day", date_labels="%b %d") +
+  scale_y_continuous(breaks=seq(0,1,by=0.25))+
+  scale_colour_manual(values=c("orange", "blue")) +
+  scale_fill_manual(values=c("orange", "blue")) +
   theme_bw() + 
-  theme(axis.text = element_text(colour="black"),
-        axis.title = element_text(face="bold"))  +
-  facet_wrap(.~year, ncol=1, scales="free_y")
+  theme(axis.text = element_text(colour="black", size=17),
+        axis.text.x = element_text(angle=45, hjust=1),
+        axis.title = element_text(face="bold", size=20),
+        legend.position = c(0.9,0.1),
+        legend.background = element_rect(colour="black"),
+        legend.title = element_blank(),
+        legend.text = element_text(size=16),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        plot.margin = margin(t=5, r=30, b=5, l=5, unit = "pt"),
+        panel.border = element_rect(size=1.2),
+        panel.grid = element_blank())  +
+  facet_wrap(.~year, ncol=1, scales="free_y") +
+  geom_text(data=data.frame(lab=c("A", "B"), year=c("2019","2021"), 
+                            x=c(as.Date("2019-04-20"), as.Date("2019-04-20")), y=c(1.2,1.4)) , 
+            aes(label=lab, x=x, y=y), inherit.aes=F, size=7, fontface=2, hjust=0) +
+  geom_text(data=data.frame(lab=c("A", "B"), year=c("2019","2021"), 
+                            x=c(as.Date("2019-04-20"), as.Date("2019-04-20")), y=c(1.1,1.25)) , 
+            aes(label=year, x=x, y=y), inherit.aes=F, size=5, fontface=3, hjust=0)
+
+
+
+#--------- GSI hourly                             **** COME BACK TO THIS ONCE MORE DNA SAMPLES ARE ANALYZED ****
+GSI.hourly <- bio.data %>% 
+  filter(year=="2021", b1_prob1>=0.8) %>% 
+  group_by(date_closed, time_trap_closed, b1_reg1) %>% 
+  summarize(n=n())%>%
+  mutate(propn=n/sum(n)) %>%
+  group_by(time_trap_closed, b1_reg1) %>% 
+  summarize(mean_perc = mean(propn, na.rm=T), sd_perc=sd(propn,na.rm=T)) %>%
+  rename(region=b1_reg1) %>% 
+  ungroup() %>%
+  print()
+GSI.hourly$time_trap_closed <- factor(GSI.hourly$time_trap_closed, levels=c("22:00", "23:00", "00:00", "01:00", "02:00",
+                                                                            "03:00", "04:00", ordered=T))
+
+ggplot(GSI.hourly, 
+       aes(x=time_trap_closed, y=mean_perc, group=region, fill=region, colour=region)) +
+  geom_hline(yintercept = 0.5, colour="red", linetype="dotted") +
+  #geom_smooth(method="loess") +
+  #geom_errorbar(aes(ymin=mean_perc-sd_perc, ymax=mean_perc+sd_perc, group=region)) +
+  geom_point(shape=21, size=4, alpha=0.6) +
+  theme_bw() +
+  theme(axis.text = element_text(colour="black", size=17),
+        axis.title = element_text(size=19, face="bold"),
+        panel.grid = element_blank(),
+        panel.border = element_rect(size=1.2),
+        legend.position = c(0.8,0.2),
+        legend.background = element_rect(colour="black"),
+        legend.title = element_blank())
+
+
+#--------- GSI SIZE 
+GSI.size <- bio.data %>% 
+  filter(year=="2021", site=="Nadleh", b1_prob1>=0.8, !is.na(length_mm)|!is.na(weight_g)|!is.na(cf_k)) %>% 
+  group_by(b1_reg1) %>% 
+  summarize(n=n(), mean_FL = mean(length_mm, na.rm=T), se_FL=sd(length_mm, na.rm=T)/sqrt(length(length_mm)),
+            mean_W = mean(weight_g, na.rm=T), se_W=sd(weight_g, na.rm=T)/sqrt(length(weight_g)),
+            mean_CF = mean(cf_k, na.rm=T), se_CF=sd(cf_k, na.rm=T)/sqrt(length(cf_k)))%>%
+  mutate(year="2021") %>%
+  rename(region=b1_reg1) %>%
+  ungroup() %>%
+  bind_rows(., bio.data %>% 
+              filter(year=="2019", b12_prob1>=0.8, !is.na(length_mm)|!is.na(weight_g)|!is.na(cf_k)) %>% 
+              group_by(b12_reg1) %>% 
+              summarize(n=n(), mean_FL = mean(length_mm, na.rm=T), se_FL=sd(length_mm, na.rm=T)/sqrt(length(length_mm)),
+                        mean_W = mean(weight_g, na.rm=T), se_W=sd(weight_g, na.rm=T)/sqrt(length(weight_g)),
+                        mean_CF = mean(cf_k, na.rm=T), se_CF=sd(cf_k, na.rm=T)/sqrt(length(cf_k)))%>%
+              mutate(year="2019") %>%
+              rename(region=b12_reg1) %>%
+              ungroup())
+
+# Plot                            
+plot_grid(
+  ggplot(GSI.size) +
+    geom_bar(aes(x=year, y=mean_FL, group=region, fill=region), 
+             position="dodge", stat="identity", colour="black", alpha=0.8, size=0.7) +
+    geom_errorbar(aes(x=year, ymin=mean_FL-se_FL, ymax=mean_FL+se_FL, group=region),
+                  position = position_dodge(width = .9), width=0, size=1.2) +
+    scale_fill_manual(breaks=c("Nadina", "Stellako"), values=c("orange", "blue")) +
+    scale_y_continuous(limits=c(0,175), breaks=seq(0,175,by=50)) +
+    labs(x="", y="Fork length (mm)") +
+    theme_bw() + 
+    theme(axis.text = element_text(colour="black", size=17),
+          axis.title = element_text(face="bold", size=19),
+          panel.grid = element_blank(),
+          panel.border = element_rect(size=1.2),
+          legend.position = c(0.8,0.85),
+          legend.background = element_rect(colour="black"),
+          legend.title = element_blank(),
+          legend.text = element_text(size=17)) + 
+    annotate(geom="text", label="A", x=0.45, y=170, fontface=2, size=7, hjust = 0),
   
+  ggplot(GSI.size) +
+    geom_bar(aes(x=year, y=mean_W, group=region, fill=region), 
+             position="dodge", stat="identity", colour="black", alpha=0.8, size=0.7) +
+    geom_errorbar(aes(x=year, ymin=mean_W-se_W, ymax=mean_W+se_W, group=region),
+                  position = position_dodge(width = .9), width=0, size=1.2) +
+    scale_fill_manual(breaks=c("Nadina", "Stellako"), values=c("orange", "blue")) +
+    scale_y_continuous(breaks=seq(0,20,by=5), limits=c(0,20)) +
+    labs(x="", y="Weight (g)") +
+    theme_bw() +
+    theme(axis.text = element_text(colour="black", size=17),
+          axis.title = element_text(face="bold", size=19),
+          panel.grid = element_blank(),
+          panel.border = element_rect(size=1.2)) + 
+    guides(fill="none", colour="none") + 
+    annotate(geom="text", label="B", x=0.45, y=19, fontface=2, size=7, hjust = 0),
+  
+  ggplot(GSI.size) +
+    geom_bar(aes(x=year, y=mean_CF, group=region, fill=region), 
+             position="dodge", stat="identity", colour="black", alpha=0.8, size=0.7) +
+    geom_errorbar(aes(x=year, ymin=mean_CF-se_CF, ymax=mean_CF+se_CF, group=region),
+                  position = position_dodge(width = .9), width=0, size=1.2) +
+    scale_fill_manual(breaks=c("Nadina", "Stellako"), values=c("orange", "blue")) +
+    scale_y_continuous(breaks=seq(0,1,by=0.25), limits=c(0,1.05)) +
+    labs(x="", y="Condition factor (k)") +
+    theme_bw() +
+    theme(axis.text = element_text(colour="black", size=17),
+          axis.title = element_text(face="bold", size=19),
+          panel.grid = element_blank(),
+          panel.border = element_rect(size=1.2)) + 
+    guides(fill="none", colour="none") +
+    annotate(geom="text", label="C", x=0.45, y=1, fontface=2, size=7, hjust = 0),
+  
+  ncol=2, nrow=2)
+
+
+#--------- GSI big smolts 
+bio.data %>% 
+  filter(year=="2021", length_mm > 130) %>% 
+  group_by(site) %>%
+  summarize(n=n())
+
+bio.data %>% 
+  filter(year=="2021", length_mm > 130, b1_prob1>=0.8) %>% 
+  group_by(site, b1_reg1) %>%
+  summarize(n=n())
 
 
 
 
+##############################################################################################################################################
+
+#                                                      COPEPODS
 
 
+# COPEPODS OVERALL 
+bio.data %>% 
+  filter(year=="2021") %>%
+  group_by(site, grepl("opepod", comments)) %>%
+  summarize(n=n(), meanL=mean(length_mm,na.rm=T), meanW=mean(weight_g,na.rm=T)) %>%
+  group_by(site) %>%
+  mutate(perc=n/sum(n))
+
+
+# COPEPODS GSI 
+bio.data %>% 
+  filter(year=="2021", b1_prob1>=0.8, grepl("opepod", comments)) %>%
+  group_by(site, b1_reg1) %>%
+  summarize(n=n(), meanL=mean(length_mm,na.rm=T), sdL=sd(length_mm,na.rm=T), 
+            meanW=mean(weight_g,na.rm=T), sdW=sd(weight_g,na.rm=T)) %>%
+  group_by(site) %>%
+  mutate(perc=n/sum(n))
+
+
+# COPEPODS GSI & SIZE
+bio.data %>% 
+  filter(year=="2021", b1_prob1>=0.8) %>%
+  group_by(site, grepl("opepod", comments)) %>%
+  summarize(n=n(), meanL=mean(length_mm,na.rm=T), sdL=sd(length_mm,na.rm=T), 
+            meanW=mean(weight_g,na.rm=T), sdW=sd(weight_g,na.rm=T)) %>%
+  group_by(site) %>%
+  mutate(perc=n/sum(n))
 
