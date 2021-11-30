@@ -900,7 +900,7 @@ ggplot(GSI.hourly,
 
 #--------- GSI SIZE 
 GSI.size <- bio.data %>% 
-  filter(year=="2021", site=="Nadleh", b1_prob1>=0.8, !is.na(length_mm)|!is.na(weight_g)|!is.na(cf_k)) %>% 
+  filter(year=="2021", site=="Nadleh", b1_prob1>=0.8) %>% 
   group_by(b1_reg1) %>% 
   summarize(n=n(), mean_FL = mean(length_mm, na.rm=T), se_FL=sd(length_mm, na.rm=T)/sqrt(length(length_mm)),
             mean_W = mean(weight_g, na.rm=T), se_W=sd(weight_g, na.rm=T)/sqrt(length(weight_g)),
@@ -909,7 +909,7 @@ GSI.size <- bio.data %>%
   rename(region=b1_reg1) %>%
   ungroup() %>%
   bind_rows(., bio.data %>% 
-              filter(year=="2019", b12_prob1>=0.8, !is.na(length_mm)|!is.na(weight_g)|!is.na(cf_k)) %>% 
+              filter(year=="2019", b12_prob1>=0.8) %>% 
               group_by(b12_reg1) %>% 
               summarize(n=n(), mean_FL = mean(length_mm, na.rm=T), se_FL=sd(length_mm, na.rm=T)/sqrt(length(length_mm)),
                         mean_W = mean(weight_g, na.rm=T), se_W=sd(weight_g, na.rm=T)/sqrt(length(weight_g)),
