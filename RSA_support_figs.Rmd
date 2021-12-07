@@ -11,13 +11,14 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(cowplot)    # for plot_grid (superior to egg::ggarrange!)
 library(readxl)
+library(lubridate)
 
 options(scipen = 9999)
 set.seed(1234)
 
 setwd("~/ANALYSIS/data")
 
-daily.dat.raw <- read_excel("daily_counts.xlsx", sheet="all_stocks")
+daily.dat.raw <- read_excel("SONAR_daily_counts.xlsx", sheet="all_stocks")
 esc.db.raw <- read_excel("SKAll-Forecast (August 2021).xlsx", sheet="SKAll")     # << THIS WILL HAVE TO CHANGE >>
 roving.dat.raw <- read_excel("Master Roving Analysis Spreadsheet.xlsx", sheet="count_data")
 
@@ -76,8 +77,10 @@ esc.db <- esc.db %>%
   mutate(start_yday = lubridate::yday(start_date),
          end_yday = lubridate::yday(end_date),
          forecast_group = case_when(forecast_group==1~"Early Stuart",forecast_group==2~"Late Stuart",
-                                    forecast_group==3~"Stellako", forecast_group==4~"Bowron", forecast_group==5~"Raft",
-                                    forecast_group==6~"Quesnel", forecast_group==7~"Chilko", forecast_group==8~"Seymour",
+                                    forecast_group==3~"Stellako", forecast_group==4~"Bowron",
+                                    forecast_group==5~"Raft",
+                                    forecast_group==6~"Quesnel", forecast_group==7~"Chilko",
+                                    forecast_group==8~"Seymour",
                                     forecast_group==9~"Late Shuswap", forecast_group==10~"Birkenhead",
                                     forecast_group==11~"Cultus", forecast_group==12~"Portage", 
                                     forecast_group==13~"Weaver Creek", forecast_group==14~"Fennel Creek",
@@ -88,7 +91,7 @@ esc.db <- esc.db %>%
                                     forecast_group==23~"Chilliwack", forecast_group==24~"Nahatlatch",
                                     forecast_group==25~"North Thompson", forecast_group==26~"North Thompson Misc",
                                     forecast_group==27~"Widgeon", forecast_group==28~"Harrison (D/S)") ,
-         group = ifelse(year==lubridate::year(Sys.Date()), lubridate::year(Sys.Date()), 
+         group = ifelse(year==lubridate::year(Sys.Date()), lubridate::year(Sys.Date()),  # generalized to current system date year (affected by time zones though!)
                    ifelse(year==2020, 2020,    # these years kept static for  big bar reference years
                      ifelse(year==2019, 2019,  # these years kept static for  big bar reference years
                        ifelse(is.na(year), "Historical", "Historical")))) ,
@@ -152,7 +155,7 @@ StADSOX data are used here to provide summary information to guide the RSA proce
 
 <br>
 
-## Arrival timing ##
+## **Arrival timing** ##
 
 -------
 
@@ -207,11 +210,12 @@ ggplot(dates_10p, aes(y=stock, x=as.Date(yday, origin = as.Date("1970-01-01"))))
     legend.margin=margin(t=-0.1, r=0.15, b=0.1, l=0.1, unit="cm")) 
 ```
 
-<font size="1">*Fig 1. Arrival dates at which >=10% of the total sockeye escapement passed the fence or SONAR up to and including `r lubridate::year(Sys.Date())-1`. &ast;Horsefly River had SONARs in 2006, 2007 and 2010 all with the same 10% date; Mitchell River had a SONAR in 2009. &ast;&ast;Stellako-Nadina is an aggregate of both Stellako and Nadina sockeye. Program start dates varied over time. Points are jittered to show multiple years with the same 10% arrival date. Program names are organized from north to south; red line indicates stocks above and below the Big Bar landslide.*</font>
+<font size="2">*Fig 1. Arrival dates at which >=10% of the total sockeye escapement passed the fence or SONAR up to and including `r lubridate::year(Sys.Date())-1`. &ast;Horsefly River had SONARs in 2006, 2007 and 2010 all with the same 10% date; Mitchell River had a SONAR in 2009. &ast;&ast;Stellako-Nadina is an aggregate of both Stellako and Nadina sockeye. Program start dates varied over time. Points are jittered to show multiple years with the same 10% arrival date. Program names are organized from north to south; red line indicates stocks above and below the Big Bar landslide.*</font>
 
 <br> 
 
 ```{r, echo=F, message=F, warning=F, include=F}
+# NOT SHOWN 
 # FIGURE: Single stock - manually change the << stock=="" >> argument
 ggplot(data=forplot) +
   geom_line(data=subset(forplot %>% filter(stock=="Cultus")), 
@@ -253,8 +257,8 @@ ggplot() +
     aes(x=as.Date(yday, origin=as.Date("1970-01-01")), y=daily_abundance, 
         group=year, colour=group, fill=group, size=group, alpha=group), 
     stroke=1.2, shape=21) +
-  scale_colour_manual(name=NULL, breaks=c("2020", "2019", "Historical"), values=c("#00b8ff", "gray40", "gray60")) +
-  scale_fill_manual(name=NULL, breaks=c("2020", "2019", "Historical"), values=c("#00b8ff", "gray40", "gray60")) +
+  scale_colour_manual(name=NULL, breaks=c("2020", "2019", "Historical"), values=c("#00b8ff", "gray30", "gray60")) +
+  scale_fill_manual(name=NULL, breaks=c("2020", "2019", "Historical"), values=c("#00b8ff", "gray30", "gray60")) +
   scale_alpha_manual(name=NULL, breaks=c("2020", "2019", "Historical"), values=c(0.9, 0.9, 0.5)) +
   scale_size_manual(name=NULL, breaks=c("2020", "2019", "Historical"), values=c(2, 2, 1)) +
   scale_x_date(date_labels = "%b %d", date_breaks="20 day") +
@@ -273,17 +277,17 @@ ggplot() +
   facet_wrap(~stock, scales="free")
 ```
 
-<font size="1">*Fig 2. Migration curves with 10% arrival dates (points) up to `r lubridate::year(Sys.Date())-1`. &ast;Horsefly River had SONARs in 2006, 2007 and 2010 all with the same 10% date. Mitchell River had a SONAR in 2009. &ast;&ast;Stellako-Nadina is an aggregate of both Stellako and Nadina sockeye; program start dates varied over time.*</font>
+<font size="2">*Fig 2. Migration curves with 10% arrival dates (points) up to `r lubridate::year(Sys.Date())-1`. &ast;Horsefly River had SONARs in 2006, 2007 and 2010 all with the same 10% date. Mitchell River had a SONAR in 2009. &ast;&ast;Stellako-Nadina is an aggregate of both Stellako and Nadina sockeye; program start dates varied over time.*</font>
 
 <br>
 
 <br>
 
-## Peak of spawn ##
+## **Peak of spawn** ##
 
 -------
 
-```{r, echo=F, message=F, warning=F}
+```{r, echo=F, message=F, warning=F, out.width="100%", out.height="75%"}
 esc.db$timing_group <- factor(esc.db$timing_group, levels=c("", "Early Summer", "Summer", "Late"), ordered=T)
 
 ggplot(data=esc.db%>%filter(!is.na(forecast_group), !is.na(peak_spawn), !grepl("Early", peak_spawn), 
@@ -293,7 +297,7 @@ ggplot(data=esc.db%>%filter(!is.na(forecast_group), !is.na(peak_spawn), !grepl("
            yend=reorder(forecast_group, desc(forecast_group)), colour=group, alpha=group, size=group)) +
   geom_segment(stat="identity") +
   scale_colour_manual(name="Peak of spawn", breaks=c("2020", "2019", "Historical"), 
-                      values=c("purple", "#00b8ff", "gray60")) +
+                      values=c("#00b8ff", "gray25", "gray60")) +
   scale_alpha_manual(name="Peak of spawn", breaks=c("2020", "2019", "Historical"), values=c(0.7, 0.6, 0.35)) +
   scale_size_manual(name="Peak of spawn", breaks=c("2020", "2019", "Historical"), values=c(3, 2, 1.5)) +
   scale_x_date(date_labels = "%b %d", date_breaks="10 day") +
@@ -319,13 +323,13 @@ ggplot(data=esc.db%>%filter(!is.na(forecast_group), !is.na(peak_spawn), !grepl("
     strip.text.y = element_text(angle=90, colour="black", face="bold", size=11)) 
 ```
 
-<font size="1">*Figure 3a. Peak of spawn ranges for forecast group stocks from 2000-`r lubridate::year(Sys.Date())-1` (`r lubridate::year(Sys.Date())` not yet included in the DFO escapement database). Years <2000 were omitted due to data quality concerns, but it should be noted that 2000 is an arbitrary break point.*</font>
+<font size="2">*Figure 3a. Peak of spawn ranges for forecast group stocks from 2000-`r lubridate::year(Sys.Date())-1` (`r lubridate::year(Sys.Date())` not yet included in the DFO escapement database). Years <2000 were omitted due to data quality concerns, but it should be noted that 2000 is an arbitrary break point.*</font>
 
 <br>
 
 <br>
 
-```{r, echo=F, message=F, warning=F}
+```{r, echo=F, message=F, warning=F, out.width="100%", out.height="75%"}
 ggplot(data=esc.db%>%filter(is.na(forecast_group), !is.na(peak_spawn), !grepl("Early", peak_spawn), 
                             !grepl("Late", peak_spawn), !grepl("Mid", peak_spawn)),
        aes(x=as.Date(start_yday, origin = as.Date("1970-01-01")), xend=as.Date(end_yday, origin = as.Date("1970-01-01")),
@@ -333,7 +337,7 @@ ggplot(data=esc.db%>%filter(is.na(forecast_group), !is.na(peak_spawn), !grepl("E
            yend=reorder(stock, desc(stock)), colour=group, alpha=group, size=group)) +
   geom_segment(stat="identity") +
   scale_colour_manual(name="Peak of spawn", breaks=c("2020", "2019", "Historical"), 
-                      values=c("purple", "#00b8ff", "gray60")) +
+                      values=c("#00b8ff", "gray10", "gray60")) +
   scale_alpha_manual(name="Peak of spawn", breaks=c("2020", "2019", "Historical"), values=c(0.7, 0.6, 0.35)) +
   scale_size_manual(name="Peak of spawn", breaks=c("2020", "2019", "Historical"), values=c(3, 2, 1.5)) +
   scale_x_date(date_labels = "%b %d", date_breaks="10 day") +
@@ -359,25 +363,15 @@ ggplot(data=esc.db%>%filter(is.na(forecast_group), !is.na(peak_spawn), !grepl("E
     strip.text.y = element_text(angle=90, colour="black", face="bold", size=11)) 
 ```
 
-<font size="1">*Figure 3b. Peak of spawn ranges for non-forecast group stocks from 2000-`r lubridate::year(Sys.Date())-1` (`r lubridate::year(Sys.Date())` not yet included in the DFO escapement database). Years <2000 were omitted due to data quality concerns, but it should be noted that 2000 is an arbitrary break point.*</font>
+<font size="2">*Figure 3b. Peak of spawn ranges for non-forecast group stocks from 2000-`r lubridate::year(Sys.Date())-1` (`r lubridate::year(Sys.Date())` not yet included in the DFO escapement database). Years <2000 were omitted due to data quality concerns, but it should be noted that 2000 is an arbitrary break point.*</font>
 
 <br>
 
 <br>
 
-### Peak of spawn upstream of Big Bar ### 
+### **Peak of spawn ranges (all forecast stocks)** ### 
 
 ------------
-
-**Quesnel**
-
-```{r include=F, echo=F}
-quesnel.fcs <- esc.db %>%
-  filter(forecast_group=="Quesnel", !is.na(peak_spawn) | !is.na(arrival)) %>%
-  print()
-```
-
-
 
 ```{r include=F, echo=F}
 n_years <- esc.db %>% 
@@ -398,17 +392,19 @@ year_labs <- esc.db %>%
               slice(seq(1, n(), by=2)) %>%
               mutate(label = years)) %>%
   mutate(label = ifelse(is.na(label), "", label)) %>%
+  arrange(forecast_group, years) %>%
   print()
 
 
 
 pos.plot.fx <- function(FCS_GRP_NAME){
-  ggplot(esc.db %>% filter(forecast_group==FCS_GRP_NAME, !is.na(peak_spawn) | !is.na(arrival)), 
-         aes(x=as.Date(start_yday, origin = as.Date("1970-01-01")), xend=as.Date(end_yday, origin = as.Date("1970-01-01")), 
-             y=reorder(year, desc(year)), yend=reorder(year, desc(year)), 
+  ggplot(esc.db %>% filter(forecast_group==FCS_GRP_NAME, !is.na(peak_spawn) | !is.na(arrival)) %>% arrange(desc(year)), 
+         aes(x=as.Date(start_yday, origin=as.Date("1970-01-01")), 
+             xend=as.Date(end_yday, origin=as.Date("1970-01-01")), 
+             y=year, 
+             yend=year, 
              colour=est_type, size=total, alpha=0.85)) +
     geom_segment(stat="identity") +
-    #geom_text(aes(label=data_type), size=4, nudge_x=3.3, nudge_y=0.1, angle=0, check_overlap=T, colour="red") +
     scale_size_continuous(range=c(0.5,5)) +
     scale_colour_manual(breaks=c("Type-1: True Abundance, high resolution", 
                                  "Type-2: True Abundance, medium resolution", 
@@ -419,101 +415,123 @@ pos.plot.fx <- function(FCS_GRP_NAME){
                         values=c("dodger blue", "green", "orange", "yellow", "red", "gray40"),
                         labels=c("T1: True abund, high res", "T2: True abund, med res", "T3: Rel. abund, high res", 
                                  "T4: Rel. abund, med res", "T5: Rel abund, med res", "T6: P/A")) +
-    scale_x_date(date_labels = "%b %d", date_breaks="5 day") +
-    scale_y_discrete(labels = year_labs%>%filter(forecast_group==FCS_GRP_NAME) %>% pull(label)) +
-    labs(x="", y="", colour="Data quality", size="Escapement") +
+    scale_x_date(date_labels = "%b %d", date_breaks="7 day") +
+    scale_y_continuous(breaks=seq(min(year_labs[year_labs$forecast_group==FCS_GRP_NAME,]$years),
+                                  max(year_labs[year_labs$forecast_group==FCS_GRP_NAME,]$years),
+                                  by=5), trans="reverse") +
+    labs(x="", y="", colour="Data quality", size="Escapement", title=FCS_GRP_NAME) +
     theme_bw() +
-    theme(text = element_text(colour="black", size=11),
+    theme(
       panel.grid.major.x = element_line(colour="gray80"),
       panel.grid.minor.x = element_blank(),
       panel.grid.major.y = element_line(colour="gray80"),
       panel.spacing = unit(0, "lines"),
       axis.title.y = element_text(face="bold"),
-      axis.text = element_text(colour="black", size=11),
-      #axis.text.x = element_text(angle=0, hjust=1),
-      legend.position = c(0.17, 0.65),
-      legend.background = element_rect(colour="black"),
-      legend.margin=margin(t=0.1, r=0.4, b=0.1, l=0.1, unit="cm"),
-      legend.spacing.y = unit(0.2, "cm"),
-      legend.title = element_text(face="bold", size=11),
-      legend.text = element_text(size=9),
-      plot.caption = element_text(size=11, color="gray20", face="italic", hjust=0)) +
-    guides(size = guide_legend(override.aes=list(colour="gray60")), 
+      axis.text = element_text(colour="black", size=7),
+      axis.text.x = element_text(colour="black", size=7, angle = 45, hjust=1),
+      legend.position = "none",
+      plot.title = element_text(size=8, face="bold")) +
+    guides(size = "none",     #guide_legend(override.aes=list(colour="gray60"))
            colour = guide_legend(override.aes=list(size=2)),
-           alpha = FALSE)
+           alpha = FALSE) 
 }
 ```
 
+![](C:/Users/davidsonka/Documents/ANALYSIS/figures/RSA_fig4_legend.PNG)
 
-```{r}
-pos.plot.fx("Quesnel")
+```{r echo=F, message=F, warning=F, out.width="100%", out.height="75%"}
+plot_grid(
+  ggplot(esc.db %>% filter(forecast_group=="Early Stuart", !is.na(peak_spawn) | !is.na(arrival)) %>%
+         arrange(desc(year)), 
+           aes(x=as.Date(start_yday, origin=as.Date("1970-01-01")), 
+               xend=as.Date(end_yday, origin=as.Date("1970-01-01")), 
+               y=year, 
+               yend=year, 
+               colour=est_type, size=total, alpha=0.85)) +
+      geom_segment(stat="identity") +
+      scale_size_continuous(range=c(0.5,5)) +
+      scale_colour_manual(breaks=c("Type-1: True Abundance, high resolution", 
+                                   "Type-2: True Abundance, medium resolution", 
+                                   "Type-3: Relative Abundance, high resolution",
+                                   "Type-4: Relative Abundance, medium resolution", 
+                                   "Type-5: Relative Abundance, low resolution",
+                                   "Type-6: Presence or Absence"),
+                          values=c("dodger blue", "green", "orange", "yellow", "red", "gray40"),
+                          labels=c("T1: True abund, high res", "T2: True abund, med res", 
+                                   "T3: Rel. abund, high res", "T4: Rel. abund, med res", 
+                                   "T5: Rel abund, med res", "T6: P/A")) +
+      scale_x_date(date_labels = "%b %d", date_breaks="7 day") +
+      scale_y_continuous(breaks=seq(min(year_labs[year_labs$forecast_group=="Early Stuart",]$years),
+                                    max(year_labs[year_labs$forecast_group=="Early Stuart",]$years),
+                                    by=5), trans="reverse") +
+      labs(x="", y="", colour="Data quality", size="Escapement", title="Early Stuart") +
+      theme_bw() +
+      theme(
+        panel.grid.major.x = element_line(colour="gray80"),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.major.y = element_line(colour="gray80"),
+        panel.spacing = unit(0, "lines"),
+        axis.title.y = element_text(face="bold"),
+        axis.text = element_text(colour="black", size=9),
+        axis.text.x = element_text(colour="black", size=9, angle = 45, hjust=1),
+        legend.position = "none",
+        legend.background = element_rect(colour="black"),
+        legend.margin=margin(t=0.1, r=0.4, b=0.1, l=0.1, unit="cm"),
+        legend.spacing.y = unit(0.2, "cm"),
+        legend.title = element_text(face="bold", size=11),
+        legend.text = element_text(size=7),
+        plot.title = element_text(size=7, face="bold")) +
+      guides(size = "none", #guide_legend(override.aes=list(colour="gray60")),
+             colour = guide_legend(override.aes=list(size=2)),
+             alpha = FALSE), 
+  pos.plot.fx("Bowron"),
+  pos.plot.fx("Chilko"),
+  pos.plot.fx("Chilliwack"),
+  pos.plot.fx("Fennel Creek"),
+  pos.plot.fx("Gates"),
+nrow=2, ncol=3
+)
 
-### NOW MAKE MORE PLOTS! 
+plot_grid(
+  pos.plot.fx("Nadina"),
+  pos.plot.fx("Nahatlatch"),
+  pos.plot.fx("Scotch Creek"),
+  pos.plot.fx("Seymour"),
+  pos.plot.fx("South Thompson"),
+  pos.plot.fx("Taseko"),
+nrow=2, ncol=3
+)
+
+plot_grid(
+  pos.plot.fx("Upper Pitt River"),
+  pos.plot.fx("Chilko"),
+  pos.plot.fx("Harrison"),
+  pos.plot.fx("Late Stuart"),
+  pos.plot.fx("North Thompson"),
+  pos.plot.fx("North Thompson Misc"),
+nrow=2, ncol=3
+)
+
+plot_grid(
+  pos.plot.fx("Quesnel"),
+  pos.plot.fx("Raft"),
+  pos.plot.fx("Stellako"),
+  pos.plot.fx("Widgeon"),
+  pos.plot.fx("Birkenhead"),
+  pos.plot.fx("Cultus"),
+nrow=2, ncol=3
+)
+
+plot_grid(
+  pos.plot.fx("Harrison (D/S)"),
+  pos.plot.fx("Late Shuswap"),
+  pos.plot.fx("Portage"),
+  pos.plot.fx("Weaver Creek"),
+nrow=2, ncol=3
+)
 ```
 
-
-
-<br>
-
-<br>
-
-**Taseko**
-
-```{r include=F, echo=F}
-taseko.fcs <- esc.db %>%
-  filter(forecast_group=="Taseko", !is.na(peak_spawn) | !is.na(arrival)) %>%
-  mutate(POS_start = if_else(year==1976 & peak_spawn=="Mid Sep", as.Date("15-Sep-1976", format="%d-%b-%Y"),
-                        if_else(year==1980 & peak_spawn=="Mid Sep", as.Date("15-Sep-1980", format="%d-%b-%Y"),
-                            if_else(year==1998 & peak_spawn=="Early Sep.", as.Date("1-Sep-1998", format="%d-%b-%Y"),
-                                if_else(year==2007 & is.na(peak_spawn), as.Date("1-Sep-2007", format="%d-%b-%Y"),
-                                    if_else(year==2016 & is.na(peak_spawn), as.Date("1-Aug-2016", format="%d-%b-%Y"),
-                      as.Date(POS_start)))))),
-         POS_end = if_else(year==1976 & peak_spawn=="Mid Sep", as.Date("22-Sep-1976", format="%d-%b-%Y"),
-                        if_else(year==1980 & peak_spawn=="Mid Sep", as.Date("22-Sep-1980", format="%d-%b-%Y"),
-                            if_else(year==1998 & peak_spawn=="Early Sep.", as.Date("8-Sep-1998", format="%d-%b-%Y"),
-                                if_else(year==2007 & is.na(peak_spawn), as.Date("2-Sep-2007", format="%d-%b-%Y"),
-                                    if_else(year==2016 & is.na(peak_spawn), as.Date("2-Aug-2016", format="%d-%b-%Y"), 
-                    as.Date(POS_start)))))),
-         start_yday = ifelse(is.na(start_yday), lubridate::yday(POS_start), start_yday),
-         end_yday = ifelse(is.na(end_yday), lubridate::yday(POS_end), end_yday),
-         data_type = ifelse(is.na(peak_spawn), "arrival", NA)) %>%
-  print()
-```
-
-```{r, echo=F, message=F, warning=F}
-ggplot(taseko.fcs, 
-       aes(x=as.Date(start_yday, origin = as.Date("1970-01-01")), xend=as.Date(end_yday, origin = as.Date("1970-01-01")), 
-           y=reorder(year, desc(year)), yend=reorder(year, desc(year)), colour=est_type, size=total)) +
-  geom_segment(stat="identity") +
-  geom_text(aes(label=data_type), size=4, nudge_x=3.3, nudge_y=0.1, angle=0, check_overlap=T, colour="red") +
-  scale_size_continuous(breaks=seq(65,31667,by=15000), range=c(1.5,6)) +
-  scale_colour_manual(breaks=c("Type-2: True Abundance, medium resolution", 
-                               "Type-3: Relative Abundance, high resolution",
-                               "Type-4: Relative Abundance, medium resolution"), 
-                      values=c("green", "orange", "red"),
-                      labels=c("T2: True abund, med res", "T3: Rel. abund, high res", "T4: Rel. abund, med res")) +
-  scale_x_date(date_labels = "%b %d", date_breaks="5 day") +
-  labs(x="", y="", colour="Data quality", size="Escapement") +
-  theme_bw() +
-  theme(text = element_text(colour="black", size=11),
-    panel.grid.major.x = element_line(colour="gray80"),
-    panel.grid.minor.x = element_blank(),
-    panel.grid.major.y = element_line(colour="gray80"),
-    panel.spacing = unit(0, "lines"),
-    axis.title.y = element_text(face="bold"),
-    axis.text = element_text(colour="black", size=11),
-    #axis.text.x = element_text(angle=0, hjust=1),
-    legend.position = c(0.17, 0.65),
-    legend.background = element_rect(colour="black"),
-    legend.margin=margin(t=0.1, r=0.4, b=0.1, l=0.1, unit="cm"),
-    legend.spacing.y = unit(0.2, "cm"),
-    legend.title = element_text(face="bold", size=11),
-    legend.text = element_text(size=9),
-    plot.caption = element_text(size=11, color="gray20", face="italic", hjust=0)) +
-  guides(size = guide_legend(override.aes=list(colour="gray60")), colour = guide_legend(override.aes=list(size=2)))
-```
-
-
+<font size="2">*Figure 4. Peak of spawn ranges for forecast stocks over the entire time series available in the sockeye escapement database up to 2020. Bar sizes are scaled by relative escapement size and coloured by data quality.*</font>
 
 
 
