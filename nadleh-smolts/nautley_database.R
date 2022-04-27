@@ -31,53 +31,55 @@
 
 ##########################################################################################################################################
 
-library(tidyverse)
-library(readxl)
-library(openxlsx)
-library(janitor)
-library(scales)
-library(ggpubr)
-library(padr)
-library(stringr)
-library(withr)
-library(padr)
+library(tidyverse)      # for everything
+library(readxl)         # for read_excel()
+library(openxlsx)       # for createWorkbook() etc.
+#library(janitor)
+#library(scales)
+#library(ggpubr)
+#library(padr)
+library(stringr)       # for str_pad()
+library(withr)         # for with_options()
+#library(padr)
 
-setwd("~/ANALYSIS/Data")
+setwd("~/ANALYSIS/data/nadleh_raw_files")
 options(scipen = 9999999999)
 
 ##########################################################################################################################################
 
 
 # 2019 NADLEH data (individual workbooks/data sources)
-catch.19.raw <- read_excel("nadleh_ANALYTICAL_database_2019.xlsx", sheet="hourly_catch")
-ind.smolts.19.raw <- read_excel("nadleh_ANALYTICAL_database_2019.xlsx", sheet="individual_smolts")   # Note this isn't the absolute original file, but changes and edits during verification etc were applied here, so this is the most accurate version
-#MGLb1.19.raw <- read_excel("Nautley Combined data(Current) - verified JG.xlsx", sheet="Individual smolt data")  # as close as it gets now to original batch 1 DNA file
-MGLcombo.19.raw <- read_excel("NautleyCombined(19)_2020-01-27.xlsx", sheet="Individual Region IDs", skip=3)
-MGLb2.19.raw <- read_excel("Nautley_Batch2(19)_2020-01-27.xlsx", sheet="Individual Region IDs", skip=3)
-lf.19.raw <- read_excel("nadleh_ANALYTICAL_database_2019.xlsx", sheet="individual_smolts")
+catch.19.raw <- read_excel("nadleh_ANALYTICAL_database_2019.xlsx", sheet="hourly_catch", na="NA")
+ind.smolts.19.raw <- read_excel("nadleh_ANALYTICAL_database_2019.xlsx", sheet="individual_smolts", na="NA")   # Note this isn't the absolute original file, but changes and edits during verification etc were applied here, so this is the most accurate version
+#MGLb1.19.raw <- read_excel("Nautley Combined data(Current) - verified JG.xlsx", sheet="Individual smolt data", na="NA")  # as close as it gets now to original batch 1 DNA file
+MGLfull.19.raw <- read_excel("NautleyCombined(19)_2020-01-27.xlsx", sheet="Individual Region IDs", skip=3, na="NA")
+MGLb2.19.raw <- read_excel("Nautley_Batch2(19)_2020-01-27.xlsx", sheet="Individual Region IDs", skip=3, na="NA")
+lf.19.raw <- read_excel("nadleh_ANALYTICAL_database_2019.xlsx", sheet="individual_smolts", na="NA")
 
 # 2021 NADLEH data (workbook with sheets and individual GSI files)
-Nenviro.21.raw <- read_excel("nadleh_data_clean_2021.xlsx", sheet="environmentals")
-Ncatch.21.raw <- read_excel("nadleh_data_clean_2021.xlsx", sheet="nightly_catch")
-Nlf.21.raw <- read_excel("nadleh_data_clean_2021.xlsx", sheet="length_frequency")
-Nbio.21.raw <- read_excel("nadleh_data_clean_2021.xlsx", sheet="biosampling")
-NMGL.21.raw <- read_excel("kokaneee_sockeyeNadlehSm(21)_2021-10-12.xlsx", sheet="Individual Region IDs", skip=3)
+Nenviro.21.raw <- read_excel("nadleh_data_clean_2021.xlsx", sheet="environmentals", na="NA")
+Ncatch.21.raw <- read_excel("nadleh_data_clean_2021.xlsx", sheet="nightly_catch", na="NA")
+Nlf.21.raw <- read_excel("nadleh_data_clean_2021.xlsx", sheet="length_frequency", na="NA")
+Nbio.21.raw <- read_excel("nadleh_data_clean_2021.xlsx", sheet="biosampling", na="NA")
+NMGLb1.21.raw <- read_excel("kokaneee_sockeyeNadlehSm(21)_2021-10-12.xlsx", sheet="Individual IDs", skip=3, na="NA")
+NMGLb2.21.raw <- read_excel("kokaneee_sockeyePID20210042_NAUTLEY_R_2021_SMOLTS_2022-04-13.xlsx", sheet="Individual IDs", skip=3, na="NA")
+NMGLfull.21.raw <- read_excel("kokaneee_sockeyePID20210042_NADLEH_NAUTLEY_2021_SMOLTS_2022-04-13.xlsx", sheet="Individual IDs", skip=3, na="NA")
 
 # 2021 STELLAKO data (workbook with sheets and individual GSI files)
-Senviro.21.raw <- read_excel("stellako_data_clean_2021.xlsx", sheet="environmentals")
-Scatch.21.raw <- read_excel("stellako_data_clean_2021.xlsx", sheet="nightly_catch")
-Slf.21.raw <- read_excel("stellako_data_clean_2021.xlsx", sheet="length_frequency")
-Sbio.21.raw <- read_excel("stellako_data_clean_2021.xlsx", sheet="biosampling")                        
-SMGL.21.raw <- read_excel("kokaneee_sockeyeStellakoSm(21)_2021-10-12.xlsx", sheet="Individual Region IDs", skip=3)
+Senviro.21.raw <- read_excel("stellako_data_clean_2021.xlsx", sheet="environmentals", na="NA")
+Scatch.21.raw <- read_excel("stellako_data_clean_2021.xlsx", sheet="nightly_catch", na="NA")
+Slf.21.raw <- read_excel("stellako_data_clean_2021.xlsx", sheet="length_frequency", na="NA")
+Sbio.21.raw <- read_excel("stellako_data_clean_2021.xlsx", sheet="biosampling", na="NA")                        
+SMGL.21.raw <- read_excel("kokaneee_sockeyeStellakoSm(21)_2021-10-12.xlsx", sheet="Individual Region IDs", skip=3, na="NA")
 
 
-##########################################################################################################################################
+#################################################################################################################################################
 
 
-#                                                 CREATING THE NIGHTLY CATCH SHEET
+#                                                     CREATING THE NIGHTLY CATCH SHEET
 
 
-#----------- 2019 CLEAN/ORGANIZE
+# =============== 2019 CLEAN/ORGANIZE ===============
 # Make 2019 format match 2021 as much as possible
 catch.19 <- catch.19.raw %>%
   rename(rst_rpms=rst_tpm,
@@ -98,7 +100,7 @@ catch.19 <- catch.19.raw %>%
   print()
 
 
-#----------- 2021 NADLEH CLEAN/ORGANIZE
+# =============== 2021 NADLEH CLEAN/ORGANIZE ===============
 Ncatch.21 <- Ncatch.21.raw %>% 
   mutate_at(vars(n_marked_released:n_chinook_smolts), as.numeric) %>%
   mutate(trap_type = "8' RST",
@@ -107,7 +109,7 @@ Ncatch.21 <- Ncatch.21.raw %>%
   print()
 
 
-#----------- 2021 STELLAKO CLEAN/ORGANIZE
+# ===============2021 STELLAKO CLEAN/ORGANIZE ===============
 Scatch.21 <- Scatch.21.raw %>% 
   mutate_at(vars(n_marked_released:n_chinook_smolts), as.numeric) %>%
   mutate(trap_type = "6' RST",
@@ -116,7 +118,7 @@ Scatch.21 <- Scatch.21.raw %>%
   print()
 
 
-#----------- JOIN
+# =============== JOIN ===============
 catch.join <- full_join(catch.19, Ncatch.21) %>%
   bind_rows(., Scatch.21) %>%
   select(year, site, trap_type, location, date_opened, date_closed, time_trap_open, time_trap_closed, crew, 
@@ -124,8 +126,7 @@ catch.join <- full_join(catch.19, Ncatch.21) %>%
          n_unmarked_sampled, n_unmarked_lf, n_unmarked_spilled, n_unmarked_dead, total_unmarked, 
          n_chinook_fry, n_chinook_smolts, other_bycatch, comments) %>%
   mutate_at(vars(date_opened, date_closed), as.Date) %>%
-  mutate(total_unmarked = ifelse(year=="2021", n_unmarked_sampled + n_unmarked_lf + n_unmarked_spilled + n_unmarked_dead, total_unmarked)) %>%
-  mutate(across(where(is.character), ~na_if(., "NA"))) %>%
+  mutate(total_unmarked = ifelse(year=="2021", n_unmarked_sampled + n_unmarked_lf + n_unmarked_spilled + n_unmarked_dead, total_unmarked)) %>%  
   print()
 
 # omitted 'date', 'date_true', columns from 2019 and 2021 spreadsheets (respectively) and open_datetime, close_datetime 
@@ -136,7 +137,7 @@ catch.join <- full_join(catch.19, Ncatch.21) %>%
 
 #                                              CREATING THE ENVIRONMENTALS SHEET
 
-#--------- 2019 CLEAN/ORGANIZE
+# =============== 2019 CLEAN/ORGANIZE ===============
 # Create an environmentals sheet from 2019 (did not exist originally, it was integrated with catch data)
 enviro.19.raw <- catch.19 %>% 
   mutate(rst_rpms = ifelse(rst_rpms=="2.75-0", "2.75", rst_rpms)) %>%
@@ -157,7 +158,7 @@ enviro.19 <- enviro.19.raw %>%
   print()
 
 
-#--------- 2021 NADLEH CLEAN/ORGANIZE
+# =============== 2021 NADLEH CLEAN/ORGANIZE ===============
 Nenviro.21 <- Nenviro.21.raw %>%
   mutate_at(vars(rst_rpms, water_gauge_m:water_temp_C), as.numeric) %>%
   mutate_at(vars(date_opened, date_closed), as.Date) %>%
@@ -166,7 +167,7 @@ Nenviro.21 <- Nenviro.21.raw %>%
   print()
 
 
-#--------- 2021 STELLAKO CLEAN/ORGANIZE
+# =============== 2021 STELLAKO CLEAN/ORGANIZE ===============
 Senviro.21 <- Senviro.21.raw %>% 
   mutate_at(vars(rst_rpms, water_gauge_m:water_temp_C), as.numeric) %>%
   mutate_at(vars(date_opened, date_closed), as.Date) %>%
@@ -175,13 +176,13 @@ Senviro.21 <- Senviro.21.raw %>%
   print()
 
 
-#----------- Final environmental data 
+# =============== Final environmental data ===============
 enviro.join <- full_join(Nenviro.21, enviro.19) %>%
   bind_rows(., Senviro.21) %>%
   mutate_at("rst_rpms", as.numeric) %>%
   select(year, site, trap_type, date_opened, date_closed, time, location, crew_initials, rst_rpms, debris_load, debris_type1, 
          debris_type2, water_gauge_m, air_temp_C, water_temp_C, comments) %>%
-  mutate(across(where(is.character), ~na_if(., "NA"))) 
+  print()
 
 
 
@@ -193,7 +194,7 @@ enviro.join <- full_join(Nenviro.21, enviro.19) %>%
 
 
 
-#--------- 2019 CLEAN/ORGANIZE
+# =============== 2019 CLEAN/ORGANIZE ===============
 # Rename and add to 2019 to match 2021 - Note that sampling dates were entered as the day the trap was opened 
 lf.19 <- lf.19.raw %>% 
   mutate_at(vars(c(weight_g:prob6)), as.numeric) %>% 
@@ -210,7 +211,7 @@ lf.19 <- lf.19.raw %>%
   print()
 
 
-#--------- 2021 NADLEH CLEAN/ORGANIZE
+# =============== 2021 NADLEH CLEAN/ORGANIZE ===============
 Nlf.21 <- Nlf.21.raw[rep(1:nrow(Nlf.21.raw), Nlf.21.raw[["count"]]),]
 Nlf.21 <- Nlf.21 %>% 
   mutate(year="2021",
@@ -218,19 +219,18 @@ Nlf.21 <- Nlf.21 %>%
   print()
 
 
-#--------- 2021 STELLAKO CLEAN/ORGANIZE
+# =============== 2021 STELLAKO CLEAN/ORGANIZE ===============
 Slf.21 <- Slf.21.raw[rep(1:nrow(Slf.21.raw), Slf.21.raw[["count"]]),]
 Slf.21 <- Slf.21 %>% 
   mutate(year="2021") %>% 
   print()
 
 
-#--------- JOIN 
+# =============== JOIN ===============
 lf.join <- full_join(lf.19, Nlf.21) %>% 
   bind_rows(., Slf.21) %>%
   mutate_at(vars(date_opened, date_closed), as.Date) %>%
   select(year, site, date_opened, date_closed, crew, trap_type, data_type, length_mm, comments) %>% 
-  mutate(across(where(is.character), ~na_if(., "NA"))) %>%
   print()
 
 ## removed 'count' as it is not needed anymore - length-frequency tables already expanded 
@@ -242,228 +242,270 @@ lf.join <- full_join(lf.19, Nlf.21) %>%
 #                                              CREATE BIOSAMPLE SHEET
 
 
-#--------- 2019 CLEAN/ORGANIZE
+# =============== 2019 CLEAN/ORGANIZE ===============
 
-#--- MGL FILES: GSI RESULTS 
-# Batch 1 solo:                                              **** PLACEHOLDER UNTIL FIND ORIGINAL FILE **** 
-dnab1.19 <- dnab1.19.raw %>%
-  # Selected all of the samples that were analyzed including those that were analyzed but didn't amplify
-  filter(grepl("did not amplify", `DNA Lab Comment`) | !is.na(`Sample Identifier`)) %>% 
-  # Select only columns of interest
-  select(`Sample Identifier`, Region1:Prob2, `DNA Lab Comment`) %>%
-  # Rename columns
-  rename(lab_identifier = `Sample Identifier`,
-         region1=Region1,
-         prob1 = Prob1,
-         region2 = Region2,
-         prob2 = Prob2,
-         MGL_comments = `DNA Lab Comment`) %>%
-  # Extract whatman cell from lab_id, apply analysis strategy variable and change the lab_id to match the lab_id returned from the combo batch
-  mutate(whatman_cell=substring(lab_identifier, 30, 34),
-         dna_analysis_strategy = "Batch 1 solo",
-         lab_identifier = gsub("NautleyR(18)", "NautleyR(19)", lab_identifier, fixed=T),
-         dna_data_source = "Nautley Combined data(Current) - verified JG.xlsx") %>%
-  print()
-
-# Combo DNA: batch 1 and 2
-MGLcombo.19 <- MGLcombo.19.raw %>% 
-  # remove the leading entry from the model run (not a real fish):
-  filter(Fish != "19.000299999999999") %>% 
-  # rename columns:
-  rename(MGL_identifier = Fish,
-         MGL_comments = Comment,
-         b12_reg1 = `Region 1`,
-         b12_prob1 = `Prob 1`,
-         b12_reg2 = `Region 2`,
-         b12_prob2 = `Prob 2`,
-         b12_reg3 = `Region 3`,
-         b12_prob3 = `Prob 3`,
-         b12_reg4 = `Region 4`,
-         b12_prob4 = `Prob 4`,
-         b12_reg5 = `Region 5`,
-         b12_prob5 = `Prob 5`,
-         b12_reg6 = `...13`,
-         b12_prob6 = `...14`,
-         b12_reg7=`...15`,
-         b12_prob7=`...16`) %>%
-  # extract the day of year and unique identifier from the lab_id field for join to our data later: 
-  mutate(whatman_cell = substring(MGL_identifier, 30, 33),
-         dna_data_source = "NautleyCombined(19)_2020-01-27.xlsx") %>%
-  # change variable format: 
-  mutate_at(vars(c(b12_prob1, b12_reg2)), as.numeric) %>%
-  print()
-
-
-# Batch 2 solo
-MGLb2.19 <- MGLb2.19.raw %>% 
-  # remove the leading entry from the model run (not a real fish):
-  filter(Fish != "19.000299999999999") %>% 
-  # rename columns:
-  rename(MGL_identifier = Fish,
-         MGL_comments = Comment,
-         b2_reg1 = `Region 1`,
-         b2_prob1 = `Prob 1`,
-         b2_reg2 = `Region 2`,
-         b2_prob2 = `Prob 2`,
-         b2_reg3 = `Region 3`,
-         b2_prob3 = `Prob 3`,
-         b2_reg4 = `Region 4`,
-         b2_prob4 = `Prob 4`,
-         b2_reg5 = `Region 5`,
-         b2_prob5 = `Prob 5`,
-         b2_reg6 = `...13`,
-         b2_prob6 = `...14`,
-         b2_reg7=`...15`,
-         b2_prob7=`...16`) %>%
-  # extract the day of year and unique identifier from the lab_id field for join to our data later: 
-  mutate(whatman_cell=substring(MGL_identifier, 30, 33),
-         dna_data_source = "Nautley_Batch2(19)_2020-01-27.xlsx") %>%
-  # change variable format: 
-  mutate_at(vars(c(b2_prob1, b2_reg2)), as.numeric) %>%
-  print()
-
-
-# Join MGL runs                                        #      ****** EVENTUALLY NEED TO ADD B1 AS WELL *******
-dna.19 <- left_join(MGLcombo.19, MGLb2.19, by=c("MGL_identifier", "whatman_cell", "MGL_comments")) %>%
-  unite("dna_data_sources", dna_data_source.x, dna_data_source.y, sep=",", remove = T) %>%
-  mutate(doy = as.numeric(substring(MGL_identifier, 25, 27)))
-
-
-
-#--- FIELD BIOSAMPLING DATA
+# FIELD BIOSAMPLING DATA ---------------
 ind.smolts.19 <- ind.smolts.19.raw %>%
-  # rename columns. Note the original "whatman_sheet" included both sheet and cell number in 1 column.
   rename(whatman_uid=whatman_sheet,
          psc_uid = sample_id,
          PSC_lab_comments=dejan_comment,
          comments=comment,
          ewatch_uid=ewatch_fid,
-         doy = jdate,
-         MGL_identifier=lab_identifier,
-         MGL_comments=dna_comment,
-         b1_reg1=region1,
-         b1_prob1=prob1,
-         b1_reg2=region2,
-         b1_prob2=prob2) %>%
-  # remove columns not needed 
-  select(-c(NEWregion1, NEWprob1, NEWregion2, NEWprob2, region3:prob6, ewatch_sample_bin, psc_dna_no, area)) %>%
-  # create new columns for unique IDs, data sources, selections, etc. for join to 2021 data later: 
-  mutate(whatman_uid = ifelse(grepl("19\\.0", as.character(whatman_uid)), 
-                               as.character(str_pad(round(as.numeric(whatman_uid),6), width=9, side="right", pad="0")), 
+         smolt_data_source = data_source,
+         DOY_closed = jdate) %>%
+  select(-c(NEWregion1, NEWprob1, NEWregion2, NEWprob2, region3:prob6, ewatch_sample_bin, psc_dna_no, area, dna_select_bin)) %>%
+  mutate(whatman_uid = ifelse(grepl("19[.]0", as.character(whatman_uid)), 
+                              as.character(str_pad(whatman_uid, width=9, side="right", pad="0")), 
                               as.character(whatman_uid)),
-         whatman_cell = ifelse(grepl("19\\.", whatman_uid), substring(whatman_uid, 6, 9),
-                          ifelse(grepl("-", whatman_uid), sub(".*-", "", whatman_uid), whatman_uid)), 
+         whatman_cell = ifelse(grepl("19[.]0", whatman_uid), substring(whatman_uid, 6, 9),
+                               ifelse(grepl("-", whatman_uid), sub(".*-", "", whatman_uid), whatman_uid)), 
          whatman_cell = str_remove(whatman_cell, "^0+"),
          scales_select_bin = ifelse(is.na(age), 0, 1),
-         ewatch_uid = ifelse(grepl("sacrificed for Dave Patterson", comments), "E-Watch unk ID", ewatch_uid)) %>% 
-         #MGL_identifier = gsub("NautleyR(18)", "NautleyR(19)", MGL_identifier, fixed=T)) %>%  
-  mutate(across(where(is.character), ~na_if(., "NA"))) %>%
+         ewatch_uid = ifelse(grepl("sacrificed for Dave Patterson", comments), "E-Watch unk ID", ewatch_uid)) %>%
+  #MGL_identifier = gsub("NautleyR(18)", "NautleyR(19)", MGL_identifier, fixed=T)) %>%  
+  filter(smolt_data_source != "2019 Nautley - length frequency entry") %>% 
   print()
 
 
-#--- Join 2019 GSI results + field biosampling data
-bio.19 <- full_join(ind.smolts.19, dna.19, by=c("whatman_cell", "doy", "MGL_identifier", "MGL_comments")) %>% 
-  mutate_at(vars(weight_g, b1_reg1:b1_prob2), as.numeric) %>%
+# MGL FILES: GSI RESULTS ---------------
+
+# Batch 1 subset: note original file was lost, so extracting it from the 2019 combined data for cleaning and easier re-joining
+MGLb1.19 <- ind.smolts.19 %>%
+  filter(!is.na(lab_identifier) | !is.na(dna_comment), !grepl("NautSMOLTS_B2", lab_identifier)) %>%
+  select(lab_identifier, DOY_closed, whatman_uid, whatman_cell, region1, prob1, region2, prob2, dna_comment) %>%
+  rename(MGL_identifier = lab_identifier,
+         gsi_subset_reg1 = region1,
+         gsi_subset_prob1 = prob1,
+         gsi_subset_reg2 = region2,
+         gsi_subset_prob2 = prob2,
+         MGL_comments = dna_comment) %>%
+  mutate(dna_data_source = "data entry file - original MGL file lost",
+         dna_select_bin = 1) %>%
+  print()
+  
+
+# Batch 2 subset 
+MGLb2.19 <- left_join(
+  MGLb2.19.raw %>% 
+    filter(Fish != "19.000299999999999") %>% 
+    rename(MGL_identifier = Fish,
+           MGL_comments = Comment,
+           gsi_subset_reg1 = `Region 1`,
+           gsi_subset_prob1 = `Prob 1`,
+           gsi_subset_reg2 = `Region 2`,
+           gsi_subset_prob2 = `Prob 2`,
+           gsi_subset_reg3 = `Region 3`,
+           gsi_subset_prob3 = `Prob 3`,
+           gsi_subset_reg4 = `Region 4`,
+           gsi_subset_prob4 = `Prob 4`,
+           gsi_subset_reg5 = `Region 5`,
+           gsi_subset_prob5 = `Prob 5`,
+           gsi_subset_reg6 = `...13`,
+           gsi_subset_prob6 = `...14`,
+           gsi_subset_reg7=`...15`,
+           gsi_subset_prob7=`...16`) %>%
+    mutate(whatman_cell = substring(MGL_identifier, 30, 33),
+           DOY_closed = substring(MGL_identifier, 25, 27),
+           dna_data_source = "Nautley_Batch2(19)_2020-01-27.xlsx",
+           dna_select_bin = 2) %>%
+    mutate_at(vars(c(gsi_subset_prob1, gsi_subset_reg2, DOY_closed)), as.numeric),
+  
+  ind.smolts.19 %>% 
+    filter(DOY_closed%in%MGLb2.19.raw$DOY_closed & whatman_cell%in%MGLb2.19.raw$whatman_cell ) %>% 
+    select(DOY_closed, whatman_uid, whatman_cell)) %>%
+  print()
+
+
+
+# Full DNA selection: batch 1 and 2
+MGLfull.19 <- left_join(
+  MGLfull.19.raw %>% 
+    filter(Fish != "19.000299999999999") %>% 
+    rename(MGL_identifier = Fish,
+           MGL_comments = Comment,
+           gsi_full_reg1 = `Region 1`,
+           gsi_full_prob1 = `Prob 1`,
+           gsi_full_reg2 = `Region 2`,
+           gsi_full_prob2 = `Prob 2`,
+           gsi_full_reg3 = `Region 3`,
+           gsi_full_prob3 = `Prob 3`,
+           gsi_full_reg4 = `Region 4`,
+           gsi_full_prob4 = `Prob 4`,
+           gsi_full_reg5 = `Region 5`,
+           gsi_full_prob5 = `Prob 5`,
+           gsi_full_reg6 = `...13`,
+           gsi_full_prob6 = `...14`,
+           gsi_full_reg7=`...15`,
+           gsi_full_prob7=`...16`) %>%
+    mutate(whatman_cell = substring(MGL_identifier, 30, 33),
+           DOY_closed = substring(MGL_identifier, 25, 27),
+           dna_data_source = "NautleyCombined(19)_2020-01-27.xlsx") %>%
+    mutate_at(vars(c(gsi_full_prob1, gsi_full_reg2, DOY_closed)), as.numeric),
+  
+    ind.smolts.19 %>% 
+      filter(DOY_closed%in%MGLfull.19.raw$DOY_closed & whatman_cell%in%MGLfull.19.raw$whatman_cell ) %>% 
+      select(DOY_closed, whatman_uid, whatman_cell)) %>%
+  print()
+
+
+
+# Join the MGL files (pseudo Batch 1, Batch 2 subset, and the full combination analysis) 
+dna.19 <- full_join(MGLb1.19, MGLb2.19) %>%
+  full_join(., MGLfull.19, by=c("whatman_cell", "whatman_uid", "DOY_closed", "MGL_comments", "MGL_identifier")) %>%
+  mutate(dna_data_source.y = case_when(is.na(dna_data_source.y) ~ "not included in combination run due to sample processing issue", 
+                                       TRUE ~ as.character(dna_data_source.y))) %>%
+  unite("dna_data_sources", dna_data_source.x, dna_data_source.y, sep=", ", remove = T) %>%
+  select(gsi_subset_reg1:gsi_subset_prob2, gsi_subset_reg3:gsi_subset_prob7, gsi_full_reg1:gsi_full_prob7,
+         MGL_identifier, whatman_cell, whatman_uid, DOY_closed, MGL_comments, dna_select_bin, dna_data_sources) %>%
+  print()
+
+
+# Join 2019 GSI results + field biosampling data ---------------
+bio.19 <- left_join(ind.smolts.19 %>% select(-c(lab_identifier, region1, prob1, region2, prob2, dna_comment)), 
+                    dna.19) %>% 
   mutate_at(vars(date_opened, date_closed), as.Date) %>%
-  # rename columns
-  rename(smolt_data_source = data_source,
-         DOY_closed=doy,
-         PSC_uid=psc_uid) %>% 
-  # create new columns to indicate which fish were run for genetics and in which batch (batch 1 or batch 2)
-  mutate(dna_select_bin = as.numeric(ifelse(grepl("NautSMOLTS\\_B2", MGL_identifier), 2, dna_select_bin)),
-         across(b1_reg1:b1_prob2, ~ ifelse(grepl("missing Loci", MGL_comments),NA,.))) %>%
-  # remove length-frequency fish to put on the LF page: 
-  filter(smolt_data_source != "2019 Nautley - length frequency entry") %>% 
-  # add new useful columns for the join later: 
-  mutate(year="2019",
+  rename(PSC_uid=psc_uid) %>% 
+  mutate(across(gsi_subset_reg1:gsi_subset_prob2, ~ ifelse(grepl("missing Loci", MGL_comments), NA ,. )),
+         year="2019",
          site="Nadleh",
          samplers="BB,AR,AK/JN") %>%
-  # re-organize columns for verification (omit unnecessary columns) 
   select(-c(ufid, psc_book_no, psc_sample_no)) %>%
   select(year, site, date_opened, date_closed, date_group, DOY_closed, trap_type, PSC_uid, whatman_uid, whatman_cell, ewatch_uid, samplers,
          length_mm, length_class, weight_g, age, 
-         b1_reg1:b1_prob2, b12_reg1:b12_prob7, b2_reg1:b2_prob7,
+         gsi_subset_reg1:gsi_subset_prob2, gsi_subset_reg3:gsi_subset_prob7, gsi_full_reg1:gsi_full_prob7,
          scales_select_bin, dna_select_bin, MGL_identifier,
          comments, MGL_comments, PSC_lab_comments, smolt_data_source, dna_data_sources) %>%
   print()
 
 
-#--------- 2021 NADLEH CLEAN/ORGANIZE
-#--- NADLEH DNA ANALYSIS RESULTS FROM MGL 
-NMGL.21 <- NMGL.21.raw %>% 
-  # rename columns 
+
+# =============== 2021 NADLEH CLEAN/ORGANIZE ===============
+
+# NADLEH DNA ANALYSIS RESULTS FROM MGL: BATCH 1 ---------------
+NMGLb1.21 <- NMGLb1.21.raw %>% 
+  filter(Fish != "114-135") %>%
+  select(-contains("Stock")) %>%
+  
   rename(MGL_identifier = Fish,
          MGL_comments = Comment,
-         b1_reg1 = `Region 1`,
-         b1_prob1 = `Prob 1`,
-         b1_reg2 = `Region 2`,
-         b1_prob2 = `Prob 2`,
-         b1_reg3 = `Region 3`,
-         b1_prob3 = `Prob 3`,
-         b1_reg4 = `Region 4`,
-         b1_prob4 = `Prob 4`,
-         b1_reg5 = `Region 5`,
-         b1_prob5 = `Prob 5`,
-         b1_reg6 = `...13`,
-         b1_prob6 = `...14`) %>%
-  # remove leading entry from model run (not a real fish):
-  filter(MGL_identifier != "114-135") %>%
-  # extract unique whatman cell ID from lab_id field for join to our data later, and data source record: 
+         gsi_subset_reg1 = `Region 1`,
+         gsi_subset_prob1 = `Prob 1`,
+         gsi_subset_reg2 = `Region 2`,
+         gsi_subset_prob2 = `Prob 2`,
+         gsi_subset_reg3 = `Region 3`,
+         gsi_subset_prob3 = `Prob 3`,
+         gsi_subset_reg4 = `Region 4`,
+         gsi_subset_prob4 = `Prob 4`,
+         gsi_subset_reg5 = `Region 5`,
+         gsi_subset_prob5 = `Prob 5`) %>%
   mutate(whatman_cell = str_sub(MGL_identifier,30,33),
-         dna_data_sources="kokaneee_sockeyeNadlehSm(21)_2021-10-12.xlsx") %>% 
-  # change variable format:
-  mutate_at(vars(b1_prob1, b1_reg2), as.numeric) %>%
+         dna_data_sources="kokaneee_sockeyeNadlehSm(21)_2021-10-12.xlsx",
+         dna_select_bin = 1,
+         DOY_opened = as.numeric(substring(MGL_identifier, 25, 27))) %>% 
+  mutate_at(vars(gsi_subset_reg1, gsi_subset_prob1), as.numeric) %>%
+  print()
+
+# NADLEH DNA ANALYSIS RESULTS FROM MGL: BATCH 2 ---------------
+NMGLb2.21 <- NMGLb2.21.raw %>% 
+  filter(LineInfo != "Sample: 1") %>%
+  select(-contains("Stock"), -c(rowID, iSample, Collection, Gear)) %>%
+  rename(MGL_identifier = LineInfo,
+         MGL_comments = Comment,
+         gsi_subset_reg1 = `Region_1`,
+         gsi_subset_prob1 = `Prob_1`,
+         gsi_subset_reg2 = `Region_2`,
+         gsi_subset_prob2 = `Prob_2`,
+         gsi_subset_reg3 = `Region_3`,
+         gsi_subset_prob3 = `Prob_3`,
+         gsi_subset_reg4 = `Region_4`,
+         gsi_subset_prob4 = `Prob_4`,
+         gsi_subset_reg5 = `Region_5`,
+         gsi_subset_prob5 = `Prob_5`,
+         DOY_opened = JD,
+         whatman_cell = Fish) %>%
+  mutate(dna_data_sources="kokaneee_sockeyePID20210042_NAUTLEY_R_2021_SMOLTS_2022-04-13.xlsx",
+         dna_select_bin = 2) %>% 
+  mutate_at("gsi_subset_reg1", as.numeric) %>%
+  mutate_at("whatman_cell", as.character) %>%
+  print()
+
+# NADLEH DNA ANALYSIS RESULTS FROM MGL: COMBO ---------------
+NMGLfull.21 <- NMGLfull.21.raw %>% 
+  filter(LineInfo != "Sample: 1") %>%
+  select(-contains("Stock"), -c(rowID, iSample, Collection, Gear)) %>%
+  rename(MGL_identifier = LineInfo,
+         MGL_comments = Comment,
+         gsi_full_reg1 = `Region_1`,
+         gsi_full_prob1 = `Prob_1`,
+         gsi_full_reg2 = `Region_2`,
+         gsi_full_prob2 = `Prob_2`,
+         gsi_full_reg3 = `Region_3`,
+         gsi_full_prob3 = `Prob_3`,
+         gsi_full_reg4 = `Region_4`,
+         gsi_full_prob4 = `Prob_4`,
+         gsi_full_reg5 = `Region_5`,
+         gsi_full_prob5 = `Prob_5`,
+         DOY_opened = JD,
+         whatman_cell = Fish) %>%
+  mutate(dna_data_sources="kokaneee_sockeyePID20210042_NADLEH_NAUTLEY_2021_SMOLTS_2022-04-13.xlsx") %>% 
+  mutate_at("gsi_full_reg1", as.numeric) %>%
+  mutate_at("whatman_cell", as.character) %>%
+  print()
+
+# Join GSI together ---------------
+dna.21 <- full_join(NMGLb1.21, NMGLb2.21) %>%
+  left_join(., NMGLfull.21, by=c("MGL_identifier", "MGL_comments", "whatman_cell", "DOY_opened")) %>%
+  unite("dna_data_sources", dna_data_sources.x, dna_data_sources.y, sep=", ", remove = T) %>%
   print()
 
 
-#--- NADLEH FIELD BIOSAMPLING DATA
-Nbio.21 <- Nbio.21.raw %>%
-  rename(ewatch_uid=ewatch_id) %>%
-  # change variable format: 
-  mutate_at(vars(length_mm:weight_g), as.numeric) %>%
-  # create new columns for join: 
-  mutate(trap_type = ifelse(trap_type=="8'", "8' RST", trap_type),
-         year="2021",
-         ufid = paste("2019", seq(1:nrow(Nbio.21.raw)), sep="-")) %>% 
-  print()
-
-
-#--- Join Nadleh 2021 GSI results + field biosampling data
-Nbio.21 <- left_join(Nbio.21, NMGL.21, by=c("whatman_cell")) %>% 
-  # create new column indicating whether samples were run for DNA and which batch (batch 1 or 2)
-  mutate(dna_select_bin = if_else(grepl("NadlehSm", MGL_identifier), 1, 0),
-         DOY_closed = lubridate::yday(date_closed)) %>%
+# NADLEH FIELD BIOSAMPLING + DNA DATA JOIN ---------------
+Nbio.21 <- left_join(
+  Nbio.21.raw %>%
+    rename(ewatch_uid = ewatch_id) %>%
+    mutate_at(vars(length_mm:weight_g), as.numeric) %>%
+    mutate(trap_type = ifelse(trap_type=="8'", "8' RST", trap_type),
+           year = "2021",
+           ufid = paste("2019", seq(1:nrow(Nbio.21.raw)), sep="-"),
+           DOY_closed = lubridate::yday(date_closed),
+           DOY_opened = lubridate::yday(date_opened)),
+  
+  dna.21) %>%
+  mutate_at("ewatch_uid", as.character) %>%
   print()
 
 
 
-#--------- 2021 STELLAKO CLEAN/ORGANIZE
-#--- STELLA DNA ANALYSIS RESULTS FROM MGL 
+
+
+# =============== 2021 STELLAKO CLEAN/ORGANIZE ===============
+
+# STELLA DNA ANALYSIS RESULTS FROM MGL ---------------
 SMGL.21 <- SMGL.21.raw %>% 
   # rename columns 
   rename(MGL_identifier = Fish,
          MGL_comments = Comment,
-         b1_reg1 = `Region 1`,
-         b1_prob1 = `Prob 1`,
-         b1_reg2 = `Region 2`,
-         b1_prob2 = `Prob 2`,
-         b1_reg3 = `Region 3`,
-         b1_prob3 = `Prob 3`,
-         b1_reg4 = `Region 4`,
-         b1_prob4 = `Prob 4`,
-         b1_reg5 = `Region 5`,
-         b1_prob5 = `Prob 5`) %>%
+         gsi_full_reg1 = `Region 1`,
+         gsi_full_prob1 = `Prob 1`,
+         gsi_full_reg2 = `Region 2`,
+         gsi_full_prob2 = `Prob 2`,
+         gsi_full_reg3 = `Region 3`,
+         gsi_full_prob3 = `Prob 3`,
+         gsi_full_reg4 = `Region 4`,
+         gsi_full_prob4 = `Prob 4`,
+         gsi_full_reg5 = `Region 5`,
+         gsi_full_prob5 = `Prob 5`) %>%
   # remove leading entry from model run (not a real fish):
   filter(MGL_identifier != "101-141") %>%
   # extract unique whatman cell ID from lab_id field for join to our data later, and data source record: 
   mutate(whatman_cell = str_sub(MGL_identifier,30,34),
          dna_data_sources="kokaneee_sockeyeStellakoSm(21)_2021-10-12.xlsx") %>% 
   # change variable format:
-  mutate_at(vars(b1_prob1, b1_reg2), as.numeric) %>%
+  mutate_at(vars(gsi_full_prob1, gsi_full_reg2), as.numeric) %>%
   print()
 
 
-#--- STELLA FIELD BIOSAMPLING DATA
+# STELLA FIELD BIOSAMPLING DATA ---------------
 Sbio.21 <- Sbio.21.raw %>%
   rename(ewatch_uid=ewatch_id) %>%
   # change variable format:
@@ -475,25 +517,25 @@ Sbio.21 <- Sbio.21.raw %>%
   print()
 
 
-#--- Join 2021 Stellako GSI results + field biosampling data
-Sbio.21 <- left_join(Sbio.21, SMGL.21, by=c("whatman_cell")) %>% 
+# Join 2021 Stellako GSI results + field biosampling data ---------------
+Sbio.21 <- left_join(Sbio.21, SMGL.21) %>% 
   # create new column indicating whether samples were run for DNA and which batch (batch 1 or 2)
   mutate(dna_select_bin = if_else(grepl("StellakoSm", MGL_identifier), 1, 0),
          DOY_closed = lubridate::yday(date_closed)) %>%
+  mutate_at("PSC_cell", as.numeric) %>%
   print()
 
 
 
-#--------- JOIN 2019 + 2021
+# =============== JOIN 2019 + 2021 ===============
+
 # Create vector of IDs for samples slated for priority scale analysis from the PSC for quick creation of a 2021 scales_select_bin variable.
 # Note this was made in dna_pulls_2021.R file. 
 PSC_scale_priorities_2021 <- read.csv("northern_smolt_scale_PRIORITIES_june2021.csv")$PSC_uid
 
 bio.join <- full_join(Nbio.21, bio.19) %>%
   bind_rows(., Sbio.21) %>%
-  # change variable format  
   mutate_at(vars(date_opened, date_closed), as.Date) %>%
-  # create or edit variables for clenliness 
   mutate(species = ifelse(grepl("hinook", comments), "Chinook", "Sockeye"),
          PSC_uid = ifelse(PSC_uid=="NA-NA", NA, PSC_uid),
          whatman_uid = ifelse(whatman_uid=="NA-NA", NA, whatman_uid),
@@ -503,18 +545,17 @@ bio.join <- full_join(Nbio.21, bio.19) %>%
                                              ifelse(length_mm>=100 & length_mm <= 109, "100-109",
                                                     ifelse(length_mm>=110 & length_mm <= 119, "110-119",
                                                            ifelse(length_mm>=120 & length_mm <= 130, "120-130", ">130"))))))) %>%
-  # Identify samples slated for priority analysis at PSC scale lab (they will analyze all samples eventually)
   mutate(scales_select_bin = ifelse(year=="2021" & PSC_uid%in%PSC_scale_priorities_2021, "1", 
                               ifelse(year=="2021" & !PSC_uid%in%PSC_scale_priorities_2021, "2", scales_select_bin))) %>%
-  # re-organize columns/omit redundancies
   select(-c(whatman_sheet, PSC_book, PSC_cell)) %>%
-  select(year, site, species, trap_type, date_opened, date_closed, date_group, time_trap_closed, samplers, 
+  select(year, site, species, trap_type, date_opened, date_closed, DOY_closed, date_group, time_trap_closed, samplers, 
          ufid, PSC_uid, whatman_uid, whatman_cell, ewatch_uid,
-         length_mm, length_class, weight_g, age, b1_reg1:b1_prob6, b12_reg1:b12_prob7, b2_reg1:b2_prob7, 
+         length_mm, length_class, weight_g, age, 
+         gsi_subset_reg1:gsi_subset_prob5, gsi_subset_reg6:gsi_subset_prob7, gsi_full_reg1:gsi_full_prob5, gsi_full_reg6:gsi_full_prob7,
          dna_select_bin, scales_select_bin, MGL_identifier, 
          comments, PSC_lab_comments, MGL_comments, smolt_data_source, dna_data_sources) %>%
-  # Turn all character NAs to 'true' NAs 
-  mutate(across(where(is.character), ~na_if(., "NA"))) %>%
+  mutate(across(where(is.character), ~na_if(., "NA"))) %>% 
+  arrange(year, date_opened) %>%
   print()
 
 
@@ -625,6 +666,7 @@ bio.metadata <- tibble(column = names(bio.join)) %>%
                                  column=="samplers"~"Initials of nightly sampling crew",
                                  column=="date_opened"~"Date trap (RST or fyke net) was opened for each fishing interval/group, where nights with hourly checks are recorded as one open date and one close date (i.e., open date does not necessarily line up to open time). Usually spans one night, although some dates in 2019 will span days and/or day+night",
                                  column=="date_closed"~"Date trap (RST or fyke net) was closed for each fishing interval/group, where nights with hourly checks are recorded as one open date and one close date (i.e., open date does not necessarily line up to open time). Usually spans one night, although some dates in 2019 will span days and/or day+night",
+                                 column=="DOY_closed"~"Julian date version of date_closed.",
                                  column=="date_group"~"Date grouping from 2019 data. Not sure what this was for - perhaps GSI or smooth plotting. Retained in case important for replication of results at some point",
                                  column=="time_trap_closed"~"Time trap (RST or fyke net) was checked/closed for each fishing interval in 24-hr format where midnight is 00:00. References the time when smolts were netted out of the trap and brought to shore to begin sampling.",
                                  column=="ufid"~"Unique fish ID for use across space/time (PSC/Whatman IDs not guaranteed to be unique over time)",
@@ -636,12 +678,10 @@ bio.metadata <- tibble(column = names(bio.join)) %>%
                                  column=="length_class"~"Smolt fork length classes in 10-mm increments. In 2019 this informed DNA and weight sampling; in 2021 this only informed weight sampling",
                                  column=="weight_g"~"Smolt wet weight in grams",
                                  column=="age"~"Smolt age obtained from scale samples, where age is typically 0, 1 or 2, representing age-0 (new fry), age-1 (smolt that completed 1 year of life and entering 2nd year), and age-2 (smolt completed 2 years of life and entering 3rd year)",
-                                 grepl("b1_reg", column)~"Batch 1 genetic stock ID (GSI) regional assignments, where region 1 is the most probable and subsequent regions are the least probable. Samples were run in 2 batches, the 1st batch was priority and 2nd batch was follow-up. GSI results can change depending on the mixture of samples included in the analysis, so samples were run as just batch 1, batch 1+2 combined, and just batch 2, to assess the extent of stock-switching (i.e., reliability of stock ID).",
-                                 grepl("b1_prob", column)~"Batch 1 genetic stock ID (GSI) probability associated with regional assignments, where prob1 is the most probable and subsequent probabilities decrease. Samples were run in 2 batches, the 1st batch was priority and 2nd batch was follow-up. GSI results can change depending on the mixture of samples included in the analysis, so samples were run as just batch 1, batch 1+2 combined, and just batch 2, to assess the extent of stock-switching (i.e., reliability of stock ID).",
-                                 grepl("b12_reg", column)~"Batch 1+2 combination genetic stock ID (GSI) regional assignments, where region 1 is the most probable and subsequent regions are the least probable. Samples were run in 2 batches, the 1st batch was priority and 2nd batch was follow-up. GSI results can change depending on the mixture of samples included in the analysis, so samples were run as just batch 1, batch 1+2 combined, and just batch 2, to assess the extent of stock-switching (i.e., reliability of stock ID).",
-                                 grepl("b12_prob", column)~"Batch 1+2 combination genetic stock ID (GSI) probability associated with regional assignments, where prob1 is the most probable and subsequent probabilities decrease. Samples were run in 2 batches, the 1st batch was priority and 2nd batch was follow-up. GSI results can change depending on the mixture of samples included in the analysis, so samples were run as just batch 1, batch 1+2 combined, and just batch 2, to assess the extent of stock-switching (i.e., reliability of stock ID).",
-                                 grepl("b2_reg", column)~"Batch 2 genetic stock ID (GSI) regional assignments, where region 1 is the most probable and subsequent regions are the least probable. Samples were run in 2 batches, the 1st batch was priority and 2nd batch was follow-up. GSI results can change depending on the mixture of samples included in the analysis, so samples were run as just batch 1, batch 1+2 combined, and just batch 2, to assess the extent of stock-switching (i.e., reliability of stock ID).",
-                                 grepl("b2_prob", column)~"Batch 2 genetic stock ID (GSI) probability associated with regional assignments, where prob1 is the most probable and subsequent probabilities decrease. Samples were run in 2 batches, the 1st batch was priority and 2nd batch was follow-up. GSI results can change depending on the mixture of samples included in the analysis, so samples were run as just batch 1, batch 1+2 combined, and just batch 2, to assess the extent of stock-switching (i.e., reliability of stock ID).",
+                                 grepl("gsi_subset_reg", column)~"Batch subset genetic stock ID (GSI) regional assignments, where region 1 is the most probable and subsequent regions are the least probable. Samples were run in 2 batches, the 1st batch was priority and 2nd batch was follow-up. GSI results can change depending on the mixture of samples included in the analysis, so samples were run as just batch 1, batch 1+2 combined, and just batch 2, to assess the extent of stock-switching (i.e., reliability of stock ID). See 'dna_select_bin' or 'MGL_identifier' to see what batch samples were part of.",
+                                 grepl("gsi_subset_prob", column)~"Batch subset Genetic stock ID (GSI) probability associated with regional assignments, where prob1 is the most probable and subsequent probabilities decrease. Samples were run in 2 batches, the 1st batch was priority and 2nd batch was follow-up. GSI results can change depending on the mixture of samples included in the analysis, so samples were run as just batch 1, batch 1+2 combined, and just batch 2, to assess the extent of stock-switching (i.e., reliability of stock ID). See 'dna_select_bin' or 'MGL_identifier' to see what batch samples were part of.",
+                                 grepl("gsi_full_reg", column)~"Batch 1+2 full genetic stock ID (GSI) regional assignments, where region 1 is the most probable and subsequent regions are the least probable. Samples were run in 2 batches, the 1st batch was priority and 2nd batch was follow-up. GSI results can change depending on the mixture of samples included in the analysis, so samples were run as just batch 1, batch 1+2 combined, and just batch 2, to assess the extent of stock-switching (i.e., reliability of stock ID). See 'dna_select_bin' or 'MGL_identifier' to see what batch samples were part of.",
+                                 grepl("gsi_full_prob", column)~"Batch 1+2 full genetic stock ID (GSI) probability associated with regional assignments, where prob1 is the most probable and subsequent probabilities decrease. Samples were run in 2 batches, the 1st batch was priority and 2nd batch was follow-up. GSI results can change depending on the mixture of samples included in the analysis, so samples were run as just batch 1, batch 1+2 combined, and just batch 2, to assess the extent of stock-switching (i.e., reliability of stock ID). See 'dna_select_bin' or 'MGL_identifier' to see what batch samples were part of.",
                                  column=="dna_select_bin"~"Categorical code for samples selected for DNA analysis, where 0=not sent, 1=first batch, 2=second batch",
                                  column=="scales_select_bin"~"Categorical code for samples selected for scale analysis, where 0=not sent, 1=first batch/priority, 2=second batch (if applicable)",
                                  column=="MGL_identifier"~"Molecular Genetics Lab (MGL) unique identifier. Needed for reference to GSI files from MGL. Composed of: BatchID(year)  trap_type  day_of_year  whatman_cell",
@@ -656,8 +696,12 @@ bio.metadata <- tibble(column = names(bio.join)) %>%
 
 
 #--------- JOIN
-metadata <- rbind(enviro.metadata, catch.metadata, lf.metadata, bio.metadata)
+metadata <- rbind(enviro.metadata, catch.metadata, lf.metadata, bio.metadata) %>%
+  add_row() %>%
+  add_row() %>%
+  add_row(column = "last export:", units=as.character(Sys.time()), description=" ") 
 
+ 
 
 #--------- MGL code sheet 
 MGL_region_codes <- tibble(region_code=seq(1:19)) %>% 
@@ -696,10 +740,13 @@ conditionalFormatting(northern_wb, "metadata", cols=1:3,
                       rows=49, style=createStyle(bgFill="#00e5ff"), type="contains", rule=" ")
 conditionalFormatting(northern_wb, "metadata", cols=1:3, 
                       rows=61, style=createStyle(bgFill="#00e5ff"), type="contains", rule=" ")
+conditionalFormatting(northern_wb, "metadata", cols = 1:ncol(metadata), 
+                      rows=119, style=createStyle(bgFill="#00e5ff"), type="contains", rule="o")
 conditionalFormatting(northern_wb, "metadata", cols=1:ncol(metadata), 
                       rows=37, style=createStyle(bgFill="gray80"), type="contains", rule="o")
 conditionalFormatting(northern_wb, "metadata", cols = 1:ncol(metadata), 
                       rows=42, style=createStyle(bgFill="gray80"), type="contains", rule="o")
+
 
 writeData(northern_wb, sheet="environmental", x=enviro.join)
 
