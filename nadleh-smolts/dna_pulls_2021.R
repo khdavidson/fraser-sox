@@ -1,5 +1,15 @@
 # NADLEH and STELLAKO 2021
-# DNA pull requests for MGL 
+# DNA pull requests for MGL and scale priorities for PSC
+
+
+
+
+
+#                                                 NOTE THIS SCRIPT DIVDED INTO 3 SECTIONS:
+
+# Initial DNA investigation and pull, lines ~15-214
+# PSC scale priorities, lines ~218-335
+# Second DNA investigation and pull, lines ~343 onward.
 
 
 ##################################################################################################################################################
@@ -321,6 +331,217 @@ scale.priorities <- rbind(scale.priorities.n, scale.priorities.s)
 
 # DO NOT OVERWRITE THIS FILE AS IT IS NOW BEING USED IN nautley_database.R : 
 # write.csv(scale.priorities, "northern_smolt_scale_PRIORITIES_june2021.csv", row.names=F)
+
+
+
+##################################################################################################################################################
+
+##################################################################################################################################################
+
+##################################################################################################################################################
+
+
+
+#                                                    SECOND ROUND OF DNA SAMPLE SUBMISSION
+#                                                                   Dec 2021 
+
+setwd("~/ANALYSIS/data")
+library(tidyverse)
+library(readxl)
+library(openxlsx)
+
+bio.dat.raw <- read_excel("Northern_smolt_database_2019-2021.xlsx", sheet="biosampling")
+catch.dat.raw <- read_excel("Northern_smolt_database_2019-2021.xlsx", sheet="nightly_catch")
+pullv1 <- read_excel("northern_smolt_dna_pull1_june2021_v1.xlsx", sheet="northern_smolt_dna_pull1_june20")  # this is the file i initially sent to MGL for analysis
+pullv2 <- read_excel("northern_smolt_dna_pull1_june2021_v2.xlsx", sheet="northern_smolt_dna_pull1_june20")  # this is the revised file i sent for analysis but that they didn't end up analyzing
+
+##################################################################################################################################################
+
+#                                                                 CLEAN
+
+pullv1 <- pullv1 %>% 
+  filter(site != "Stellako") %>%
+  mutate(whatman_uid = ifelse(whatman_uid=="NA", paste(c(whatman_sheet,whatman_cell), sep="-"), whatman_uid))
+
+pullv2 <- pullv2 %>% 
+  filter(site != "Stellako")
+
+bio.dat.21 <- bio.dat.raw %>% 
+  filter(year=="2021", site=="Nadleh", species=="Sockeye") %>%
+  print()
+
+catch.dat.21 <- catch.dat.raw %>%
+  filter(year=="2021", site=="Nadleh", !grepl("Release location", location))
+
+
+##################################################################################################################################################
+
+#                                                               CURRENT GSI DATA SUMMARIES
+
+bio.dat.21%>%filter(dna_select_bin==1)%>%summarize(n=n())
+# n=200 total analyzed so far
+
+bio.dat.21%>%filter(dna_select_bin==1, !is.na(weight_g))%>%summarize(n=n())
+# n=32 w/ weight so far
+bio.dat.21%>%filter(dna_select_bin==1, !is.na(weight_g))%>%group_by(b1_reg1)%>%summarize(n=n())
+# n=18 nadina, n=14 stellako so far
+
+#----
+
+ggplot(data=bio.dat.21%>%group_by(dna_select_bin,length_mm)%>%summarize(n=n()), aes(x=length_mm, y=n, fill=as.factor(dna_select_bin))) +
+  geom_bar(stat="identity")
+
+ggplot() +
+  geom_vline(xintercept = as.Date("2021-05-04"), colour="red",size=2) +
+  geom_bar(data=bio.dat.21%>%group_by(dna_select_bin,date_closed)%>%summarize(n=n()), 
+           aes(x=as.Date(date_closed), y=n, fill=as.factor(dna_select_bin)), stat="identity", alpha=0.65) +
+  geom_line(data=catch.dat.21%>%group_by(date_closed)%>%summarize(n=sum(total_unmarked)/50), aes(x=as.Date(date_closed),y=n), size=1)+
+  geom_point(data=catch.dat.21%>%group_by(date_closed)%>%summarize(n=sum(total_unmarked)/50), aes(x=as.Date(date_closed),y=n), size=3)+
+  scale_x_date(date_breaks="2 day", date_labels = "%b %d") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle=45,hjust=1))
+# equal #s each day 
+
+ggplot(data=bio.dat.21 %>%
+  filter(length_mm>130) %>%
+  group_by(dna_select_bin, date_closed) %>%
+  summarize(n=n()), 
+    aes(x=date_closed,y=n,fill=as.factor(dna_select_bin) )) +
+  geom_bar(stat="identity")
+# n=4 over 130mm May 4-16 window analyzed 
+
+
+##################################################################################################################################################
+
+#                                                         SECOND SELECTION TO SEND
+
+# Extract the samples not analyzed yet to pull from (just Nadleh 2021)
+pull.from <- bio.dat.21 %>%
+  mutate_at("date_closed", as.Date) %>%
+  filter(dna_select_bin=="0", !is.na(whatman_uid), site=="Nadleh", year=="2021") %>%
+  print()
+
+
+#------- ROUND 2 SELECTIONS
+#---- First randomly select 10 samples per day from days where no samples were analyzed in first round
+dates.zeroes <- c(as.Date("2021-04-22"), "2021-04-23", "2021-04-24", "2021-04-29", "2021-05-06", "2021-05-17", "2021-05-18", "2021-05-19", "2021-05-20",
+           "2021-05-21", "2021-05-22")
+
+set.seed(1234)
+pull.zeros <- pull.from %>%
+  filter(date_closed %in% c(as.Date(dates.zeroes))) %>%
+  group_by(date_closed) %>%
+  sample_n(10) %>%
+  mutate(dna_select_bin = 2)
+
+
+#---- Next randomly select additional samples for days already analyzed but needing more
+# Late and smaller peaks
+dates.peaks <- c(as.Date("2021-05-01"), "2021-05-04", "2021-05-08", "2021-05-09", "2021-05-11", "2021-05-13")
+
+set.seed(1234)
+pull.peaks1 <- pull.from %>%
+  filter(date_closed %in% c(as.Date(dates.peaks))) %>%
+  group_by(date_closed) %>% 
+  sample_n(10)%>%
+  mutate(dna_select_bin = 2)
+
+# Main peak Apr 26-27
+date.big.peaks <- c(as.Date("2021-04-26"), "2021-04-27")
+
+set.seed(1234)
+pull.peaks2 <- pull.from %>%
+  filter(date_closed %in% c(as.Date(date.big.peaks))) %>%
+  group_by(date_closed) %>% 
+  sample_n(20)%>%
+  mutate(dna_select_bin = 2)
+
+# Transition period around May 4 based on round #1
+date.trans.peaks <- c(as.Date("2021-05-02"), "2021-05-03", "2021-05-05")
+
+set.seed(1234)
+pull.peaks3 <- pull.from %>%
+  filter(date_closed %in% c(as.Date(date.trans.peaks))) %>%
+  group_by(date_closed) %>% 
+  sample_n(10)%>%
+  mutate(dna_select_bin = 2)
+
+
+#---- JOIN 1
+pull.zeropeak <- full_join(pull.zeros, pull.peaks1) %>%
+  full_join(., pull.peaks2) %>%
+  full_join(., pull.peaks3)
+
+# Identify second-round picks in database based on the whatman_uids
+fullpull2.1 <- bio.dat.21 %>%
+  mutate(dna_select_bin = ifelse(whatman_uid%in%pull.zeropeak$whatman_uid, 2, dna_select_bin)) %>%
+  print()
+
+
+#---- Finally target select additional samples for any remaining very large fish (>130mm)
+pull.fatty <- fullpull2.1 %>%
+  mutate_at("date_closed", as.Date) %>%
+  filter(dna_select_bin=="0", !is.na(whatman_uid), site=="Nadleh", year=="2021") %>%
+  filter(length_mm>130) %>%
+  mutate(dna_select_bin = 2) %>%
+  print()
+
+
+#------- JOIN final:
+pull.zeropeakfat <- full_join(pull.zeropeak, pull.fatty)
+nrow(pull.zeropeakfat)
+
+# Identify second-round picks in database based on the whatman_uids
+fullpull2.2 <- bio.dat.21 %>%
+  mutate(dna_select_bin = ifelse(whatman_uid%in%pull.zeropeakfat$whatman_uid, 2, dna_select_bin)) %>%
+  mutate_at(c("date_opened", "date_closed"), as.Date) %>%
+  print()
+
+
+fullpull2.2 %>%
+  filter(site=="Nadleh",  year=="2021", dna_select_bin!="0") %>% 
+  group_by(dna_select_bin) %>%
+  summarize(n=n())
+
+
+#------- EXAMINE! 
+fullpull2.2$dna_select_bin <- factor(fullpull2.2$dna_select_bin, levels=c(0,2,1), ordered=T)
+
+ggplot() +
+  geom_line(data=catch.dat.21%>%group_by(date_closed)%>%summarize(n=sum(total_unmarked)/50), aes(x=as.Date(date_closed),y=n), size=0.6, alpha=0.7)+
+  geom_point(data=catch.dat.21%>%group_by(date_closed)%>%summarize(n=sum(total_unmarked)/50), aes(x=as.Date(date_closed),y=n), size=1.5, alpha=0.7) +
+  
+  geom_vline(xintercept = as.Date("2021-05-04"), colour="red",size=1) +
+  geom_bar(data=fullpull2.2%>%group_by(dna_select_bin,date_closed)%>%summarize(n=n()), 
+           aes(x=as.Date(date_closed), y=n, fill=as.factor(dna_select_bin), alpha=as.factor(dna_select_bin)), stat="identity") +
+  #geom_bar(data=fullpull2.2%>%filter(dna_select_bin%in%c("1","2"))%>%group_by(date_closed)%>%summarize(n=n()), 
+  #         aes(x=as.Date(date_closed), y=n), stat="identity", fill="green") +
+  scale_alpha_manual(breaks=c(0,2,1), values=c(0.1, 0.7, 0.7)) +
+  scale_x_date(date_breaks="2 day", date_labels = "%b %d") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle=45,hjust=1))
+
+# some days have odd extra fish here and there because it is targeting fat fish as well.
+
+
+#------- EXPORT
+to.export <- fullpull2.2 %>% 
+  filter(dna_select_bin==2) %>%
+  select(year:age, dna_select_bin,comments)
+
+dna_req_2 <- createWorkbook()
+addWorksheet(dna_req_2, "Sheet1")
+writeData(dna_req_2, sheet="Sheet1", x=to.export)
+saveWorkbook(dna_req_2, "northern_smolt_dna_pull2_jan2022.xlsx", overwrite = T)
+
+
+
+
+
+
+
+
+
 
 
 
