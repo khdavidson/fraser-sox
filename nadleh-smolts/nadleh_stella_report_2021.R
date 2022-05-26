@@ -28,6 +28,7 @@ nad21.disch.raw <- read.csv("NAUT_DISCH_2021_08JB003_QR_Nov-1-2021_09_25_53PM.cs
 nadhist.disch.raw <- read.csv("NAUT_DISCH_1999-2000_Daily__Nov-3-2021_08_38_13PM.csv")
 nad.hist.raw <- read.csv("1999-2000 Nautley data.csv")
 moon.raw <- read.csv("moon_phases.csv")
+chilko.raw <- read.csv("chilko_smolt_database_template 1956-2019 - daily data.csv")
 
 
 ############################################################################################################################################
@@ -167,6 +168,27 @@ moon <- moon.raw %>%
   mutate(date = lubridate::dmy(date)) %>%
   print()
   
+
+# Moon data clean -------------------
+moon <- moon.raw %>%
+  mutate(date=ifelse(date=="18-May", "18-May-00", date)) %>% 
+  mutate(date=as.Date(date, format="%d-%b-%y")) %>% 
+  mutate(total=100) %>% 
+  mutate(yday=lubridate::yday(date)) %>%
+  rename(moon=moon_phase) %>%
+  select(date, year, total, yday, moon) %>%
+  print()
+
+
+# Chilko data clean ------------------- 
+chilko <- chilko.raw %>%
+  mutate_at("total_abundance", as.numeric) %>% 
+  mutate_at("age1_daily_abundance", as.numeric) %>% 
+  mutate_at("age2_daily_abundance", as.numeric) %>% 
+  mutate(date = lubridate::dmy(date)) %>% 
+  mutate(yday = lubridate::yday(date)) %>%
+  filter(year > 2000) %>%
+  print()
 
 
 ##############################################################################################################################################
@@ -437,10 +459,10 @@ plot_grid(
     annotate(geom="text", label="Nautley 1999, 2000", x=as.Date(101, origin="1998-12-31"), fontface=3, y=1900, size=5, hjust = 0) +
     geom_line(data=discharge.hist, 
               aes(x=as.Date(DOY, origin="1998-12-31"), y=discharge_cms*25, group=year, colour=year), alpha=0.6) +
-    geom_bar(data=catch.hist%>%filter(year==1999),
+    geom_bar(data=catch.hist%>%filter(year==1999)%>%mutate(nightly_CPUE=ifelse(nightly_CPUE==0,NA,nightly_CPUE)),
              aes(x=as.Date(DOY_closed, origin="1998-12-31"), y=nightly_CPUE, group=year, fill=year, colour=year), 
              stat="identity", size=0.2, alpha=0.4, width=0.8) +
-    geom_bar(data=catch.hist%>%filter(year==2000),
+    geom_bar(data=catch.hist%>%filter(year==2000)%>%mutate(nightly_CPUE=ifelse(nightly_CPUE==0,NA,nightly_CPUE)),
              aes(x=as.Date(DOY_closed, origin="1998-12-31"), y=nightly_CPUE, group=year, fill=year, colour=year), 
              stat="identity", size=0.2, alpha=0.3, width=0.8) +
     labs(x="", y="") +
@@ -469,13 +491,18 @@ ggplot() +
               aes(x=as.Date(DOY, origin="2018-12-31"), ymin=min_dis*75, ymax=max_dis*75), fill="#8bc2fd", alpha=0.6) +
   geom_line(data=discharge.19_21%>%filter(year=="2019"), 
             aes(x=as.Date(DOY, origin="2018-12-31"), y=mean_dis*75), colour="#1785fc", alpha=0.6) +
-  geom_bar(data=catch.nightly%>%filter(year=="2019"), aes(x=as.Date(DOY_closed, origin="2018-12-31"), y=hourly_CPUE_propnMEAN), 
+  geom_bar(data=catch.nightly%>%filter(year=="2019")%>%mutate(hourly_CPUE_propnMEAN=ifelse(hourly_CPUE_propnMEAN==0,NA,hourly_CPUE_propnMEAN)), 
+           aes(x=as.Date(DOY_closed, origin="2018-12-31"), y=hourly_CPUE_propnMEAN), 
            stat="identity", colour="forest green", fill="forest green", alpha=0.75, size=0.2, width=0.8) +
   geom_point(data=moon%>%filter(year=="2019", date!=as.Date("2019-05-18")), 
              aes(x=as.Date(lubridate::yday(date), origin="2018-12-31"),y=7000),shape=21,col="#ffd966",fill="#ffe599",size=7,stroke=1) +
-  geom_errorbar(data=catch.nightly%>%filter(year=="2019", date_closed%in%c(as.Date("2019-04-13"):as.Date("2019-04-25"))), 
-                aes(x=as.Date(DOY_closed, origin="2018-12-31"), ymin=hourly_CPUE_propnLOWER, ymax=hourly_CPUE_propnUPPER), width=0.3, size=0.5) +   
-  geom_point(data=catch.nightly%>%filter(year=="2019", date_closed%in%c(as.Date("2019-04-13"):as.Date("2019-04-25"))),
+  geom_errorbar(data=catch.nightly%>%filter(year=="2019", date_closed%in%c(as.Date("2019-04-13"):as.Date("2019-04-25")))%>%
+                 mutate(hourly_CPUE_propnLOWER=ifelse(hourly_CPUE_propnLOWER==0.000,NA,hourly_CPUE_propnLOWER))%>%
+                 filter(!is.na(hourly_CPUE_propnLOWER)), 
+                  aes(x=as.Date(DOY_closed, origin="2018-12-31"), ymin=hourly_CPUE_propnLOWER, ymax=hourly_CPUE_propnUPPER), 
+                width=0.3, size=0.5, na.rm=F) +   
+  geom_point(data=catch.nightly%>%filter(year=="2019", date_closed%in%c(as.Date("2019-04-13"):as.Date("2019-04-25")))%>%
+              mutate(hourly_CPUE_propnMEAN=ifelse(hourly_CPUE_propnMEAN==0,NA,hourly_CPUE_propnMEAN)),
                aes(x=as.Date(DOY_closed, origin="2018-12-31"), y=hourly_CPUE_propnMEAN), 
                color="black", fill="black", shape=21, size=2) +
   scale_x_date(limits=c(as.Date(101, origin="2018-12-31"), as.Date(150, origin="2018-12-31")), 
@@ -500,7 +527,7 @@ ggplot() +
               aes(x=as.Date(DOY, origin="2020-12-31"), ymin=min_dis*30, ymax=max_dis*30), fill="#8bc2fd", alpha=0.6) +
   geom_line(data=discharge.19_21%>%filter(year=="2021",site=="Nadleh"), 
             aes(x=as.Date(DOY, origin="2020-12-31"), y=mean_dis*30), colour="#1785fc", alpha=0.6) +
-  geom_bar(data=catch.nightly%>%filter(year=="2021",site=="Nadleh"),               
+  geom_bar(data=catch.nightly%>%filter(year=="2021",site=="Nadleh")%>%mutate(nightly_CPUE=ifelse(nightly_CPUE==0,NA,nightly_CPUE)),               
            aes(x=as.Date(DOY_closed, origin="2020-12-31"), y=nightly_CPUE), 
            stat="identity", fill="forest green", colour="forest green", alpha=0.75, size=0.2, width=0.8) +
   geom_point(data=moon%>%filter(year=="2021"), 
@@ -524,7 +551,7 @@ ggplot() +
               aes(x=as.Date(DOY, origin="2020-12-31"), ymin=min_dis*4, ymax=max_dis*4), fill="#8bc2fd", alpha=0.6) +
   geom_line(data=discharge.19_21%>%filter(year=="2021",site=="Stellako"), 
             aes(x=as.Date(DOY, origin="2020-12-31"), y=mean_dis*4), colour="#1785fc", alpha=0.6) +
-  geom_bar(data=catch.nightly%>%filter(year=="2021", site=="Stellako"), 
+  geom_bar(data=catch.nightly%>%filter(year=="2021", site=="Stellako")%>%mutate(nightly_CPUE=ifelse(nightly_CPUE==0,NA,nightly_CPUE)), 
            aes(x=as.Date(DOY_closed, origin="2020-12-31"), y=nightly_CPUE), 
            stat="identity", fill="forest green", colour="forest green", alpha=0.75, size=0.2, width=0.8) +
   geom_point(data=moon%>%filter(year=="2021"), 
@@ -1741,6 +1768,10 @@ ciPetersen(n1=413, n2=1633, m2=2)
 
 #                                                          ENVIRONMENTALS
 
+
+# ====================== RPMs and RST DEBRIS =================================
+
+# Recode debris load to be quantitative
 enviro.data <- enviro.data %>%
   mutate(debris_load = case_when(debris_load=="med"~"medium",
                                  debris_load=="Medium"~"medium",
@@ -1748,8 +1779,9 @@ enviro.data <- enviro.data %>%
                                  TRUE ~ as.character(debris_load)),
          debris_load_rc = case_when(debris_load=="low"~"1",
                                     debris_load=="medium"~"2",
-                                    debris_load=="high"~"3")) %>%
-  mutate_at("debris_load_rc", as.numeric)
+                                    debris_load=="high"~"3"),
+         DOY_closed = lubridate::yday(date_closed)) %>%
+  mutate_at("debris_load_rc", as.numeric) 
 
 View(enviro.data %>% 
   filter(year==2021, site=="Nadleh") %>% 
@@ -1757,7 +1789,7 @@ View(enviro.data %>%
   summarize(debris_load_rc = mean(debris_load_rc, na.rm=T)))
 
 
-# Enviro plot
+# PLOT: RPMs ~ debris load + time (Nautley) ------------------------
 ggplot() +
   geom_bar(data=enviro.data%>%filter(year==2021,site=="Nadleh")%>%group_by(site,date_closed)%>%
              summarize(debris_load_rc=max(debris_load_rc,na.rm=T)), 
@@ -1780,6 +1812,8 @@ ggplot() +
         strip.text = element_blank(),
         legend.position = "none")
 
+
+# PLOT: RPMs ~ debris load + time (Stellako) ------------------------
 ggplot() +
   geom_bar(data=enviro.data%>%filter(year==2021,site=="Stellako",!is.na(debris_load))%>%group_by(site,date_closed)%>%
              summarize(debris_load_rc=max(debris_load_rc,na.rm=T)), 
@@ -1801,6 +1835,69 @@ ggplot() +
         panel.border = element_rect(size=1.2),
         strip.text = element_blank(),
         legend.position = "none") 
+
+
+
+# ====================== MOON MOON =================================
+
+# At Chilko -------------------
+
+ggplot() +
+  geom_line(data=chilko%>%filter(year>=2001, year<2021), 
+            aes(x=as.Date(yday, origin="2000-01-01"), y=total_abundance/1000), colour="gray50", size=1) +
+  geom_point(data=chilko%>%filter(year>=2001, year<2021), 
+             aes(x=as.Date(yday, origin="2000-01-01"), y=total_abundance/1000), 
+             fill="gray30", colour="black", stroke=1.5, pch=21, size=2, alpha=0.6) +
+  geom_vline(data=moon%>%filter(year>=2001, year<2021), 
+             aes(xintercept=as.Date(yday, origin="2000-01-01"), y=Inf), colour="red", size=1) +
+
+  #geom_point(data=moon%>%filter(year>=2001, year<2021), 
+  #           aes(x=as.Date(yday, origin="2000-01-01"), y=total), colour="red", fill="red", stroke=1.5, pch=25, size=3) +
+  facet_wrap(.~year, scales = "free_y") +
+  theme_bw() +
+  theme(legend.position=c(0.1,0.9),
+        legend.title=element_blank(),
+        legend.text=element_text(size=13),
+        legend.spacing.y = unit(0, "mm"),
+        legend.background = element_rect(colour="black"),
+        axis.text = element_text(colour="black", size=13), 
+        axis.title = element_text(face="bold", size=15),
+        strip.text = element_text(size=13))
+
+
+# ====================== TEMP =================================
+
+mig.rect <- data.frame(site = c("Nadleh","Nadleh","Nadleh","Nadleh", "Stellako") ,
+                       year=c("2019", "2021", "2019", "2021", "2021"),
+                       start=c(lubridate::yday("2019-04-20"), lubridate::yday("2021-04-26"), lubridate::yday("2019-05-03"), 
+                               lubridate::yday("2021-05-08"), lubridate::yday("2021-05-04")),
+                       end=c(lubridate::yday("2019-04-21"), lubridate::yday("2021-04-27"), lubridate::yday("2019-05-10"), 
+                             lubridate::yday("2021-05-13"), lubridate::yday("2021-05-14")) )
+
+ggplot() +
+  geom_rect(data=mig.rect, aes(xmin=as.Date(start, origin="2019-12-31"), xmax=as.Date(end, origin="2019-12-31"), ymin=-Inf, ymax=Inf), 
+            fill="gray60", alpha=0.5) +  
+  geom_point(data=enviro.data%>%group_by(site,year, DOY_closed)%>%summarize(water_temp_C=mean(water_temp_C)), 
+             aes(x=as.Date(DOY_closed, origin="2019-12-31"), y=water_temp_C)) +
+  geom_line(data=enviro.data%>%group_by(site,year, DOY_closed)%>%summarize(water_temp_C=mean(water_temp_C)), 
+            aes(x=as.Date(DOY_closed, origin="2019-12-31"), y=water_temp_C)) +
+  facet_wrap(~interaction(site, year), nrow=3) +
+  scale_x_date(date_breaks="2 day", date_labels = "%b %d")+
+  scale_y_continuous(breaks=seq(0,15, by=2))
+
+
+
+
+
+
+                             
+
+
+
+
+
+
+
 
 
 ##############################################################################################################################################
