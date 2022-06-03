@@ -1360,10 +1360,9 @@ TukeyHSD(aov2CF)
 
 
 
-# 2019 vs 2021 -------------------          *** here next day: 2 way anova b/w GSI and year? 
+# 2019 vs 2021 -------------------          
 # Length
 
-## ****** HERE NEXT DAY 
 length.lm <- lm(length_mm ~ gsi_final_reg, data=bio.data%>%filter(site=="Nadleh", ))
 length.r <- resid(length.lm)
 hist(length.r)
@@ -1496,6 +1495,7 @@ ggplot(stel.cop.dat, aes(x=as.factor(copepod_PA), y=cf_k)) + geom_boxplot()
 
 
 # ====================== COPEPOD INFECTION AND GSI ======================
+# INFECTED SMOLTS: 
 bio.data %>% 
   filter(year=="2021", !is.na(gsi_final_reg), copepod_PA==1) %>%
   group_by(site, gsi_final_reg) %>%
@@ -1508,7 +1508,7 @@ bio.data %>%
 # ====================== NADINA ONLY INVESTIGATIONS ======================
 
 # NADINA @ NADLEH: Infected vs. Uninfected ------------------ 
-t.test(length_mm ~ copepod_PA, data=bio.data%>%filter(gsi_final_reg=="Nadina", year==2021, site=="Nadleh"))
+t.test(length_mm ~ copepod_PA, data=bio.data%>%filter(gsi_final_reg=="Nadina", year==2021, site=="Nadleh", age!=2))
 ggplot(data=bio.data%>%filter(gsi_final_reg=="Nadina", year==2021, site=="Nadleh",
                               aes(x=as.factor(copepod_PA), y=length_mm))) + geom_boxplot()
 
@@ -1516,13 +1516,13 @@ t.test(weight_g ~ copepod_PA, data=bio.data%>%filter(gsi_final_reg=="Nadina", ye
 ggplot(data=bio.data%>%filter(gsi_final_reg=="Nadina", year==2021, site=="Nadleh",
                               aes(x=as.factor(copepod_PA), y=weight_g))) + geom_boxplot()
 
-t.test(cf_k ~ copepod_PA, data=bio.data%>%filter(gsi_final_reg=="Nadina", year==2021, site=="Nadleh"))
+t.test(cf_k ~ copepod_PA, data=bio.data%>%filter(gsi_final_reg=="Nadina", year==2021, site=="Nadleh", age!=2))
 ggplot(data=bio.data%>%filter(gsi_final_reg=="Nadina", year==2021, site=="Nadleh",
                               aes(x=as.factor(copepod_PA), y=cf_k))) + geom_boxplot()
 
 
 # NADINA @ STELLAKO: Infected vs. Uninfected ------------------ 
-t.test(length_mm ~ copepod_PA, data=bio.data%>%filter(gsi_final_reg=="Nadina", year==2021, site=="Stellako"))
+t.test(length_mm ~ copepod_PA, data=bio.data%>%filter(gsi_final_reg=="Nadina", year==2021, site=="Stellako", age!=2))
 ggplot(data=bio.data%>%filter(gsi_final_reg=="Nadina", year==2021, site=="Stellako"), 
        aes(x=as.factor(copepod_PA), y=length_mm)) + geom_boxplot()
 
@@ -1530,31 +1530,29 @@ t.test(weight_g ~ copepod_PA, data=bio.data%>%filter(gsi_final_reg=="Nadina", ye
 ggplot(data=bio.data%>%filter(gsi_final_reg=="Nadina", year==2021, site=="Stellako"), 
        aes(x=as.factor(copepod_PA), y=weight_g)) + geom_boxplot()
 
-t.test(cf_k ~ copepod_PA, data=bio.data%>%filter(gsi_final_reg=="Nadina", year==2021, site=="Stellako"))
+t.test(cf_k ~ copepod_PA, data=bio.data%>%filter(gsi_final_reg=="Nadina", year==2021, site=="Stellako", age!=2))
 ggplot(data=bio.data%>%filter(gsi_final_reg=="Nadina", year==2021, site=="Stellako"), 
        aes(x=as.factor(copepod_PA), y=cf_k)) + geom_boxplot()
 
 
 # NADINA INFECTION @ BOTH SITES ------------------ 
 nadina.infection.full <- bio.data %>% 
-  filter(gsi_final_reg=="Nadina", year==2021) %>%
+  filter(gsi_final_reg=="Nadina", year==2021, age!=2) %>%
   print()
 
-# STATS: 2-way anova
+# 2-way anova (not used)
 copepod.aov <- aov(length_mm ~ site + copepod_PA, data=bio.data%>%filter(gsi_final_reg=="Nadina", year==2021, !is.na(copepod_PA) & !is.na(length_mm)))
 summary(copepod.aov)
 TukeyHSD(copepod.aov, which="site")
 
-
 copepod.faov <- anova(lm(length_mm ~ copepod_PA + site, data=bio.data%>%filter(gsi_final_reg=="Nadina", year==2021)))
 summary(copepod.faov)
-
 
 summary(aov(length_mm ~ site + copepod_PA, data = bio.data%>%filter(gsi_final_reg=="Nadina", year==2021)))
 
 
 
-
+# Plot: Figure 6 copepods --------------
 ggplot(data=nadina.infection.full, aes(x=site, y=length_mm, group=interaction(site, as.factor(copepod_PA)), 
                                        colour=as.factor(copepod_PA), fill=as.factor(copepod_PA))) + 
   geom_boxplot(alpha=0.4, size=1, width=0.5, outlier.size = 6) +
@@ -1577,7 +1575,7 @@ ggplot(data=nadina.infection.full, aes(x=site, y=length_mm, group=interaction(si
         legend.title = element_text(face="bold", size=20),
         legend.text = element_text(size=18))
 
-t.test(length_mm ~ site, data=bio.data %>% filter(gsi_final_reg=="Nadina", year==2021))
+t.test(length_mm ~ site, data=bio.data %>% filter(gsi_final_reg=="Nadina", year==2021, age!=2))
 ggplot(data=bio.data %>% filter(gsi_final_reg=="Nadina", year==2021), aes(x=site, y=length_mm)) + geom_boxplot()
 
 
