@@ -546,6 +546,8 @@ Nscale.21 <- Nscale.21.raw %>%
   mutate_at("date_opened", as.Date) %>%
   mutate_at("year", as.character) %>%
   select(c(PSC_identifier, scale_condition, age, site, year, PSC_lab_comments, PSC_book, PSC_cell, date_opened, scale_data_source)) %>%
+  mutate(age = ifelse(scale_condition==0 & age==0, NA, age),
+         PSC_lab_comments = "Not read as not required for further analysis (KD)") %>%
   print()
 
 
@@ -903,17 +905,211 @@ saveWorkbook(northern_wb, "Northern_smolt_database_99-00_19-21.xlsx", overwrite 
 
 
 
+##########################################################################################################################################
+##########################################################################################################################################
+
+#                                                     DATA SHARING
+
+
+db.meta <- read_excel("Northern_smolt_database_99-00_19-21.xlsx",sheet="metadata")
+db.env <- read_excel("Northern_smolt_database_99-00_19-21.xlsx",sheet="environmental") 
+db.catch <- read_excel("Northern_smolt_database_99-00_19-21.xlsx",sheet="nightly_catch") 
+db.lf <- read_excel("Northern_smolt_database_99-00_19-21.xlsx",sheet="length_frequency") 
+db.bio <- read_excel("Northern_smolt_database_99-00_19-21.xlsx",sheet="biosampling") 
+db.mgl <- read_excel("Northern_smolt_database_99-00_19-21.xlsx",sheet="MGL_GSI_codes")
+db.psc <- read_excel("Northern_smolt_database_99-00_19-21.xlsx",sheet="PSC_scale_condition_codes")
+
+
+# ================ Database to share with UFFCA and Nadleh Whut'en ================
+db.env.uffca <- db.env %>%
+  filter(site=="Nadleh")
+db.catch.uffca <- db.catch %>%
+  filter(year%in%c(2019,2021), site=="Nadleh")
+db.lf.uffca <- db.lf %>%
+  filter(site=="Nadleh")
+db.bio.uffca <- db.bio %>%
+  filter(site=="Nadleh")
+
+# WB ----------------------
+nadleh_uffca_wb <- createWorkbook()
+
+# create empty sheets
+addWorksheet(nadleh_uffca_wb, "metadata")
+addWorksheet(nadleh_uffca_wb, "environmental")
+addWorksheet(nadleh_uffca_wb, "nightly_catch")
+addWorksheet(nadleh_uffca_wb, "length_frequency")
+addWorksheet(nadleh_uffca_wb, "biosampling")
+addWorksheet(nadleh_uffca_wb, "MGL_GSI_codes")
+addWorksheet(nadleh_uffca_wb, "PSC_scale_condition_codes")
+
+# write data to sheets (some with formatting) -----------------
+# METADATA
+writeData(nadleh_uffca_wb, sheet="metadata", x=db.meta)
+conditionalFormatting(nadleh_uffca_wb, "metadata", cols=1:3, 
+                      rows=2, style=createStyle(bgFill="#00e5ff"), type="contains", rule=" ")
+conditionalFormatting(nadleh_uffca_wb, "metadata", cols=1:3, 
+                      rows=21, style=createStyle(bgFill="#00e5ff"), type="contains", rule=" ")
+conditionalFormatting(nadleh_uffca_wb, "metadata", cols=1:3, 
+                      rows=49, style=createStyle(bgFill="#00e5ff"), type="contains", rule=" ")
+conditionalFormatting(nadleh_uffca_wb, "metadata", cols=1:3, 
+                      rows=61, style=createStyle(bgFill="#00e5ff"), type="contains", rule=" ")
+conditionalFormatting(nadleh_uffca_wb, "metadata", cols = 1:ncol(db.meta), 
+                      rows=123, style=createStyle(bgFill="#00e5ff"), type="contains", rule="o")
+conditionalFormatting(nadleh_uffca_wb, "metadata", cols=1:ncol(db.meta), 
+                      rows=37, style=createStyle(bgFill="gray80"), type="contains", rule="o")
+conditionalFormatting(nadleh_uffca_wb, "metadata", cols = 1:ncol(db.meta), 
+                      rows=42, style=createStyle(bgFill="gray80"), type="contains", rule="o")
+
+# ENVIRO
+writeData(nadleh_uffca_wb, sheet="environmental", x=db.env.uffca)
+
+# NIGHTLY CATCH
+writeData(nadleh_uffca_wb, sheet="nightly_catch", x=db.catch.uffca)
+conditionalFormatting(nadleh_uffca_wb, "nightly_catch", cols=16, 
+                      rows=0:nrow(db.catch.uffca)+1, style=createStyle(bgFill="gray80"), type="expression", rule=">=0")
+conditionalFormatting(nadleh_uffca_wb, "nightly_catch", cols=21, 
+                      rows=0:nrow(db.catch.uffca)+1, style=createStyle(bgFill="gray80"), type="expression", rule=">=0")
+
+# L-F
+writeData(nadleh_uffca_wb, sheet="length_frequency", x=db.lf.uffca)
+
+# BIOSAMPLING
+writeData(nadleh_uffca_wb, sheet="biosampling", x=db.bio.uffca)
+
+# CODE SHEETS
+writeData(nadleh_uffca_wb, sheet="MGL_GSI_codes", x=db.mgl)
+writeData(nadleh_uffca_wb, sheet="PSC_scale_condition_codes", x=db.psc)
+
+# SAVE IT ALLLLLL! ---------------------------
+saveWorkbook(nadleh_uffca_wb, "Nadleh_smolt_database_19-21.xlsx", overwrite = T)
+
+
+
+
+# ================ Database to share with CSTC ================
+db.env.cstc <- db.env %>%
+  filter(site=="Stellako")
+db.catch.cstc <- db.catch %>%
+  filter(site=="Stellako")
+db.lf.cstc <- db.lf %>%
+  filter(site=="Stellako")
+db.bio.cstc <- db.bio %>%
+  filter(site=="Stellako")
+
+# WB ----------------------
+stellako_cstc_wb <- createWorkbook()
+
+# create empty sheets
+addWorksheet(stellako_cstc_wb, "metadata")
+addWorksheet(stellako_cstc_wb, "environmental")
+addWorksheet(stellako_cstc_wb, "nightly_catch")
+addWorksheet(stellako_cstc_wb, "length_frequency")
+addWorksheet(stellako_cstc_wb, "biosampling")
+addWorksheet(stellako_cstc_wb, "MGL_GSI_codes")
+addWorksheet(stellako_cstc_wb, "PSC_scale_condition_codes")
+
+# write data to sheets (some with formatting) -----------------
+# METADATA
+writeData(stellako_cstc_wb, sheet="metadata", x=db.meta)
+conditionalFormatting(stellako_cstc_wb, "metadata", cols=1:3, 
+                      rows=2, style=createStyle(bgFill="#00e5ff"), type="contains", rule=" ")
+conditionalFormatting(stellako_cstc_wb, "metadata", cols=1:3, 
+                      rows=21, style=createStyle(bgFill="#00e5ff"), type="contains", rule=" ")
+conditionalFormatting(stellako_cstc_wb, "metadata", cols=1:3, 
+                      rows=49, style=createStyle(bgFill="#00e5ff"), type="contains", rule=" ")
+conditionalFormatting(stellako_cstc_wb, "metadata", cols=1:3, 
+                      rows=61, style=createStyle(bgFill="#00e5ff"), type="contains", rule=" ")
+conditionalFormatting(stellako_cstc_wb, "metadata", cols = 1:ncol(db.meta), 
+                      rows=123, style=createStyle(bgFill="#00e5ff"), type="contains", rule="o")
+conditionalFormatting(stellako_cstc_wb, "metadata", cols=1:ncol(db.meta), 
+                      rows=37, style=createStyle(bgFill="gray80"), type="contains", rule="o")
+conditionalFormatting(stellako_cstc_wb, "metadata", cols = 1:ncol(db.meta), 
+                      rows=42, style=createStyle(bgFill="gray80"), type="contains", rule="o")
+
+# ENVIRO
+writeData(stellako_cstc_wb, sheet="environmental", x=db.env.cstc)
+
+# NIGHTLY CATCH
+writeData(stellako_cstc_wb, sheet="nightly_catch", x=db.catch.cstc)
+conditionalFormatting(stellako_cstc_wb, "nightly_catch", cols=16, 
+                      rows=0:nrow(db.catch.cstc)+1, style=createStyle(bgFill="gray80"), type="expression", rule=">=0")
+conditionalFormatting(stellako_cstc_wb, "nightly_catch", cols=21, 
+                      rows=0:nrow(db.catch.cstc)+1, style=createStyle(bgFill="gray80"), type="expression", rule=">=0")
+
+# L-F
+writeData(stellako_cstc_wb, sheet="length_frequency", x=db.lf.cstc)
+
+# BIOSAMPLING
+writeData(stellako_cstc_wb, sheet="biosampling", x=db.bio.cstc)
+
+# CODE SHEETS
+writeData(stellako_cstc_wb, sheet="MGL_GSI_codes", x=db.mgl)
+writeData(stellako_cstc_wb, sheet="PSC_scale_condition_codes", x=db.psc)
+
+# SAVE IT ALLLLLL! ---------------------------
+saveWorkbook(stellako_cstc_wb, "Stellako_smolt_database_2021.xlsx", overwrite = T)
 
 
 
 
 
+# ================ Database to share with EWatch, PSC ================
+db.catch.share <- db.catch %>%
+  filter(year%in%c(2019,2021))
 
 
+# WB ----------------------
+northern_share_wb <- createWorkbook()
 
+# create empty sheets
+addWorksheet(northern_share_wb, "metadata")
+addWorksheet(northern_share_wb, "environmental")
+addWorksheet(northern_share_wb, "nightly_catch")
+addWorksheet(northern_share_wb, "length_frequency")
+addWorksheet(northern_share_wb, "biosampling")
+addWorksheet(northern_share_wb, "MGL_GSI_codes")
+addWorksheet(northern_share_wb, "PSC_scale_condition_codes")
 
+# write data to sheets (some with formatting) -----------------
+# METADATA
+writeData(northern_share_wb, sheet="metadata", x=db.meta)
+conditionalFormatting(northern_share_wb, "metadata", cols=1:3, 
+                      rows=2, style=createStyle(bgFill="#00e5ff"), type="contains", rule=" ")
+conditionalFormatting(northern_share_wb, "metadata", cols=1:3, 
+                      rows=21, style=createStyle(bgFill="#00e5ff"), type="contains", rule=" ")
+conditionalFormatting(northern_share_wb, "metadata", cols=1:3, 
+                      rows=49, style=createStyle(bgFill="#00e5ff"), type="contains", rule=" ")
+conditionalFormatting(northern_share_wb, "metadata", cols=1:3, 
+                      rows=61, style=createStyle(bgFill="#00e5ff"), type="contains", rule=" ")
+conditionalFormatting(northern_share_wb, "metadata", cols = 1:ncol(db.meta), 
+                      rows=123, style=createStyle(bgFill="#00e5ff"), type="contains", rule="o")
+conditionalFormatting(northern_share_wb, "metadata", cols=1:ncol(db.meta), 
+                      rows=37, style=createStyle(bgFill="gray80"), type="contains", rule="o")
+conditionalFormatting(northern_share_wb, "metadata", cols = 1:ncol(db.meta), 
+                      rows=42, style=createStyle(bgFill="gray80"), type="contains", rule="o")
 
+# ENVIRO
+writeData(northern_share_wb, sheet="environmental", x=db.env)
 
+# NIGHTLY CATCH
+writeData(northern_share_wb, sheet="nightly_catch", x=db.catch.share)
+conditionalFormatting(northern_share_wb, "nightly_catch", cols=16, 
+                      rows=0:nrow(db.catch.share)+1, style=createStyle(bgFill="gray80"), type="expression", rule=">=0")
+conditionalFormatting(northern_share_wb, "nightly_catch", cols=21, 
+                      rows=0:nrow(db.catch.share)+1, style=createStyle(bgFill="gray80"), type="expression", rule=">=0")
+
+# L-F
+writeData(northern_share_wb, sheet="length_frequency", x=db.lf)
+
+# BIOSAMPLING
+writeData(northern_share_wb, sheet="biosampling", x=db.bio)
+
+# CODE SHEETS
+writeData(northern_share_wb, sheet="MGL_GSI_codes", x=db.mgl)
+writeData(northern_share_wb, sheet="PSC_scale_condition_codes", x=db.psc)
+
+# SAVE IT ALLLLLL! ---------------------------
+saveWorkbook(northern_share_wb, "Nadleh-Stellako_smolt_database_19-21.xlsx", overwrite = T)
 
 
 
